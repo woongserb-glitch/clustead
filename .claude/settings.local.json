@@ -6,7 +6,10 @@
       "Bash(grep -n 'build_.*_info\\($' app.py)",
       "Bash(grep -n 'apartment\\\\[\"name\"\\\\]$' app.py)",
       "Bash(git add *)",
-      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'fix\\(P0\\): resolve apartments by \\(name, gu, dong\\), not substring/first-match *)"
+      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'fix\\(P0\\): resolve apartments by \\(name, gu, dong\\), not substring/first-match *)",
+      "Bash(python -m py_compile scripts/enrich_baseline_percentiles.py services/ranking_service.py services/baseline_service.py)",
+      "Bash(python enrich_baseline_percentiles.py)",
+      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'fix\\(P1\\): mid-rank tie handling across all 3 percentile paths + O\\(N^2\\)->O\\(N\\) ranking *)"
     ]
   }
 }

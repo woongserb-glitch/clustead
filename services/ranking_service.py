@@ -71,38 +71,39 @@ def to_number(value):
         return None
 
 
-def calculate_top_percent(value, values, metric_type):
-    value = to_number(value)
-
-    if value is None:
-        return None
-
-    valid_values = []
-
+def clean_numeric_values(values):
+    """Pre-extract valid numbers once so callers avoid re-parsing per row."""
+    cleaned = []
     for item in values:
         number = to_number(item)
-
         if number is not None:
-            valid_values.append(number)
+            cleaned.append(number)
+    return cleaned
 
-    if not valid_values:
+
+def calculate_top_percent(value, valid_values, metric_type):
+    """Mid-rank percentile of `value` within `valid_values` (already cleaned).
+
+    Ties contribute half their count (standard percentile-rank), which keeps
+    the modal value from being unfairly pushed to one extreme — the same
+    zero-inflation distortion fixed in enrich_baseline_percentiles.py.
+    Lower return = better.
+    """
+    value = to_number(value)
+
+    if value is None or not valid_values:
         return None
 
     if metric_type in ["distance", "inverse_density"]:
-        better_or_equal = [
-            item for item in valid_values
-            if item <= value
-        ]
+        strictly_better = sum(1 for item in valid_values if item < value)
     else:
-        better_or_equal = [
-            item for item in valid_values
-            if item >= value
-        ]
+        strictly_better = sum(1 for item in valid_values if item > value)
 
-    return max(
-        1,
-        round(len(better_or_equal) / len(valid_values) * 100)
-    )
+    ties = sum(1 for item in valid_values if item == value)
+
+    top_percent = (strictly_better + 0.5 * ties) / len(valid_values) * 100
+
+    return max(1, round(top_percent))
 
 
 def top_percent_to_score(top_percent):
@@ -132,6 +133,14 @@ def build_apartment_index():
 
     for category, config in CATEGORY_CONFIG.items():
         rows = config["data"]
+        metric = config["metric"]
+        metric_type = config["type"]
+
+        # Extract & clean the column once per category (was re-built for every
+        # row -> O(N^2) per category, ~17s startup for 2,873 complexes x 9).
+        valid_values = clean_numeric_values(
+            row.get(metric) for row in rows
+        )
 
         for row in rows:
             key = get_row_key(row)
@@ -145,17 +154,9 @@ def build_apartment_index():
                     "category_percentiles": {},
                 }
 
-            metric = config["metric"]
-            metric_type = config["type"]
-
-            values = [
-                item.get(metric)
-                for item in rows
-            ]
-
             top_percent = calculate_top_percent(
                 row.get(metric),
-                values,
+                valid_values,
                 metric_type
             )
 

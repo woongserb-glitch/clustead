@@ -109,22 +109,38 @@ def write_rows(path, rows, fieldnames):
         writer.writerows(rows)
 
 
-def better_or_equal_count(values, target, direction):
+def strictly_better_and_ties(values, target, direction):
+    """Split the population into (strictly better than target, tied with target).
+
+    The old implementation counted ties with `>=` / `<=`, i.e. it treated
+    every tied value as "beating" the target. On zero-inflated metrics that
+    silently destroys the score: e.g. nightlife (LOWER_BETTER) has ~70% of
+    complexes at 0, so a complex with 0 nightlife — objectively the best
+    residential outcome — was ranked behind all 1,984 other zeros and scored
+    ~30/100, contradicting the product philosophy.
+    """
     if direction == HIGHER_BETTER:
-        return sum(1 for value in values if value >= target)
+        strictly_better = sum(1 for value in values if value > target)
+    elif direction == LOWER_BETTER:
+        strictly_better = sum(1 for value in values if value < target)
+    else:
+        raise ValueError(f"Unknown metric direction: {direction}")
 
-    if direction == LOWER_BETTER:
-        return sum(1 for value in values if value <= target)
-
-    raise ValueError(f"Unknown metric direction: {direction}")
+    ties = sum(1 for value in values if value == target)
+    return strictly_better, ties
 
 
 def calculate_percentile_and_score(values, target, direction):
     if target is None or not values:
         return "", ""
 
-    better_count = better_or_equal_count(values, target, direction)
-    top_percent = better_count / len(values) * 100
+    strictly_better, ties = strictly_better_and_ties(values, target, direction)
+
+    # Mid-rank percentile: count everyone strictly better, plus half of the
+    # ties. This is the standard percentile-rank tie handling and removes the
+    # systematic bias against the modal value while preserving the relative
+    # (서울 상대평가) meaning. Lower top_percent = better.
+    top_percent = (strictly_better + 0.5 * ties) / len(values) * 100
     top_percent = clamp_0_100(top_percent)
     score = clamp_0_100(100 - top_percent)
 

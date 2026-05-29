@@ -14,60 +14,43 @@ def to_number(value):
         return None
     
 
-def calculate_distance_top_percent(current_distance, distances):
-    current_distance = to_number(current_distance)
+def _mid_rank_top_percent(current, values, lower_is_better):
+    """Mid-rank percentile (lower return = better).
 
-    if current_distance is None or not distances:
+    Ties count as half, matching enrich_baseline_percentiles.py and
+    ranking_service.py so all three percentile paths agree on method and
+    don't penalise the modal value (e.g. zero-inflated metrics).
+    """
+    current = to_number(current)
+
+    if current is None or not values:
         return None
 
-    valid_distances = []
+    valid = [number for number in (to_number(v) for v in values) if number is not None]
 
-    for distance in distances:
-        distance = to_number(distance)
-
-        if distance is not None:
-            valid_distances.append(distance)
-
-    if not valid_distances:
+    if not valid:
         return None
 
-    better_or_equal_count = 0
+    if lower_is_better:
+        strictly_better = sum(1 for v in valid if v < current)
+    else:
+        strictly_better = sum(1 for v in valid if v > current)
 
-    for distance in valid_distances:
-        if distance <= current_distance:
-            better_or_equal_count += 1
+    ties = sum(1 for v in valid if v == current)
 
-    top_percent = (better_or_equal_count / len(valid_distances)) * 100
+    top_percent = (strictly_better + 0.5 * ties) / len(valid) * 100
 
     return max(1, round(top_percent))
+
+
+def calculate_distance_top_percent(current_distance, distances):
+    # Distance: smaller is better.
+    return _mid_rank_top_percent(current_distance, distances, lower_is_better=True)
 
 
 def calculate_density_top_percent(current_value, values):
-    current_value = to_number(current_value)
-
-    if current_value is None or not values:
-        return None
-
-    valid_values = []
-
-    for value in values:
-        value = to_number(value)
-
-        if value is not None:
-            valid_values.append(value)
-
-    if not valid_values:
-        return None
-
-    better_or_equal_count = 0
-
-    for value in valid_values:
-        if value >= current_value:
-            better_or_equal_count += 1
-
-    top_percent = (better_or_equal_count / len(valid_values)) * 100
-
-    return max(1, round(top_percent))
+    # Density/count: larger is better.
+    return _mid_rank_top_percent(current_value, values, lower_is_better=False)
 
 
 def get_subway_percentiles(current_distance, gu):
