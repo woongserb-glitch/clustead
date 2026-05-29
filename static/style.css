@@ -807,6 +807,20 @@ body:not(.home-page) #resultLoadingOverlay {
     letter-spacing: -1px;
 }
 
+/* main-score carries an explanatory note, so let it grow past the fixed 96px. */
+.summary-card.main-score {
+    flex: 0 0 auto;
+}
+
+.main-score-note {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #9aa1ad;
+    font-weight: 600;
+}
+
 .top-list-card {
     flex: 1;
     display: flex;
