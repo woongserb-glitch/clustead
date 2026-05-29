@@ -10,7 +10,10 @@
       "Bash(python -m py_compile scripts/enrich_baseline_percentiles.py services/ranking_service.py services/baseline_service.py)",
       "Bash(python enrich_baseline_percentiles.py)",
       "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'fix\\(P1\\): mid-rank tie handling across all 3 percentile paths + O\\(N^2\\)->O\\(N\\) ranking *)",
-      "Bash(python -)"
+      "Bash(python -)",
+      "Bash(python tests/snapshot_result.py save)",
+      "Bash(python tests/snapshot_result.py check)",
+      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'test\\(P2\\): golden-master characterization harness for /result *)"
     ]
   }
 }

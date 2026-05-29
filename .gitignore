@@ -8,3 +8,5 @@ venv/
 # See audit: data/ and code must be decoupled.
 data/
 *.log
+# golden-master HTML snapshots (regenerable via tests/snapshot_result.py)
+tests/golden/
