@@ -129,11 +129,25 @@ function setAutocompleteActive(input, nextIndex) {
     });
 }
 
+function setHiddenField(form, name, value) {
+    if (!form) return;
+    let field = form.querySelector(`input[type="hidden"][name="${name}"]`);
+    if (!field) {
+        field = document.createElement("input");
+        field.type = "hidden";
+        field.name = name;
+        form.appendChild(field);
+    }
+    field.value = value || "";
+}
+
 function selectAutocompleteItem(input, item) {
     if (!item) return false;
 
     input.value = item.dataset.value;
     input.dataset.selectedValue = item.dataset.value;
+    input.dataset.selectedGu = item.dataset.gu || "";
+    input.dataset.selectedDong = item.dataset.dong || "";
     input.dataset.activeIndex = "-1";
     input.removeAttribute("aria-activedescendant");
     input.setAttribute("aria-expanded", "false");
@@ -141,6 +155,12 @@ function selectAutocompleteItem(input, item) {
     input.dispatchEvent(new Event("change", { bubbles: true }));
 
     const form = input.closest("form");
+    // Carry the exact (gu, dong) so /result resolves the right complex when
+    // apartment names collide across Seoul.
+    if (form) {
+        setHiddenField(form, "gu", item.dataset.gu || "");
+        setHiddenField(form, "dong", item.dataset.dong || "");
+    }
     if (input.dataset.submitOnSelect === "true" && form) {
         showPageLoading();
         form.submit();
@@ -189,6 +209,8 @@ function renderAutocompleteItems(input, menu, items) {
         button.type = "button";
         button.className = "autocomplete-item";
         button.dataset.value = item.value || item.label || "";
+        button.dataset.gu = item.gu || "";
+        button.dataset.dong = item.dong || "";
         button.dataset.index = String(index);
         button.id = `${input.name || "autocomplete"}-option-${Date.now()}-${index}`;
         button.setAttribute("role", "option");
@@ -253,6 +275,12 @@ function setupAutocomplete() {
 
         input.addEventListener("input", () => {
             input.dataset.selectedValue = "";
+            input.dataset.selectedGu = "";
+            input.dataset.selectedDong = "";
+            // Drop any stale exact-match identity once the text is edited.
+            const form = input.closest("form");
+            setHiddenField(form, "gu", "");
+            setHiddenField(form, "dong", "");
             debouncedFetch();
         });
 

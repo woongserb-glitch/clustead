@@ -60,19 +60,53 @@ def normalize_baseline_key(value):
     return str(value or "").strip()
 
 
+def composite_baseline_key(name, gu, dong):
+    """Composite identity key for an apartment.
+
+    (name, gu, dong) is the only unique key in the dataset: apartment names
+    alone collide (e.g. 신동아아파트 appears 3x across Seoul). Always prefer
+    this key; the name-only fallback below is for legacy/ambiguous lookups.
+    """
+    return (
+        normalize_baseline_key(name),
+        normalize_baseline_key(gu),
+        normalize_baseline_key(dong),
+    )
+
+
 def rebuild_baseline_index(target_index, rows, key_fields=("name", "apartment_name")):
     target_index.clear()
 
     for row in rows:
+        name = ""
         for field in key_fields:
-            key = normalize_baseline_key(row.get(field))
-
-            if key:
-                target_index[key] = row
+            name = normalize_baseline_key(row.get(field))
+            if name:
                 break
 
+        if not name:
+            continue
 
-def get_indexed_baseline_row(target_index, apartment_name):
+        gu = normalize_baseline_key(row.get("gu"))
+        dong = normalize_baseline_key(row.get("dong"))
+
+        # Primary key: composite (name, gu, dong) — always exact, never collides.
+        target_index[composite_baseline_key(name, gu, dong)] = row
+
+        # Name-only fallback (string key): kept for callers that don't pass
+        # gu/dong. First row wins so behaviour matches the legacy lookup; when
+        # the name is unique this is still exact. Composite lookups bypass it.
+        target_index.setdefault(name, row)
+
+
+def get_indexed_baseline_row(target_index, apartment_name, gu=None, dong=None):
+    if gu is not None or dong is not None:
+        row = target_index.get(
+            composite_baseline_key(apartment_name, gu, dong)
+        )
+        if row is not None:
+            return row
+
     return target_index.get(normalize_baseline_key(apartment_name))
 
 

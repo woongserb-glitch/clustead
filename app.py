@@ -1167,32 +1167,80 @@ def get_admin_ranking_rows(config, sort_key, limit, bottom, gu_filter, dong_filt
     }
 
 
-def get_apartment(name):
+def _build_apartment_view(apt):
+    return {
+        "name": apt.get("name"),
+        "district": apt.get("gu"),
+        "dong": apt.get("dong"),
+        "road_address": apt.get("road_address"),
+        "lat": apt.get("lat"),
+        "lng": apt.get("lng"),
+        "household_count": apt.get("household_count"),
+        "parking_count": apt.get("parking_count"),
+        "approval_date": apt.get("approval_date"),
+        "builder": apt.get("builder"),
+        "area_under_60": apt.get("area_under_60"),
+        "area_60_85": apt.get("area_60_85"),
+        "area_85_135": apt.get("area_85_135"),
+        "area_over_135": apt.get("area_over_135"),
+        "scores": {},
+        "pois": [],
+    }
 
-    for apt in apartment_data:
 
-        if name in apt.get("name", ""):
+def get_apartment(name, gu=None, dong=None):
+    """Resolve an apartment by identity.
 
-            return {
-                "name": apt.get("name"),
-                "district": apt.get("gu"),
-                "dong": apt.get("dong"),
-                "road_address": apt.get("road_address"),
-                "lat": apt.get("lat"),
-                "lng": apt.get("lng"),
-                "household_count": apt.get("household_count"),
-                "parking_count": apt.get("parking_count"),
-                "approval_date": apt.get("approval_date"),
-                "builder": apt.get("builder"),
-                "area_under_60": apt.get("area_under_60"),
-                "area_60_85": apt.get("area_60_85"),
-                "area_85_135": apt.get("area_85_135"),
-                "area_over_135": apt.get("area_over_135"),
-                "scores": {},
-                "pois": [],
-            }
+    Apartment names are NOT unique in Seoul (e.g. 신동아아파트 x3), so a bare
+    substring + first-match lookup silently returns the wrong complex. Resolve
+    with: exact name match first, then disambiguate by gu/dong when provided.
+    Substring matching is kept only as a last-resort fallback for free-text
+    queries that have no exact hit.
+    """
+    name_norm = clean_text(name)
+    gu_norm = clean_text(gu) if gu else ""
+    dong_norm = clean_text(dong) if dong else ""
 
-    return None
+    if not name_norm:
+        return None
+
+    exact = [
+        apt for apt in apartment_data
+        if clean_text(apt.get("name", "")) == name_norm
+    ]
+
+    candidates = exact
+
+    # Fallback: substring match (legacy behaviour) only when nothing matched
+    # the name exactly — preserves free-text search while killing the
+    # "first apartment that happens to contain this substring" bug.
+    if not candidates:
+        candidates = [
+            apt for apt in apartment_data
+            if name_norm in clean_text(apt.get("name", ""))
+        ]
+
+    if not candidates:
+        return None
+
+    # Disambiguate collisions by gu, then dong (skip a filter if it empties).
+    if gu_norm:
+        filtered = [
+            apt for apt in candidates
+            if clean_text(apt.get("gu", "")) == gu_norm
+        ]
+        if filtered:
+            candidates = filtered
+
+    if dong_norm:
+        filtered = [
+            apt for apt in candidates
+            if clean_text(apt.get("dong", "")) == dong_norm
+        ]
+        if filtered:
+            candidates = filtered
+
+    return _build_apartment_view(candidates[0])
 
 
 def get_school_zone_for_apartment(apartment):
@@ -1350,8 +1398,8 @@ def build_complex_info(apartment, school_zone, category_summaries):
     return info
 
 
-def build_subway_info(apartment_name):
-    row = get_indexed_baseline_row(subway_baseline_index, apartment_name)
+def build_subway_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(subway_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -1550,8 +1598,8 @@ def apply_subway_baseline_to_ui(category_summaries, preference_tags, domain_summ
     return category_summaries, preference_tags, domain_summaries
 
 
-def build_bus_info(apartment_name):
-    row = get_indexed_baseline_row(bus_baseline_index, apartment_name)
+def build_bus_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(bus_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -1991,8 +2039,8 @@ def apply_bus_baseline_to_ui(category_summaries, preference_tags, domain_summari
 
 
 
-def build_hangang_info(apartment_name):
-    row = get_indexed_baseline_row(hangang_baseline_index, apartment_name)
+def build_hangang_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(hangang_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -2214,8 +2262,8 @@ def apply_hangang_baseline_to_ui(category_summaries, preference_tags, domain_sum
 
     return category_summaries, preference_tags, domain_summaries
 
-def build_bike_info(apartment_name):
-    row = get_indexed_baseline_row(bike_baseline_index, apartment_name)
+def build_bike_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(bike_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -2404,8 +2452,8 @@ def apply_bike_baseline_to_ui(category_summaries, preference_tags, domain_summar
     return category_summaries, preference_tags, domain_summaries
 
 
-def build_ev_charger_info(apartment_name):
-    row = get_indexed_baseline_row(ev_charger_baseline_index, apartment_name)
+def build_ev_charger_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(ev_charger_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -2654,8 +2702,8 @@ def apply_ev_charger_baseline_to_ui(category_summaries, preference_tags, domain_
     return category_summaries, preference_tags, domain_summaries
 
 
-def build_medical_info(apartment_name):
-    row = get_indexed_baseline_row(medical_baseline_index, apartment_name)
+def build_medical_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(medical_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -2989,8 +3037,8 @@ def apply_medical_baseline_to_ui(category_summaries, preference_tags, domain_sum
 
     return category_summaries, preference_tags, domain_summaries
 
-def build_commercial_info(apartment_name):
-    row = get_indexed_baseline_row(commercial_baseline_index, apartment_name)
+def build_commercial_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(commercial_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -3197,8 +3245,8 @@ def apply_commercial_baseline_to_ui(category_summaries, preference_tags, domain_
 
 
 
-def build_shopping_info(apartment_name):
-    row = get_indexed_baseline_row(shopping_baseline_index, apartment_name)
+def build_shopping_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(shopping_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -3429,8 +3477,8 @@ def apply_shopping_baseline_to_ui(category_summaries, preference_tags, domain_su
 
     return category_summaries, preference_tags, domain_summaries
 
-def build_nightlife_info(apartment_name):
-    row = get_indexed_baseline_row(nightlife_baseline_index, apartment_name)
+def build_nightlife_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(nightlife_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -3674,8 +3722,8 @@ ACADEMY_SUBTYPE_ORDER = [
 ]
 
 
-def build_academy_info(apartment_name):
-    row = get_indexed_baseline_row(academy_baseline_index, apartment_name)
+def build_academy_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(academy_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -4258,8 +4306,8 @@ def apply_academy_baseline_to_ui(category_summaries, preference_tags, domain_sum
     return category_summaries, preference_tags, domain_summaries
 
 
-def build_culture_info(apartment_name):
-    row = get_indexed_baseline_row(culture_baseline_index, apartment_name)
+def build_culture_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(culture_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -4480,8 +4528,8 @@ def apply_culture_baseline_to_ui(category_summaries, preference_tags, domain_sum
     return category_summaries, preference_tags, domain_summaries
 
 
-def build_fire_station_info(apartment_name):
-    row = get_indexed_baseline_row(fire_station_baseline_index, apartment_name)
+def build_fire_station_info(apartment_name, gu=None, dong=None):
+    row = get_indexed_baseline_row(fire_station_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
@@ -4749,8 +4797,15 @@ def calculate_personal_score(scores, preferences):
     return round(weighted_sum / total_weight)
 
 
-def make_result_url(apartment_name, preferences):
+def make_result_url(apartment_name, preferences, gu="", dong=""):
+    # Always carry gu/dong so links resolve the exact complex, not the first
+    # name match. Names collide across Seoul (e.g. 신동아아파트 x3).
     params = {"apartment": apartment_name}
+
+    if gu:
+        params["gu"] = gu
+    if dong:
+        params["dong"] = dong
 
     for key in PREFERENCE_KEYS:
         params[key] = preferences.get(key, 3)
@@ -4799,7 +4854,9 @@ def get_top_apartments(preferences, limit=5):
     for item in ranked:
         item["url"] = make_result_url(
             item["name"],
-            preferences
+            preferences,
+            item.get("district", ""),
+            item.get("dong", ""),
         )
 
     return ranked
@@ -5169,7 +5226,7 @@ def build_explore_results(filters, limit=10):
             "dong": dong,
             "score": score,
             "matched_features": matched[:5] or ["생활 균형형"],
-            "url": make_result_url(name, get_preferences()),
+            "url": make_result_url(name, get_preferences(), gu, dong),
         })
 
     results.sort(key=lambda item: (-item["score"], item["gu"], item["dong"], item["name"]))
@@ -5189,7 +5246,7 @@ def top_rows_from_baseline(rows, metric, reverse=False, limit=10, label=None):
             "dong": row.get("dong", ""),
             "value": value,
             "value_label": label(value) if label else format_debug_value(value, metric),
-            "url": make_result_url(row.get("name", ""), get_preferences()),
+            "url": make_result_url(row.get("name", ""), get_preferences(), row.get("gu", ""), row.get("dong", "")),
         })
 
     items.sort(key=lambda item: item["value"], reverse=reverse)
@@ -5268,9 +5325,14 @@ def ranking():
 @app.route("/result")
 def result():
     apartment_name = request.args.get("apartment", "헬리오시티")
-    apartment = get_apartment(apartment_name)
+    apartment_gu = request.args.get("gu", "")
+    apartment_dong = request.args.get("dong", "")
+    apartment = get_apartment(apartment_name, apartment_gu, apartment_dong)
+
+    if apartment is None:
+        return render_template("index.html"), 404
+
     school_zone = get_school_zone_for_apartment(apartment)
-   
 
     scores = apartment["scores"]
     preferences = get_preferences()
@@ -5345,7 +5407,7 @@ def result():
     )
 
     subway_info = build_subway_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     if subway_info:
@@ -5358,39 +5420,39 @@ def result():
             category_summaries.insert(0, subway_summary)
 
     bus_info = build_bus_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     bike_info = build_bike_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     ev_charger_info = build_ev_charger_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     medical_info = build_medical_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     hangang_info = build_hangang_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     commercial_info = build_commercial_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     shopping_info = build_shopping_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     nightlife_info = build_nightlife_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     academy_info = build_academy_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     school_environment_info = build_school_environment_info(
@@ -5399,11 +5461,11 @@ def result():
     )
 
     culture_info = build_culture_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     fire_station_info = build_fire_station_info(
-        apartment["name"]
+        apartment["name"], apartment["district"], apartment["dong"]
     )
 
     complex_info = build_complex_info(
