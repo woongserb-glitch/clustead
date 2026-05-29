@@ -1,62 +1,42 @@
-from services.preload_service import (
-    subway_baseline_data,
-    cctv_baseline_data,
-    convenience_baseline_data,
-    mart_baseline_data,
-    cafe_baseline_data,
-    nightlife_baseline_data,
-    academy_baseline_data,
-    culture_baseline_data,
-    ev_charger_baseline_data,
-)
+"""Apartment ranking / preference scoring.
+
+Single source of truth: the baked `{primary_metric}_seoul_score` columns
+produced by scripts/enrich_baseline_percentiles.py from BASELINE_METRIC_CONFIG.
+Ranking no longer recomputes percentiles with its own (divergent) metrics —
+it reads the same scores the detail cards and admin debug show, so the
+recommendation engine and the per-category cards can never disagree.
+"""
+
+import math
+
+from services import preload_service
+from scripts.baseline_metric_config import BASELINE_METRIC_CONFIG, score_column
 
 
-CATEGORY_CONFIG = {
-    "subway": {
-        "data": subway_baseline_data,
-        "metric": "subway_distance",
-        "type": "distance",
-    },
-    "cctv": {
-        "data": cctv_baseline_data,
-        "metric": "cctv_count_500m",
-        "type": "density",
-    },
-    "convenience": {
-        "data": convenience_baseline_data,
-        "metric": "convenience_count_500m",
-        "type": "density",
-    },
-    "mart": {
-        "data": mart_baseline_data,
-        "metric": "mart_count_1500m",
-        "type": "density",
-    },
-    "cafe": {
-        "data": cafe_baseline_data,
-        "metric": "cafe_count_500m",
-        "type": "density",
-    },
-    "nightlife": {
-        "data": nightlife_baseline_data,
-        "metric": "nightlife_count_500m",
-        "type": "inverse_density",
-    },
-    "academy": {
-        "data": academy_baseline_data,
-        "metric": "academy_count_1000m",
-        "type": "density",
-    },
-    "culture": {
-        "data": culture_baseline_data,
-        "metric": "culture_count_1500m",
-        "type": "density",
-    },
-    "ev-charger": {
-        "data": ev_charger_baseline_data,
-        "metric": "ev_charger_score",
-        "type": "density",
-    },
+# preference key -> (BASELINE_METRIC_CONFIG key, preload_service data attribute)
+#
+# Only categories that are (a) loaded into memory, (b) ranking_enabled in the
+# config, and (c) map to a user preference key participate in weighting.
+# Direction (higher/lower better) is already encoded in the baked score, so no
+# per-category inversion is needed here (e.g. nightlife LOWER_BETTER -> a high
+# baked score already means "few nightlife venues").
+RANKING_SOURCES = {
+    "subway": ("subway", "subway_baseline_data"),
+    "bus": ("bus", "bus_baseline_data"),
+    "bike": ("bike", "bike_baseline_data"),
+    "convenience": ("convenience", "convenience_baseline_data"),
+    "mart": ("mart", "mart_baseline_data"),
+    "cafe": ("cafe", "cafe_baseline_data"),
+    "hospital": ("medical", "medical_baseline_data"),
+    "academy": ("academy", "academy_baseline_data"),
+    "culture": ("culture", "culture_baseline_data"),
+    "shopping": ("shopping", "shopping_baseline_data"),
+    "commercial": ("commercial", "commercial_baseline_data"),
+    "nightlife": ("nightlife", "nightlife_baseline_data"),
+    "hangang": ("hangang", "hangang_baseline_data"),
+    "fire-station": ("fire_station", "fire_station_baseline_data"),
+    "ev-charger": ("ev_charger", "ev_charger_baseline_data"),
+    "cctv": ("cctv", "cctv_baseline_data"),
 }
 
 _APARTMENT_INDEX_CACHE = None
@@ -66,53 +46,12 @@ def to_number(value):
     try:
         if value is None or value == "":
             return None
-        return float(value)
-    except:
+        number = float(value)
+        if math.isnan(number) or math.isinf(number):
+            return None
+        return number
+    except Exception:
         return None
-
-
-def clean_numeric_values(values):
-    """Pre-extract valid numbers once so callers avoid re-parsing per row."""
-    cleaned = []
-    for item in values:
-        number = to_number(item)
-        if number is not None:
-            cleaned.append(number)
-    return cleaned
-
-
-def calculate_top_percent(value, valid_values, metric_type):
-    """Mid-rank percentile of `value` within `valid_values` (already cleaned).
-
-    Ties contribute half their count (standard percentile-rank), which keeps
-    the modal value from being unfairly pushed to one extreme — the same
-    zero-inflation distortion fixed in enrich_baseline_percentiles.py.
-    Lower return = better.
-    """
-    value = to_number(value)
-
-    if value is None or not valid_values:
-        return None
-
-    if metric_type in ["distance", "inverse_density"]:
-        strictly_better = sum(1 for item in valid_values if item < value)
-    else:
-        strictly_better = sum(1 for item in valid_values if item > value)
-
-    ties = sum(1 for item in valid_values if item == value)
-
-    top_percent = (strictly_better + 0.5 * ties) / len(valid_values) * 100
-
-    return max(1, round(top_percent))
-
-
-def top_percent_to_score(top_percent):
-    if top_percent is None:
-        return 0
-
-    score = 101 - top_percent
-
-    return max(0, min(100, score))
 
 
 def get_row_key(row):
@@ -131,43 +70,46 @@ def build_apartment_index():
 
     apartment_index = {}
 
-    for category, config in CATEGORY_CONFIG.items():
-        rows = config["data"]
-        metric = config["metric"]
-        metric_type = config["type"]
+    for pref_key, (config_key, data_attr) in RANKING_SOURCES.items():
+        config = BASELINE_METRIC_CONFIG.get(config_key)
+        if not config:
+            continue
 
-        # Extract & clean the column once per category (was re-built for every
-        # row -> O(N^2) per category, ~17s startup for 2,873 complexes x 9).
-        valid_values = clean_numeric_values(
-            row.get(metric) for row in rows
-        )
+        rows = getattr(preload_service, data_attr, None) or []
+        col = score_column(config["primary_metric"])
 
         for row in rows:
             key = get_row_key(row)
 
-            if key not in apartment_index:
-                apartment_index[key] = {
+            entry = apartment_index.get(key)
+            if entry is None:
+                entry = {
                     "name": row.get("name"),
                     "district": row.get("gu"),
                     "dong": row.get("dong"),
                     "category_scores": {},
                     "category_percentiles": {},
                 }
+                apartment_index[key] = entry
 
-            top_percent = calculate_top_percent(
-                row.get(metric),
-                valid_values,
-                metric_type
+            score = to_number(row.get(col))
+            if score is None:
+                continue
+
+            entry["category_scores"][pref_key] = score
+            entry["category_percentiles"][pref_key] = to_number(
+                row.get(f"{config['primary_metric']}_seoul_percentile")
             )
-
-            score = top_percent_to_score(top_percent)
-
-            apartment_index[key]["category_scores"][category] = score
-            apartment_index[key]["category_percentiles"][category] = top_percent
 
     _APARTMENT_INDEX_CACHE = apartment_index
 
     return _APARTMENT_INDEX_CACHE
+
+
+def reset_apartment_index_cache():
+    """Allow rebuilding after baselines are reloaded/re-baked."""
+    global _APARTMENT_INDEX_CACHE
+    _APARTMENT_INDEX_CACHE = None
 
 
 def calculate_weighted_score(category_scores, preferences):
@@ -177,7 +119,10 @@ def calculate_weighted_score(category_scores, preferences):
     for category, weight in preferences.items():
         try:
             weight = float(weight)
-        except:
+        except Exception:
+            continue
+
+        if weight <= 0:
             continue
 
         score = category_scores.get(category)
