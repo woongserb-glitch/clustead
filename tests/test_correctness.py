@@ -79,6 +79,46 @@ def pure_ranking_to_number_rejects_nan():
     assert to_number("12.5") == 12.5
 
 
+def pure_kakao_cache():
+    """Kakao POI cache: success cached (memory+disk), distinct coords miss,
+    failures never cached, disable flag bypasses. No network (fetch mocked)."""
+    import tempfile
+    from pathlib import Path
+    import services.kakao_local_service as K
+
+    K._CACHE_DIR = Path(tempfile.mkdtemp()) / "kakao"
+    K._MEMORY_CACHE.clear()
+    K._CACHE_ENABLED = True
+
+    calls = {"n": 0}
+
+    def ok_fetch(cat, lat, lng):
+        calls["n"] += 1
+        return True, [{"category": cat, "distance": 1}]
+
+    K._fetch_category = ok_fetch
+    K.search_category("cafe", 37.5, 127.0)
+    K.search_category("cafe", 37.5, 127.0)  # memory hit
+    assert calls["n"] == 1, calls
+
+    K._MEMORY_CACHE.clear()
+    K.search_category("cafe", 37.5, 127.0)  # disk hit
+    assert calls["n"] == 1, calls
+
+    K.search_category("cafe", 37.6, 127.1)  # distinct key
+    assert calls["n"] == 2, calls
+
+    def fail_fetch(cat, lat, lng):
+        calls["n"] += 1
+        return False, []
+
+    K._fetch_category = fail_fetch
+    K._MEMORY_CACHE.clear()
+    K.search_category("mart", 1.0, 2.0)
+    K.search_category("mart", 1.0, 2.0)  # failure must NOT be cached
+    assert calls["n"] == 4, calls
+
+
 # --------------------------------------------------------------------------
 # Integration: matching + ranking consistency (P0 + P1)
 # --------------------------------------------------------------------------
