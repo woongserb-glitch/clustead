@@ -15,7 +15,8 @@
       "Bash(python tests/snapshot_result.py check)",
       "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'test\\(P2\\): golden-master characterization harness for /result *)",
       "Bash(python -m py_compile app.py)",
-      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'refactor\\(P2\\): extract apply_baseline_category_to_ui; migrate 7 category appliers *)"
+      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'refactor\\(P2\\): extract apply_baseline_category_to_ui; migrate 7 category appliers *)",
+      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'test\\(P0/P1\\): correctness invariants for matching + scoring *)"
     ]
   }
 }
