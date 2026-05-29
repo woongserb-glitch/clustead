@@ -3280,17 +3280,33 @@ def build_shopping_info(apartment_name, gu=None, dong=None):
                 "count": count,
             })
 
+    # Nearest must come from the SAME filtered population as the list/count.
+    # The baked nearest_shopping_* columns are computed over all subtypes
+    # (incl. 기타쇼핑), so using them surfaced a nearest that the list/count
+    # exclude — derive it from the already-filtered, distance-sorted items.
+    nearest = shopping_items[0] if shopping_items else None
+    if nearest:
+        nearest_name = clean_text(
+            str(nearest.get("label") or nearest.get("name") or "")
+            .replace("🛍️", "")
+            .replace("🛍", "")
+        )
+        nearest_subtype = clean_text(nearest.get("subtype", ""))
+        nearest_distance = clean_text(str(nearest.get("distance", "")))
+    else:
+        nearest_name = ""
+        nearest_subtype = ""
+        nearest_distance = ""
+
     return {
         "shopping_count_3km": len(shopping_items),
-        "nearest_name": clean_text(row.get("nearest_shopping_name", "")),
-        "nearest_subtype": clean_text(row.get("nearest_shopping_subtype", "")),
-        "nearest_distance": clean_text(row.get("nearest_shopping_distance", "")),
+        "nearest_name": nearest_name,
+        "nearest_subtype": nearest_subtype,
+        "nearest_distance": nearest_distance,
         "items": shopping_items,
         "type_chips": type_chips,
         "seoul_percentile": get_baseline_percentile(row, "shopping_count_3km_seoul_percentile"),
     }
-
-    return None
 
 def build_shopping_map_pois(shopping_info):
     if not shopping_info:
