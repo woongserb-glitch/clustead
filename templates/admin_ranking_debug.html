@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveFit Ranking Debug</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f7fb;
+            --panel: #ffffff;
+            --text: #172033;
+            --muted: #667085;
+            --line: #d8dee9;
+            --accent: #2563eb;
+            --accent-soft: #e8f0ff;
+            --warn: #9a3412;
+            --warn-soft: #fff4e5;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 14px;
+        }
+
+        main {
+            width: min(1280px, calc(100% - 32px));
+            margin: 24px auto 48px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+            letter-spacing: 0;
+        }
+
+        h2 {
+            margin: 0 0 12px;
+            font-size: 16px;
+            letter-spacing: 0;
+        }
+
+        .notice,
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .notice {
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+
+        .notice strong {
+            color: var(--warn);
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin: 16px 0;
+        }
+
+        .meta-item {
+            background: var(--accent-soft);
+            border: 1px solid #c9dcff;
+            border-radius: 8px;
+            padding: 10px 12px;
+            min-width: 0;
+        }
+
+        .meta-label {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .meta-value {
+            display: block;
+            overflow-wrap: anywhere;
+            font-weight: 700;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: end;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: grid;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .filter-metric {
+            flex: 1 1 300px;
+            max-width: 360px;
+        }
+
+        .filter-sort {
+            flex: 0 1 180px;
+        }
+
+        .filter-limit {
+            flex: 0 0 100px;
+        }
+
+        .filter-gu,
+        .filter-dong {
+            flex: 0 1 145px;
+        }
+
+        .filter-query {
+            flex: 1 1 250px;
+            max-width: 340px;
+        }
+
+        .filter-bottom {
+            flex: 0 0 auto;
+            min-width: 76px;
+        }
+
+        .filter-action {
+            flex: 0 0 auto;
+        }
+
+        select,
+        input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 0 10px;
+            color: var(--text);
+            background: #fff;
+            font: inherit;
+        }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 38px;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .check-row input {
+            width: 16px;
+            height: 16px;
+        }
+
+        button {
+            height: 38px;
+            border: 0;
+            border-radius: 6px;
+            padding: 0 16px;
+            color: #fff;
+            background: var(--accent);
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .filters > button,
+        .filter-action button {
+            min-width: 76px;
+            flex: 0 0 auto;
+            align-self: end;
+        }
+
+        .panel {
+            overflow: hidden;
+        }
+
+        .ranking-table-panel {
+            overflow: visible;
+        }
+
+        .table-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--line);
+            background: #fbfcff;
+        }
+
+        .table-head p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .table-wrap {
+            overflow-x: visible;
+            overflow-y: visible;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: 860px;
+        }
+
+        th,
+        td {
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: middle;
+            white-space: nowrap;
+            line-height: 1.28;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            color: var(--muted);
+            background: #fbfcff;
+            font-size: 12px;
+            font-weight: 700;
+            border-bottom: 1px solid #b9c4d6;
+            box-shadow: 0 1px 0 rgba(23, 32, 51, 0.08);
+        }
+
+        td.number {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        tr:hover td {
+            background: #f9fbff;
+        }
+
+        .empty {
+            color: var(--muted);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: var(--warn-soft);
+            color: var(--warn);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 980px) {
+            .meta-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            main {
+                width: min(100% - 20px, 1280px);
+                margin-top: 16px;
+            }
+
+            .meta-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filters label,
+            .filters > button,
+            .filter-action {
+                flex-basis: 100%;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <section class="notice">
+        <h1>LiveFit Ranking Debug</h1>
+        <p><strong>관리자/디버그용 페이지입니다.</strong> 일반 사용자 화면 검증용 UI가 아니며, baseline percentile 계산값을 확인하기 위한 화면입니다.</p>
+        <p>seoul_percentile: 서울 기준 상위 X%, 낮을수록 좋음 · seoul_score: 0~100점, 높을수록 좋음 · raw metric 방향성: higher_better / lower_better</p>
+        {% if latest_validation_report %}
+            <p>최근 validation report: <span class="badge">{{ latest_validation_report }}</span></p>
+        {% endif %}
+    </section>
+
+    <section class="meta-grid">
+        <div class="meta-item">
+            <span class="meta-label">카테고리</span>
+            <span class="meta-value">{{ selected_config.label }} ({{ selected_metric }})</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">대표 metric</span>
+            <span class="meta-value">{{ primary_metric }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">raw metric 방향성</span>
+            <span class="meta-value">{{ direction }}</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">표시 기준</span>
+            <span class="meta-value">{{ selected_config.display_metric_label }}</span>
+        </div>
+    </section>
+
+    <form class="filters panel" method="get" action="/admin/ranking-debug">
+        <label class="filter-metric">
+            metric
+            <select name="metric">
+                {% for option in metric_options %}
+                    <option value="{{ option.key }}" {% if option.key == selected_metric %}selected{% endif %}>
+                        {{ option.label }} · {{ option.metric }} · {{ option.direction }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label class="filter-sort">
+            sort
+            <select name="sort">
+                <option value="score_desc" {% if sort_key == "score_desc" %}selected{% endif %}>score 높은 순</option>
+                <option value="percentile_asc" {% if sort_key == "percentile_asc" %}selected{% endif %}>percentile 낮은 순</option>
+                <option value="raw_desc" {% if sort_key == "raw_desc" %}selected{% endif %}>raw metric 높은 순</option>
+                <option value="raw_asc" {% if sort_key == "raw_asc" %}selected{% endif %}>raw metric 낮은 순</option>
+            </select>
+        </label>
+
+        <label class="filter-limit">
+            limit
+            <input type="number" name="limit" min="1" max="500" value="{{ limit }}">
+        </label>
+
+        <label class="filter-gu">
+            gu
+            <select name="gu">
+                <option value="">전체</option>
+                {% for gu in gu_options %}
+                    <option value="{{ gu }}" {% if gu == gu_filter %}selected{% endif %}>{{ gu }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label class="filter-dong">
+            dong
+            <select name="dong">
+                <option value="">전체</option>
+                {% for dong in dong_options %}
+                    <option value="{{ dong }}" {% if dong == dong_filter %}selected{% endif %}>{{ dong }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label class="filter-query">
+            apartment
+            <input type="search" name="q" value="{{ query }}" placeholder="아파트명 검색">
+        </label>
+
+        <label class="filter-bottom">
+            bottom
+            <span class="check-row">
+                <input type="checkbox" name="bottom" value="1" {% if bottom %}checked{% endif %}>
+                하위 보기
+            </span>
+        </label>
+
+        <button type="submit">조회</button>
+    </form>
+
+    <section class="panel ranking-table-panel">
+        <div class="table-head">
+            <h2>Ranking Table</h2>
+            <p>전체 {{ total_count }}건 · 필터 후 {{ filtered_count }}건 · 현재 {{ rows|length }}건 표시</p>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>순위</th>
+                    <th>아파트명</th>
+                    <th>구</th>
+                    <th>동</th>
+                    <th>{{ primary_metric }}</th>
+                    <th>{{ selected_config.primary_percentile_column }}</th>
+                    <th>{{ selected_config.primary_score_column }}</th>
+                    {% for column in selected_config.debug_columns %}
+                    <th>{{ column }}</th>
+                    {% endfor %}
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td class="number">{{ row.rank }}</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.gu }}</td>
+                        <td>{{ row.dong }}</td>
+                        <td class="number {% if not row.raw_display %}empty{% endif %}">{{ row.raw_display or "빈값" }}</td>
+                        <td class="number {% if not row.percentile_display %}empty{% endif %}">{{ row.percentile_display or "빈값" }}</td>
+                        <td class="number {% if not row.score_display %}empty{% endif %}">{{ row.score_display or "빈값" }}</td>
+                        {% for value in row.debug_values %}
+                        <td>{{ value or "빈값" }}</td>
+                        {% endfor %}
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="{{ 7 + (selected_config.debug_columns|length) }}" class="empty">표시할 row가 없습니다.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Data is not source code (1.6GB). Tracked separately, not in the code repo.
+# See audit: data/ and code must be decoupled.
+data/
+*.log

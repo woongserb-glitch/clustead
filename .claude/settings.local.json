@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk '/<script/,/<\\\\/script>/' templates/result.html)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}

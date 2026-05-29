@@ -1,0 +1,92 @@
+BASELINE_JOBS = {
+    "subway": {
+        "builder": "scripts.build_subway_baseline",
+        "output": "data/baseline/subway_baseline.csv",
+        "source": "kakao",
+        "description": "최근접 지하철역 거리 baseline",
+    },
+    "park": {
+        "builder": "scripts.build_park_baseline",
+        "output": "data/baseline/park_baseline.csv",
+        "source": "local_csv",
+        "description": "최근접 서울 주요 공원 거리 baseline",
+    },
+    "cctv": {
+        "builder": "scripts.build_cctv_baseline",
+        "output": "data/baseline/cctv_baseline.csv",
+        "source": "local_csv",
+        "description": "반경 300m/500m CCTV 밀도 baseline",
+    },
+    "mart": {
+        "builder": "scripts.build_mart_baseline",
+        "output": "data/baseline/mart_baseline.csv",
+        "source": "kakao_api",
+        "description": "마트 생활권 density baseline",
+    },
+    "cafe": {
+        "builder": "scripts.build_cafe_baseline",
+        "output": "data/baseline/cafe_baseline.csv",
+        "source": "kakao_api",
+        "description": "카페 생활권 density baseline",
+    },
+    "convenience": {
+        "builder": "scripts.build_convenience_baseline",
+        "output": "data/baseline/convenience_baseline.csv",
+        "source": "kakao_api",
+        "description": "편의점 생활권 density baseline",
+    },
+    "commercial": {
+        "builder": "scripts.build_commercial_baseline",
+        "output": "data/baseline/commercial_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 상권영역 접근성 baseline",
+    },
+    "nightlife": {
+        "builder": "scripts.build_nightlife_baseline",
+        "output": "data/baseline/nightlife_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 유흥주점영업 인허가 접근성 baseline",
+    },
+    "shopping": {
+        "builder": "scripts.build_shopping_baseline",
+        "output": "data/baseline/shopping_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 대규모점포 인허가 기반 쇼핑시설 접근성 baseline",
+    },
+    "bike": {
+        "builder": "scripts.build_bike_baseline",
+        "output": "data/baseline/bike_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 공공자전거 따릉이 대여소 접근성 baseline",
+    },
+    "academy": {
+        "builder": "scripts.build_academy_baseline",
+        "output": "data/baseline/academy_baseline.csv",
+        "source": "local_csv_with_kakao_geocoding",
+        "description": "서울시 학원·교습소 주소 기반 접근성 baseline",
+    },
+    "culture": {
+        "builder": "scripts.build_culture_baseline",
+        "output": "data/baseline/culture_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 공공서비스예약 문화생활 접근성 baseline",
+    },
+    "hangang": {
+        "builder": "scripts.build_hangang_baseline",
+        "output": "data/baseline/hangang_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 한강공원 시설현황 기반 한강공원 접근성 baseline",
+    },
+    "fire-station": {
+        "builder": "scripts.build_fire_station_baseline",
+        "output": "data/baseline/fire_station_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 119안전센터/구조대 접근성 baseline",
+    },
+    "ev-charger": {
+        "builder": "scripts.build_ev_charger_baseline",
+        "output": "data/baseline/ev_charger_baseline.csv",
+        "source": "public_data_portal_api",
+        "description": "전국전기차충전소표준데이터 기반 서울 EV 충전 접근성 baseline",
+    },
+}

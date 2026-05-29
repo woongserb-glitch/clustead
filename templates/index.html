@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveFit</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="home-page">
+    <div class="result-loading-overlay home-loading-overlay is-hidden" id="homeLoadingOverlay" aria-live="polite">
+        <div class="result-loading-card">
+            <strong>LiveFit 분석 중</strong>
+            <p>아파트 생활 데이터를 정리하고 있습니다.<br>교통 · 생활편의 · 의료 · 거래 정보를 함께 확인 중입니다.</p>
+        </div>
+    </div>
+
+    <div class="page home-shell">
+        <header class="home-nav">
+            <a class="home-brand" href="/">LIVEFIT</a>
+            <nav aria-label="LiveFit navigation">
+                <a href="/explore">Explore</a>
+                <a href="/ranking">Ranking</a>
+            </nav>
+        </header>
+
+        <main class="home-hero">
+            <div class="home-hero-inner">
+                <div class="top-label">Finding your lifestyle</div>
+                <h1>LIVEFIT</h1>
+                <p>아파트 생활환경과 거래 흐름을 한눈에 확인하세요.</p>
+
+                <form action="/result" method="get" class="home-search-form" data-apartment-search-form data-show-loading="true">
+                    <div class="search-row home-search-row">
+                        <div class="autocomplete-field">
+                            <input
+                                type="text"
+                                name="apartment"
+                                placeholder="아파트 이름을 입력하세요. 예: 헬리오시티, 마포래미안푸르지오"
+                                autocomplete="off"
+                                data-autocomplete="apartments"
+                                data-require-known="true"
+                                data-submit-on-select="true">
+                        </div>
+                        <button type="submit">검색하기</button>
+                    </div>
+
+                    <div class="quick-search home-quick-search" aria-label="예시 검색">
+                        <span>예시 검색</span>
+                        <button type="button" data-value="헬리오시티">헬리오시티</button>
+                        <button type="button">마포래미안푸르지오</button>
+                        <button type="button">반포자이</button>
+                        <button type="button" data-value="서울숲리버뷰자이아파트">서울숲리버뷰자이</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="home-city-illustration" aria-hidden="true">
+                <svg viewBox="0 0 720 170" role="img" focusable="false">
+                    <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M58 136h604" />
+                        <path d="M82 136V96h42v40" />
+                        <path d="M94 96V76h18v20" />
+                        <path d="M150 136V70h70v66" />
+                        <path d="M168 87h11M196 87h11M168 109h11M196 109h11" />
+                        <path d="M254 136V48h88v88" />
+                        <path d="M274 69h12M310 69h12M274 94h12M310 94h12M274 119h12M310 119h12" />
+                        <path d="M380 136V30h98v106" />
+                        <path d="M402 54h13M444 54h13M402 82h13M444 82h13M402 110h13M444 110h13" />
+                        <path d="M516 136V80h58v56" />
+                        <path d="M535 99h19M535 118h19" />
+                        <path d="M604 136V104h36v32" />
+                        <path d="M68 96c12-21 39-21 51 0M570 71c15-27 53-27 68 0" />
+                        <path d="M236 136v-22M236 114c-14-7-14-28 0-35 14 7 14 28 0 35Z" />
+                        <path d="M498 136v-24M498 112c-15-7-15-30 0-38 15 8 15 31 0 38Z" />
+                        <path d="M48 136v-14M674 136v-14" />
+                    </g>
+                </svg>
+            </div>
+
+            <section class="home-note" aria-label="LiveFit 데이터 안내">
+                <strong>LiveFit은 공공데이터와 공개 정보를 기반으로</strong>
+                <p>교통, 생활편의, 의료, 교육, 거래 흐름까지 한 번에 확인할 수 있습니다.</p>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>

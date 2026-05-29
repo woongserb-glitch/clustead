@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explore | LiveFit</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="page">
+        <header class="tool-hero">
+            <a class="back-link" href="/">← 홈으로</a>
+            <div class="top-label">LIVEFIT EXPLORE</div>
+            <h1>생활 조건으로 아파트 찾기</h1>
+            <p>구역, 노선, 생활 요소를 직접 조합해 서울 아파트를 탐색합니다.</p>
+        </header>
+
+        <main class="tool-layout">
+            <section class="tool-filter-card">
+                <form action="/explore" method="get" class="explore-filter-form">
+                    <label>
+                        <span>아파트명</span>
+                        <div class="autocomplete-field">
+                            <input type="text" name="q" value="{{ filters.q }}" placeholder="예: 헬리오, 래미안" autocomplete="off" data-autocomplete="apartments">
+                        </div>
+                    </label>
+
+                    <label>
+                        <span>구</span>
+                        <select name="gu" data-dong-source>
+                            <option value="">전체</option>
+                            {% for gu in gu_options %}
+                            <option value="{{ gu }}" {% if filters.gu == gu %}selected{% endif %}>{{ gu }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>동</span>
+                        <select name="dong" data-dong-target data-selected="{{ filters.dong }}">
+                            <option value="">전체</option>
+                            {% for dong in dong_options %}
+                            <option value="{{ dong }}" {% if filters.dong == dong %}selected{% endif %}>{{ dong }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>지하철 노선</span>
+                        <select name="line" data-subway-line-source>
+                            <option value="">전체</option>
+                            {% for line in subway_line_options %}
+                            <option value="{{ line }}" {% if filters.line == line %}selected{% endif %}>{{ line }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>지하철역</span>
+                        <div class="autocomplete-field">
+                            <input type="text" name="station" value="{{ filters.station }}" placeholder="노선 선택 후 역 검색" autocomplete="off" data-autocomplete="subway-stations" data-line-source="[data-subway-line-source]">
+                        </div>
+                    </label>
+
+                    <div class="feature-choice-group">
+                        <span>생활 요소</span>
+                        <div class="feature-choice-grid">
+                            {% for feature in feature_options %}
+                            <label class="feature-choice">
+                                <input type="checkbox" name="feature" value="{{ feature.key }}" {% if feature.key in filters.features %}checked{% endif %}>
+                                <span>{{ feature.icon }} {{ feature.label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <button type="submit" class="primary-tool-button">탐색하기</button>
+                </form>
+            </section>
+
+            <section class="tool-results-card">
+                <div class="section-head">
+                    <div>
+                        <h2>추천 결과</h2>
+                        <p>선택한 조건과 일치하는 생활 요소를 기준으로 정렬했습니다.</p>
+                    </div>
+                </div>
+
+                <div class="explore-result-list">
+                    {% for item in results %}
+                    <a class="explore-result-row" href="{{ item.url }}">
+                        <div class="explore-rank">{{ loop.index }}</div>
+                        <div class="explore-result-main">
+                            <strong>{{ item.name }}</strong>
+                            <span>{{ item.gu }} {{ item.dong }}</span>
+                            <div class="explore-feature-strip">
+                                {% for feature in item.matched_features %}
+                                <em>{{ feature }}</em>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <span class="explore-score">상세보기</span>
+                    </a>
+                    {% else %}
+                    <div class="empty-state">
+                        조건에 맞는 아파트를 찾지 못했습니다. 생활 요소를 조금 줄여서 다시 탐색해보세요.
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>

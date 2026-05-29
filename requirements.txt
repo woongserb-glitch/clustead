@@ -1,0 +1,7 @@
+Flask
+python-dotenv
+requests
+pandas
+pyproj
+beautifulsoup4
+openpyxl

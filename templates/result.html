@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ apartment.name }} | LiveFit</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="result-loading-overlay is-hidden" id="resultLoadingOverlay" aria-live="polite">
+        <div class="result-loading-card">
+            <strong>LiveFit 분석 중</strong>
+            <p id="resultLoadingMessage">아파트 기본 정보를 불러오고 있습니다.</p>
+        </div>
+    </div>
+
+    <div class="page">
+
+        <header class="result-hero">
+            <a class="back-link" href="/">← 다시 검색</a>
+            <div class="top-label">LIVEFIT RESULT</div>
+            <h1>{{ apartment.name }}</h1>
+            <p>
+                {{ apartment.district }} {{ apartment.dong }}
+                {% if apartment.road_address %}
+                / {{ apartment.road_address }}
+                {% endif %}
+                / 위도 {{ apartment.lat }} · 경도 {{ apartment.lng }}
+
+            </p>
+        </header>
+
+        {% if complex_info %}
+        <section class="complex-info-strip">
+            <div class="complex-info-grid">
+
+                {% if complex_info.school %}
+                <div class="complex-info-item">
+                    <span>🏫 배정초</span>
+                    <strong>{{ complex_info.school }}</strong>
+                </div>
+                {% endif %}
+
+                {% if complex_info.households %}
+                <div class="complex-info-item">
+                    <span>🏢 세대수</span>
+                    <strong>{{ complex_info.households }}</strong>
+                </div>
+                {% endif %}
+
+                {% if complex_info.builder %}
+                <div class="complex-info-item">
+                    <span>🏗 건설사</span>
+                    <strong>{{ complex_info.builder }}</strong>
+                </div>
+                {% endif %}
+
+                {% if complex_info.approval_year %}
+                <div class="complex-info-item">
+                    <span>📅 준공</span>
+                    <strong>{{ complex_info.approval_year }}</strong>
+                </div>
+                {% endif %}
+
+                {% if complex_info.parking %}
+                <div class="complex-info-item">
+                    <span>🚗 주차</span>
+                    <strong>{{ complex_info.parking }}</strong>
+                </div>
+                {% endif %}
+
+                {% if complex_info.nearest_subway %}
+                <div class="complex-info-item complex-info-subway">
+
+                    <strong class="subway-text" title="{{ complex_info.nearest_subway }}">
+                        {{ complex_info.nearest_subway }}
+                    </strong>
+                </div>
+                {% endif %}
+
+            </div>
+
+            {% if complex_info.area_mix %}
+            <div class="complex-area-summary">
+                <span>📐 전용면적 구성</span>
+                <strong>{{ complex_info.area_mix }}</strong>
+            </div>
+            {% endif %}
+
+            <div class="complex-info-note">
+                ※ 배정초는 대표 좌표 기준 통학구역이며, 대단지는 동별 배정학교가 달라질 수 있습니다.
+            </div>
+        </section>
+        {% endif %}
+
+        {% if insight %}
+        <section class="insight-panel" aria-label="아파트 생활 특징 요약">
+            <div class="section-head">
+                <div>
+                    <h2>이 아파트 생활 특징</h2>
+                    <p>{{ insight.summary }}</p>
+                </div>
+            </div>
+
+            {% if insight.feature_tags %}
+            <div class="insight-key-grid">
+                {% for feature in insight.feature_tags[:3] %}
+                <article class="insight-key-card insight-{{ feature.tone }}">
+                    <span class="insight-key-icon">{{ feature.icon }}</span>
+                    <div>
+                        <strong>{{ feature.label }}</strong>
+                        {% if feature.reason %}
+                        <p>{{ feature.reason }}</p>
+                        {% else %}
+                        <p>생활 데이터 기준으로 확인된 특징입니다.</p>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="insight-support-grid">
+                {% if insight.lifestyle_types %}
+                <div class="insight-support-card">
+                    <span>생활 유형</span>
+                    <strong>{{ insight.lifestyle_types | join(" · ") }}</strong>
+                </div>
+                {% endif %}
+
+                {% if insight.strengths %}
+                <div class="insight-support-card">
+                    <span>강점</span>
+                    {% for item in insight.strengths[:2] %}
+                    <p>{{ item.icon }} {{ item.title }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if insight.cautions %}
+                <div class="insight-support-card">
+                    <span>체크 포인트</span>
+                    {% for item in insight.cautions[:2] %}
+                    <p>{{ item.icon }} {{ item.title }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="result-layout">
+
+            <div class="left-result-column">
+                <div class="map-panel">
+                    <div class="map-control-bar" aria-label="지도 표시 설정">
+                        <div class="map-category-legend" id="mapCategoryLegend" aria-label="지도 카테고리 표시 설정">
+                        <button type="button" class="map-category-toggle" data-map-group="transport">
+                            <span>🚇 교통</span>
+                        </button>
+                        <button type="button" class="map-category-toggle" data-map-group="convenience">
+                            <span>🏪 생활편의</span>
+                        </button>
+                        <button type="button" class="map-category-toggle" data-map-group="education">
+                            <span>🎓 교육</span>
+                        </button>
+                        <button type="button" class="map-category-toggle" data-map-group="culture">
+                            <span>🎭 문화</span>
+                        </button>
+                        <button type="button" class="map-category-toggle" data-map-group="safety">
+                            <span>🛡 안전</span>
+                        </button>
+                        <button type="button" class="map-category-toggle" data-map-group="commerce">
+                            <span>🛍️ 상권</span>
+                        </button>
+                        <button type="button" class="map-category-toggle" data-map-group="ev">
+                            <span>⚡ EV</span>
+                        </button>
+                        </div>
+                        <button type="button" class="map-reset-button" id="mapResetButton">
+                            📍 원위치
+                        </button>
+                    </div>
+                    <div id="map" class="real-map"></div>
+                </div>
+            </div>
+
+            <aside class="summary-panel">
+                <div class="summary-card main-score">
+                    <span>내 취향 반영 점수</span>
+                    <strong>{{ preference_score }}</strong>
+                </div>
+
+                <div class="top-list-card">
+                    <div class="top-list-title">내 기준 서울 Top 5</div>
+
+                    {% for item in top_apartments %}
+                    <a class="top-list-link" href="{{ item.url }}">
+                        <div>
+                            <strong>{{ loop.index }}. {{ item.name }}</strong>
+                            <span>{{ item.district }} {{ item.dong }}</span>
+                        </div>
+                        <b>{{ item.score }}</b>
+                    </a>
+                    {% endfor %}
+
+                    {% for i in range(5 - top_apartments|length) %}
+                    <div class="top-list-link top-list-empty">
+                        <div>
+                            <strong>추가 샘플 준비중</strong>
+                            <span>서울시 비교 데이터 확장 예정</span>
+                        </div>
+                        <b>-</b>
+                    </div>
+                    {% endfor %}
+                </div>
+            </aside>
+
+            {% if false %}
+            <section class="preference-summary-panel">
+                <div class="section-head">
+                    <div>
+                        <h2>내가 중요하게 본 요소</h2>
+                        <p>검색 전에 설정한 가중치 기준입니다.</p>
+                    </div>
+                </div>
+
+                <div class="domain-group-grid">
+                    {% for domain in domain_summaries %}
+                    <section
+                        class="domain-group-card {% if domain.initial_load %}domain-primary{% else %}domain-lazy{% endif %}">
+                        <div class="domain-group-head">
+                            <div>
+                                <strong>{{ domain.label }}</strong>
+                                <p>{{ domain.description }}</p>
+                            </div>
+                            <div class="domain-group-actions">
+                                <span>{{ domain.poi_count }}곳</span>
+                                <button type="button" class="domain-scroll-btn" data-dir="-1">‹</button>
+                                <button type="button" class="domain-scroll-btn" data-dir="1">›</button>
+                            </div>
+                        </div>
+
+                        <div class="domain-category-grid">
+                            {% for summary in domain.categories %}
+                            {% set tag = preference_tags | selectattr("key", "equalto", summary.key) | list | first %}
+
+                            <div class="preference-tag preference-tag-expanded {{ tag.level_class }}"
+                                data-category="{{ tag.key }}">
+                                <div class="preference-tag-main">
+                                    <span>{{ tag.label }}</span>
+                                    <strong>{{ tag.level }}</strong>
+                                </div>
+
+                                <div class="preference-tag-sub">
+                                    <span>근처({{ tag.radius|distance_m }} 내) {{ tag.count }}곳</span>
+                                </div>
+
+                                {% if tag.nearest_name %}
+                                <div class="preference-nearest">
+                                    <div class="preference-nearest-label">
+                                        최근접{% if tag.nearest_distance is not none %}({{ tag.nearest_distance|distance_m }}){%
+                                        endif %}
+                                    </div>
+                                    <div class="preference-nearest-name" title="{{ tag.nearest_name }}">
+                                        {{ tag.nearest_name }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </section>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+        </section>
+
+        <section class="detail-panel">
+            <div class="section-head">
+                <div>
+                    <h2>카테고리별 상세 점수</h2>
+                    <p>카테고리별 샘플 생활 인프라 데이터를 기준으로 점수 근거를 표시합니다.</p>
+                </div>
+            </div>
+
+            <div class="detail-grid">
+                {% for summary in category_summaries %}
+                <div class="detail-card" data-category="{{ summary.key }}">
+                    <div class="detail-top">
+                        <div>
+                            <em class="domain-badge">{{ summary.domain_label }}</em>
+                            <span>{{ summary.label }}</span>
+                        </div>
+                        <strong class="{{ summary.score_class }}">{{ summary.score }}</strong>
+                    </div>
+
+                    <p class="detail-description">
+                        {%- for line in summary.description | description_lines -%}
+                        <span class="description-sentence">{{ line }}</span>{% if not loop.last %} {% endif %}
+                        {%- endfor -%}
+                    </p>
+
+                    <div class="detail-meta">
+                        <span>반경 {{ summary.radius|distance_m }}</span>
+                        <span>근처 {{ summary.count }}곳</span>
+                        {% if summary.grade %}
+                        <span class="grade-badge grade-{{ summary.grade|lower }}">{{ summary.grade }} · {{ summary.grade_text }}</span>
+                        {% endif %}
+                        <span class="source-badge">{{ summary.source }}</span>
+                    </div>
+
+                    {% if summary.nearest_poi %}
+                    <div class="nearest-poi">
+                        최근접:
+                        {% if summary.nearest_icon %}
+                        <span class="nearest-poi-icon">{{ summary.nearest_icon }}</span>
+                        {% endif %}
+                        <strong>{{ summary.nearest_poi.label | nearest_display_label(summary.key) }}</strong>
+                        · {{ summary.nearest_poi.distance|distance_m }}
+                    </div>
+                    {% endif %}
+
+                    {% if summary.subtype_chips %}
+                    <div class="subtype-chips">
+                        {% for chip in summary.subtype_chips %}
+                        <button class="subtype-chip {{ chip.style }}" data-subtype="{{ chip.name }}"
+                            title="{{ chip.name }}">
+                            {{ chip.display }} {{ chip.count }}
+                            {% if chip.nearest_distance %}
+                            <small>{{ chip.nearest_distance|distance_m }}</small>
+                            {% endif %}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if summary.pois %}
+                    <ul class="poi-list-scroll">
+                        {% for poi in summary.pois %}
+                        <li
+                            data-subtype="{{ poi.subtype }}"
+                            {% if poi.subtypes %}
+                            data-subtypes='{{ poi.subtypes | tojson | safe }}'
+                            {% endif %}
+                            {% if summary.key == "shopping" and poi.subtype not in ["백화점", "쇼핑몰", "전문점"] %}
+                            style="display:none;"
+                            {% endif %}
+                        >
+                            <div class="poi-list-row">
+                                <span class="poi-list-name">
+                                    {% if summary.key == "subway" %}
+                                    <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                                        {{ poi.label | poi_list_display_label(summary.key) }}
+                                    </span>
+
+                                    {% if poi.is_transfer %}
+                                    <span class="subway-transfer-meta">환승역</span>
+                                    {% endif %}
+
+                                    {% elif summary.key == "bus-baseline" and poi.subtype %}
+                                    <span class="bus-route-badge bus-chip-{{ poi.subtype }}">
+                                        {{ poi.subtype }}
+                                    </span>
+                                    {{ poi.label | poi_list_display_label(summary.key) }}
+
+                                    {% elif summary.key == "fire-station" and poi.subtype %}
+                                    <span class="bus-route-badge fire-chip-{{ poi.subtype }}">
+                                        {{ poi.subtype }}
+                                    </span>
+                                    {{ poi.label | poi_list_display_label(summary.key) }}
+
+                                    {% elif summary.key == "commercial" and poi.subtype %}
+                                    <span class="bus-route-badge commercial-chip-{{ poi.subtype }}">
+                                        {{ poi.subtype }}
+                                    </span>
+                                    {{ poi.label | poi_list_display_label(summary.key) }}
+
+                                    {% elif summary.key == "shopping" %}
+                                    {% if poi.subtype in ["백화점", "쇼핑몰", "전문점"] %}
+                                    <span class="bus-route-badge shopping-chip-{{ poi.subtype }}">
+                                        {{ poi.subtype }}
+                                    </span>
+                                    {% endif %}
+
+                                    {{ poi.label | poi_list_display_label(summary.key) }}
+
+                                    {% elif summary.key == "academy" and poi.subtype %}
+                                    <span class="bus-route-badge academy-chip-{{ poi.subtype }}">
+                                        {{ poi.subtype }}
+                                    </span>
+                                    {{ poi.label | poi_list_display_label(summary.key) }}
+
+                                    {% elif summary.key == "school-environment" and poi.subtype %}
+                                    <span class="bus-route-badge school-chip-{{ poi.subtype }}">
+                                        {{ poi.subtype }}
+                                    </span>
+                                    {{ poi.label | poi_list_display_label(summary.key) }}
+
+                                    {% elif summary.key == "culture" and poi.subtype %}
+                                    <span class="bus-route-badge culture-chip-{{ poi.subtype }}">
+                                        {{ poi.subtype }}
+                                    </span>
+                                    <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                                        {{ poi.label | poi_list_display_label(summary.key) }}
+                                    </span>
+
+                                    {% elif summary.key == "pharmacy" %}
+                                    <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                                        {{ poi.label | poi_list_display_label(summary.key) }}
+                                    </span>
+                                    {% set pharmacy_order = ["야간", "주말", "휴일"] %}
+                                    {% set pharmacy_meta = namespace(tags=[]) %}
+                                    {% for tag in pharmacy_order %}
+                                        {% if poi.subtypes and tag in poi.subtypes %}
+                                            {% set pharmacy_meta.tags = pharmacy_meta.tags + [tag] %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if pharmacy_meta.tags %}
+                                    <span class="pharmacy-operating-summary">
+                                        <span class="pharmacy-operating-bracket">[</span>{% for tag in pharmacy_meta.tags %}<span class="pharmacy-operating-tag pharmacy-operating-{{ tag }}">{{ tag }}</span>{% if not loop.last %}<span class="pharmacy-operating-separator"> · </span>{% endif %}{% endfor %}<span class="pharmacy-operating-bracket">]</span>
+                                    </span>
+                                    {% endif %}
+
+                                    {% elif summary.key == "general-hospital" %}
+                                    <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                                        {{ poi.label | poi_list_display_label(summary.key) }}
+                                    </span>
+
+                                    {% elif summary.key == "emergency-room" %}
+                                    <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                                        {{ poi.label | poi_list_display_label(summary.key) }}
+                                    </span>
+
+                                    {% elif summary.is_medical_public_summary and poi.subtype %}
+                                    <span class="bus-route-badge medical-chip-{{ poi.subtype }}">
+                                        {{ poi.subtype }}
+                                    </span>
+                                    <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                                        {{ poi.label | poi_list_display_label(summary.key) }}
+                                    </span>
+
+                                    {% elif summary.key == "hangang" %}
+                                    <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                                        {{ poi.label | poi_list_display_label(summary.key) }}
+                                    </span>
+
+                                    {% if poi.facility_tags %}
+                                    <span class="hangang-facility-tags">
+                                        {{ poi.facility_tags }}
+                                    </span>
+                                    {% endif %}
+
+                                    {% elif summary.key == "ev-charger" %}
+                                    <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                                        {{ poi.label | poi_list_display_label(summary.key) }}
+                                    </span>
+                                    {% if poi.charger_summary %}
+                                    <span class="ev-charger-summary">
+                                        <span class="ev-charger-bracket">[</span><span class="ev-charger-fast-text">급속 {{ poi.charger_fast_count }}</span><span class="ev-charger-separator"> · </span><span class="ev-charger-slow-text">완속 {{ poi.charger_slow_count }}</span><span class="ev-charger-bracket">]</span>
+                                    </span>
+                                    {% endif %}
+
+                                    {% elif summary.key == "cctv" %}
+                                    <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                                        {{ poi.label | poi_list_display_label(summary.key) }}
+                                    </span>
+
+                                    {% else %}
+                                    {{ poi.label | poi_list_display_label(summary.key) }}
+                                    {% endif %}
+                                </span>
+
+                                {% if poi.distance %}
+                                <small class="poi-list-distance">{{ poi.distance|distance_m }}</small>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <ul class="poi-list-scroll">
+                        <li>{{ summary.empty }}</li>
+
+                    </ul>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            
+
+    </div>
+    </section>
+
+    <section class="reference-panel">
+        <div class="section-head">
+            <div>
+                <h2>📊 추가 참고 정보</h2>
+                <p>생활환경 점수에는 반영하지 않는 보조 참고 자료입니다.</p>
+            </div>
+        </div>
+
+        <div class="transaction-card">
+            <div class="transaction-card-head">
+                <div>
+                    <em>💰 실거래/전월세 흐름</em>
+                    <p>국토교통부 실거래가 공개시스템 신고 기준 데이터를 참고합니다.<br>실거래 정보는 계약 해제·정정·신고 시점 차이 등에 따라 실제와 일부 다를 수 있으며, 최근 거래는 신고 반영 시점에 따라 변동될 수 있습니다.<br>LiveFit은 단지명·도로명주소·거래 정보 등을 기준으로 신뢰 가능한 거래를 우선 연결합니다.<br>정확한 거래 정보는 국토교통부 실거래가 공개시스템을 함께 확인해 주세요.</p>
+                </div>
+            </div>
+
+            {% if transaction_summary and transaction_summary.area_tabs %}
+            {% if transaction_summary.insight_badges %}
+            <div class="transaction-insight-badges" aria-label="거래 흐름 요약">
+                {% for badge in transaction_summary.insight_badges %}
+                <span>{{ badge }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if transaction_summary.batch_metrics %}
+            <div class="transaction-summary-metrics">
+                <div>
+                    <span>최근 매매 실거래</span>
+                    <strong>{{ transaction_summary.batch_metrics_display.latest_trade_amount or "-" }}</strong>
+                    <small>{{ transaction_summary.batch_metrics_display.latest_trade_date or "자료 부족" }}</small>
+                </div>
+                <div>
+                    <span>최근 전세 거래</span>
+                    <strong>{{ transaction_summary.batch_metrics_display.latest_rent_deposit or "-" }}</strong>
+                    <small>{{ transaction_summary.batch_metrics_display.latest_rent_date or "자료 부족" }}</small>
+                </div>
+                <div>
+                    <span>최근 1년 거래</span>
+                    <strong>{{ transaction_summary.batch_metrics_display.total_count_1y }}건</strong>
+                    <small>매매 {{ transaction_summary.batch_metrics_display.trade_count_1y }} · 전세 {{ transaction_summary.batch_metrics_display.jeonse_count_1y }} · 월세 {{ transaction_summary.batch_metrics_display.monthly_count_1y }}</small>
+                </div>
+                <div>
+                    <span>전세가율</span>
+                    <strong>{{ transaction_summary.batch_metrics_display.jeonse_ratio or "-" }}</strong>
+                    <small>최근 거래 기준</small>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="transaction-filter-panel">
+                <div class="transaction-period-filters" aria-label="거래 기간 선택">
+                    <button type="button" class="transaction-period-filter active" data-transaction-period="all">전체</button>
+                    <button type="button" class="transaction-period-filter" data-transaction-period="3m">3개월</button>
+                    <button type="button" class="transaction-period-filter" data-transaction-period="6m">6개월</button>
+                    <button type="button" class="transaction-period-filter" data-transaction-period="1y">1년</button>
+                    <button type="button" class="transaction-period-filter" data-transaction-period="2y">2년</button>
+                </div>
+
+                <div class="transaction-area-chips" role="tablist" aria-label="전용면적 선택">
+                    {% for tab in transaction_summary.area_tabs %}
+                    {% if tab.is_primary is not defined or tab.is_primary %}
+                    <button
+                        type="button"
+                        class="transaction-area-chip {% if loop.first %}active{% endif %}"
+                        data-transaction-area="{{ tab.area_label }}"
+                        aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
+                    >
+                        <span>{{ tab.area_label }}</span>
+                    </button>
+                    {% endif %}
+                    {% endfor %}
+                    {% set secondary_tabs = transaction_summary.area_tabs | selectattr('is_primary', 'equalto', false) | list %}
+                    {% if secondary_tabs %}
+                    <button
+                        type="button"
+                        class="transaction-area-more"
+                        aria-expanded="false"
+                        data-collapsed-label="+{{ secondary_tabs | length }} 더보기"
+                        data-transaction-area-more
+                    >
+                        +{{ secondary_tabs | length }} 더보기
+                    </button>
+                    {% for tab in secondary_tabs %}
+                    <button
+                        type="button"
+                        class="transaction-area-chip transaction-area-chip-secondary"
+                        data-transaction-area="{{ tab.area_label }}"
+                        aria-selected="false"
+                        hidden
+                    >
+                        <span>{{ tab.area_label }}</span>
+                    </button>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="transaction-area-summary">
+                {% for tab in transaction_summary.area_tabs %}
+                <div
+                    class="transaction-area-summary-row {% if loop.first %}active{% endif %}"
+                    data-transaction-summary="{{ tab.area_label }}"
+                >
+                    <strong>{{ tab.area_label }} 거래 흐름</strong>
+                    <span>매매 {{ tab.sale_count_label }}건 · 전세 {{ tab.jeonse_count_label }}건{% if tab.monthly_count %} · 월세 {{ tab.monthly_count_label }}건{% endif %}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="transaction-panel-wrap">
+                {% for tab in transaction_summary.area_tabs %}
+                <div
+                    class="transaction-panel-set {% if loop.first %}active{% endif %}"
+                    data-transaction-panel-set="{{ tab.area_label }}"
+                >
+                    {% set trusted_empty_label = '실거래 내역이 아직 충분히 확인되지 않았습니다. 정확한 거래 정보는 국토교통부 실거래가 공개시스템을 함께 확인해 주세요.' %}
+                    {% set panel_defs = [
+                        ('sale', '매매', trusted_empty_label),
+                        ('jeonse', '전세', trusted_empty_label),
+                        ('monthly', '월세', trusted_empty_label)
+                    ] %}
+                    {% for panel_type, panel_label, empty_label in panel_defs %}
+                    <section class="transaction-type-panel transaction-type-panel-{{ panel_type }}" data-panel-type="{{ panel_type }}">
+                        <header>
+                            <strong>{{ panel_label }}</strong>
+                            <span><em data-panel-period-label>전체</em> <b data-panel-count>0</b>건</span>
+                        </header>
+                        <ul class="transaction-panel-list">
+                            {% for item in transaction_summary.transactions_by_area.get(tab.area_label, []) if item.filter_type == panel_type %}
+                            <li data-transaction-type="{{ item.filter_type }}" data-transaction-date="{{ item.date }}">
+                                <strong>{{ item.price }}</strong>
+                                <span>{{ item.date }}{% if item.floor %} · {{ item.floor }}{% endif %}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <p class="transaction-panel-empty">ⓘ {{ empty_label }}</p>
+                    </section>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="transaction-empty">실거래 내역이 아직 충분히 확인되지 않았습니다.<br>정확한 거래 정보는 국토교통부 실거래가 공개시스템을 함께 확인해 주세요.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    </div>
+
+    <script>
+        let transactionActivePeriod = "all";
+        const transactionPeriodLabels = {
+            all: "전체",
+            "3m": "최근 3개월",
+            "6m": "최근 6개월",
+            "1y": "최근 1년",
+            "2y": "최근 2년",
+        };
+        const descriptionMeasureCanvas = document.createElement("canvas");
+        const descriptionMeasureContext = descriptionMeasureCanvas.getContext("2d");
+
+        function measureDescriptionText(text, element) {
+            const style = window.getComputedStyle(element);
+            descriptionMeasureContext.font = [
+                style.fontStyle,
+                style.fontWeight,
+                style.fontSize,
+                style.fontFamily,
+            ].join(" ");
+            return descriptionMeasureContext.measureText(text).width;
+        }
+
+        function fitDetailDescriptions() {
+            document.querySelectorAll(".detail-description").forEach((description) => {
+                const sentences = Array.from(description.querySelectorAll(".description-sentence"));
+                description.classList.remove("is-stacked");
+                if (sentences.length < 2) return;
+
+                const combinedText = sentences
+                    .map((sentence) => sentence.textContent.trim())
+                    .filter(Boolean)
+                    .join(" ");
+                const availableWidth = description.clientWidth;
+                if (!availableWidth) return;
+
+                if (measureDescriptionText(combinedText, description) > availableWidth) {
+                    description.classList.add("is-stacked");
+                }
+            });
+        }
+
+        function parseTransactionDate(value) {
+            const match = String(value || "").match(/^(\d{4})\.(\d{2})\.(\d{2})$/);
+            if (!match) return null;
+            return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        }
+
+        function isTransactionInPeriod(row) {
+            if (transactionActivePeriod === "all") return true;
+            const rowDate = parseTransactionDate(row.dataset.transactionDate);
+            if (!rowDate) return true;
+
+            const now = new Date();
+            const months = transactionActivePeriod === "3m" ? 3
+                : transactionActivePeriod === "6m" ? 6
+                : transactionActivePeriod === "1y" ? 12
+                : transactionActivePeriod === "2y" ? 24
+                : null;
+            if (!months) return true;
+
+            const threshold = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+            return rowDate >= threshold;
+        }
+
+        function applyTransactionFilter() {
+            document.querySelectorAll(".transaction-type-panel").forEach((panel) => {
+                let visibleCount = 0;
+                panel.querySelectorAll(".transaction-panel-list li").forEach((row) => {
+                    const visible = isTransactionInPeriod(row);
+                    row.style.display = visible ? "" : "none";
+                    if (visible) visibleCount += 1;
+                });
+
+                const countNode = panel.querySelector("[data-panel-count]");
+                if (countNode) countNode.textContent = visibleCount.toLocaleString("ko-KR");
+                const periodNode = panel.querySelector("[data-panel-period-label]");
+                if (periodNode) periodNode.textContent = transactionPeriodLabels[transactionActivePeriod] || "전체";
+                panel.classList.toggle("is-empty", visibleCount === 0);
+            });
+        }
+
+        document.querySelectorAll(".transaction-area-chip").forEach((button) => {
+            button.addEventListener("click", () => {
+                const area = button.dataset.transactionArea;
+
+                document.querySelectorAll(".transaction-area-chip").forEach((chip) => {
+                    const isActive = chip === button;
+                    chip.classList.toggle("active", isActive);
+                    chip.setAttribute("aria-selected", isActive ? "true" : "false");
+                });
+
+                document.querySelectorAll("[data-transaction-summary]").forEach((summary) => {
+                    summary.classList.toggle(
+                        "active",
+                        summary.dataset.transactionSummary === area
+                    );
+                });
+
+                document.querySelectorAll("[data-transaction-panel-set]").forEach((set) => {
+                    set.classList.toggle(
+                        "active",
+                        set.dataset.transactionPanelSet === area
+                    );
+                });
+
+                applyTransactionFilter();
+            });
+        });
+
+        document.querySelectorAll("[data-transaction-area-more]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const expanded = button.getAttribute("aria-expanded") === "true";
+                const nextExpanded = !expanded;
+                button.setAttribute("aria-expanded", nextExpanded ? "true" : "false");
+                button.textContent = nextExpanded ? "접기" : button.dataset.collapsedLabel;
+                document.querySelectorAll(".transaction-area-chip-secondary").forEach((chip) => {
+                    chip.hidden = !nextExpanded;
+                });
+            });
+        });
+
+        document.querySelectorAll(".transaction-period-filter").forEach((button) => {
+            button.addEventListener("click", () => {
+                transactionActivePeriod = button.dataset.transactionPeriod || "all";
+
+                document.querySelectorAll(".transaction-period-filter").forEach((filter) => {
+                    filter.classList.toggle("active", filter === button);
+                });
+
+                applyTransactionFilter();
+            });
+        });
+
+        applyTransactionFilter();
+        fitDetailDescriptions();
+        window.addEventListener("resize", fitDetailDescriptions);
+    </script>
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_javascript_key }}"></script>
+
+    <script>
+        const lat = Number("{{ apartment.lat }}");
+        const lng = Number("{{ apartment.lng }}");
+        const pois = {{ pois | tojson | safe }};
+
+        try {
+        if (!window.kakao || !window.kakao.maps) {
+            window.livefitMapUnavailable = true;
+        } else {
+        const container = document.getElementById("map");
+
+        const initialMapLevel = 4;
+        const options = {
+            center: new kakao.maps.LatLng(lat, lng),
+            level: initialMapLevel
+        };
+
+        const map = new kakao.maps.Map(container, options);
+        const apartmentPosition = new kakao.maps.LatLng(lat, lng);
+        const mapResetButton = document.getElementById("mapResetButton");
+
+        const marker = new kakao.maps.Marker({
+            position: apartmentPosition
+        });
+
+        marker.setMap(map);
+
+        const circle = new kakao.maps.Circle({
+            center: apartmentPosition,
+            radius: 500,
+            strokeWeight: 2,
+            strokeColor: "#111111",
+            strokeOpacity: 0.8,
+            fillColor: "#111111",
+            fillOpacity: 0.08
+        });
+
+        circle.setMap(map);
+
+        const overlayStorage = {};
+        const mapCategoryGroups = {
+            transport: ["subway", "bus", "bus-baseline", "bike"],
+            convenience: ["convenience", "hospital", "general-hospital", "emergency-room", "mart", "cafe", "pharmacy"],
+            education: ["academy", "school", "school-environment", "school-zone"],
+            culture: ["culture", "hangang"],
+            safety: ["cctv", "fire", "fire-station"],
+            commerce: ["commercial", "shopping", "nightlife"],
+            ev: ["ev-charger"]
+        };
+        const mapGroupVisibility = {
+            transport: true,
+            convenience: true,
+            education: false,
+            culture: false,
+            safety: false,
+            commerce: false,
+            ev: true
+        };
+        const mapCategoryFilters = {};
+
+        function getDistanceMetersFromApartment(poi) {
+            const explicitDistance = Number(poi.distance);
+            if (Number.isFinite(explicitDistance)) {
+                return explicitDistance;
+            }
+
+            const poiLat = Number(poi.lat);
+            const poiLng = Number(poi.lng);
+            if (!Number.isFinite(poiLat) || !Number.isFinite(poiLng)) {
+                return Infinity;
+            }
+
+            const earthRadiusMeters = 6371000;
+            const toRadians = (degree) => degree * Math.PI / 180;
+            const latDelta = toRadians(poiLat - lat);
+            const lngDelta = toRadians(poiLng - lng);
+            const a = Math.sin(latDelta / 2) ** 2
+                + Math.cos(toRadians(lat)) * Math.cos(toRadians(poiLat))
+                * Math.sin(lngDelta / 2) ** 2;
+
+            return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function setCategoryOverlays(category, visible, options = {}) {
+            mapCategoryFilters[category] = {
+                visible: Boolean(visible),
+                predicate: typeof options.predicate === "function"
+                    ? options.predicate
+                    : () => true
+            };
+
+            updateVisibleOverlays();
+        }
+
+        function isOverlayInCurrentViewport(overlay) {
+            const position = overlay.livefitPosition;
+            if (!position) {
+                return true;
+            }
+
+            return map.getBounds().contain(position);
+        }
+
+        function shouldDisplayOverlay(category, overlay) {
+            const groupKey = getMapGroupForCategory(category);
+            const groupVisible = groupKey
+                ? Boolean(mapGroupVisibility[groupKey])
+                : true;
+            const filter = mapCategoryFilters[category] || {
+                visible: groupVisible,
+                predicate: () => true
+            };
+
+            return groupVisible
+                && filter.visible
+                && filter.predicate(overlay)
+                && isOverlayInCurrentViewport(overlay);
+        }
+
+        function updateVisibleOverlays() {
+            Object.entries(overlayStorage).forEach(([category, overlays]) => {
+                overlays.forEach((overlay) => {
+                    overlay.setMap(shouldDisplayOverlay(category, overlay) ? map : null);
+                });
+            });
+        }
+
+        function setMapGroupVisibility(groupKey, visible) {
+            const categories = mapCategoryGroups[groupKey] || [];
+
+            categories.forEach((category) => {
+                setCategoryOverlays(category, visible);
+            });
+
+            updateVisibleOverlays();
+        }
+
+        function syncMapCategoryLegend() {
+            document.querySelectorAll("[data-map-group]").forEach((button) => {
+                const groupKey = button.dataset.mapGroup;
+                const isVisible = Boolean(mapGroupVisibility[groupKey]);
+
+                button.classList.toggle("active", isVisible);
+                button.classList.toggle("muted", !isVisible);
+                button.setAttribute("aria-pressed", isVisible ? "true" : "false");
+            });
+        }
+
+        function getMapGroupForCategory(category) {
+            return Object.entries(mapCategoryGroups).find(([, categories]) => (
+                categories.includes(category)
+            ))?.[0];
+        }
+
+        function setOnlyMapGroupActive(groupKey) {
+            Object.keys(mapGroupVisibility).forEach((key) => {
+                mapGroupVisibility[key] = key === groupKey;
+            });
+            syncMapCategoryLegend();
+            updateVisibleOverlays();
+        }
+
+        function setAllMapGroupsActive() {
+            Object.keys(mapGroupVisibility).forEach((key) => {
+                mapGroupVisibility[key] = true;
+            });
+            syncMapCategoryLegend();
+            updateVisibleOverlays();
+        }
+
+        function initMapCategoryLegend() {
+            document.querySelectorAll("[data-map-group]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const groupKey = button.dataset.mapGroup;
+                    mapGroupVisibility[groupKey] = !mapGroupVisibility[groupKey];
+                    setMapGroupVisibility(groupKey, mapGroupVisibility[groupKey]);
+                    syncMapCategoryLegend();
+                });
+            });
+
+            syncMapCategoryLegend();
+        }
+
+        window.livefitMap = map;
+        window.livefitOverlayStorage = overlayStorage;
+
+        if (mapResetButton) {
+            mapResetButton.addEventListener("click", () => {
+                map.setLevel(initialMapLevel);
+                map.setCenter(apartmentPosition);
+                setTimeout(updateVisibleOverlays, 0);
+            });
+        }
+
+        pois.forEach((poi) => {
+            const position = new kakao.maps.LatLng(poi.lat, poi.lng);
+
+            const iconMap = {
+                subway: "🚇",
+                bus: "🚌",
+                "bus-baseline": "🚌",
+                bike: "🚲",
+                mart: "🛒",
+                convenience: "🏪",
+                cafe: "☕",
+                hospital: "🏥",
+                "general-hospital": "🏥",
+                pharmacy: "💊",
+                "emergency-room": "🚑",
+                park: "🌳",
+                hangang: "🌊",
+                academy: "✏️",
+                "school-environment": "🏫",
+                cctv: "🛡",
+                "fire-station": "🚒",
+                nightlife: "🍺",
+                commercial: "🌃",
+                shopping: "🛍",
+                culture: "🎭",
+                "ev-charger": "⚡",
+                school: "🏫",
+                "school-zone": "🏫",
+                fire: "🚒"
+            };
+
+            const icon = iconMap[poi.category] || "📍";
+            const cleanName = poi.label.replace(icon, "").trim();
+
+            const content = `
+            <div class="poi-marker poi-${poi.category}">
+                <span class="poi-icon">${icon}</span>
+                <span class="poi-name">${cleanName}</span>
+            </div>
+        `;
+
+            const overlay = new kakao.maps.CustomOverlay({
+                position: position,
+                content: content,
+                yAnchor: 1
+            });
+
+            overlay.livefitSubtype = poi.subtype || "기타";
+            overlay.livefitSubtypes = poi.subtypes || [];
+            overlay.livefitCategory = poi.category;
+            overlay.livefitPosition = position;
+            overlay.livefitDistance = getDistanceMetersFromApartment(poi);
+            const groupKey = getMapGroupForCategory(poi.category);
+            const showInitially = groupKey
+                ? Boolean(mapGroupVisibility[groupKey])
+                : true;
+            overlay.setMap(showInitially ? map : null);
+
+            if (!overlayStorage[poi.category]) {
+                overlayStorage[poi.category] = [];
+            }
+
+            overlayStorage[poi.category].push(overlay);
+        });
+
+        Object.keys(overlayStorage).forEach((category) => {
+            const groupKey = getMapGroupForCategory(category);
+            mapCategoryFilters[category] = {
+                visible: groupKey ? Boolean(mapGroupVisibility[groupKey]) : true,
+                predicate: () => true
+            };
+        });
+        updateVisibleOverlays();
+
+        window.livefitMapCategoryGroups = mapCategoryGroups;
+        window.livefitMapGroupVisibility = mapGroupVisibility;
+        window.livefitSetCategoryOverlays = setCategoryOverlays;
+        window.livefitSetAllCategoryOverlays = () => {
+            Object.keys(overlayStorage).forEach((category) => {
+                setCategoryOverlays(category, true);
+            });
+        };
+        window.livefitSetSubtypeOverlays = (category, subtype) => (
+            setCategoryOverlays(category, true, {
+                predicate: (overlay) => {
+                    const overlaySubtypes = Array.isArray(overlay.livefitSubtypes)
+                        ? overlay.livefitSubtypes
+                        : [];
+
+                    return overlay.livefitSubtype === subtype
+                        || overlaySubtypes.includes(subtype);
+                }
+            })
+        );
+        window.livefitSetMapLegendForCategory = (category) => {
+            const groupKey = getMapGroupForCategory(category);
+            if (groupKey) {
+                setOnlyMapGroupActive(groupKey);
+            }
+        };
+        window.livefitSetMapLegendAll = setAllMapGroupsActive;
+        initMapCategoryLegend();
+
+        kakao.maps.event.addListener(map, "dragend", updateVisibleOverlays);
+        kakao.maps.event.addListener(map, "zoom_changed", () => {
+            setTimeout(updateVisibleOverlays, 0);
+        });
+
+        setTimeout(() => {
+            map.relayout();
+            map.setCenter(apartmentPosition);
+            updateVisibleOverlays();
+        }, 100);
+        }
+        } catch (error) {
+            window.livefitMapUnavailable = true;
+        }
+    </script>
+
+    <script>
+        (() => {
+            const messages = [
+                "아파트 기본 정보를 불러오고 있습니다.",
+                "지하철과 생활 인프라를 분석하고 있습니다.",
+                "실거래/전월세 정보를 정리하고 있습니다.",
+                "생활 특징을 계산하고 있습니다."
+            ];
+            const overlay = document.getElementById("resultLoadingOverlay");
+            const message = document.getElementById("resultLoadingMessage");
+            let index = 0;
+            const timer = window.setInterval(() => {
+                if (!message) return;
+                index = (index + 1) % messages.length;
+                message.textContent = messages[index];
+            }, 900);
+
+            window.addEventListener("load", () => {
+                window.clearInterval(timer);
+                if (!overlay) return;
+                overlay.classList.add("is-hidden");
+                window.setTimeout(() => overlay.remove(), 240);
+            });
+        })();
+    </script>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>
