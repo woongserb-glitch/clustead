@@ -1968,6 +1968,77 @@ def insert_after_category(summaries, target_key, new_summary):
     return result
 
 
+def apply_baseline_category_to_ui(
+    category_summaries,
+    preference_tags,
+    domain_summaries,
+    *,
+    key,
+    summary,
+    info,
+    new_tag,
+    domain_key,
+    domain_template,
+    anchor_key=None,
+    poi_count=None,
+    poi_count_mode="increment",
+):
+    """Shared list-surgery for the per-category apply_X_baseline_to_ui family.
+
+    Removes any existing entry for `key` from category_summaries,
+    preference_tags and every domain's categories; then, when info+summary are
+    present, inserts the summary after `anchor_key` (or appends), appends the
+    prebuilt preference tag, and merges the summary into its domain — creating
+    the domain from `domain_template` when missing. poi_count_mode is
+    "increment" (add to existing) or "set" (replace). Behaviour matches the
+    hand-written functions; pinned by tests/snapshot_result.py.
+    """
+    def insert(items):
+        if not anchor_key:
+            return list(items) + [summary]
+        result = []
+        inserted = False
+        for item in items:
+            result.append(item)
+            if item.get("key") == anchor_key:
+                result.append(summary)
+                inserted = True
+        if not inserted:
+            result.append(summary)
+        return result
+
+    category_summaries = [s for s in category_summaries if s.get("key") != key]
+    preference_tags = [t for t in preference_tags if t.get("key") != key]
+    for domain in domain_summaries:
+        domain["categories"] = [
+            s for s in domain.get("categories", []) if s.get("key") != key
+        ]
+
+    if not info or not summary:
+        return category_summaries, preference_tags, domain_summaries
+
+    category_summaries = insert(category_summaries)
+    preference_tags.append(new_tag)
+
+    domain = next(
+        (d for d in domain_summaries if d.get("key") == domain_key),
+        None,
+    )
+
+    if domain is not None:
+        domain["categories"] = insert(domain.get("categories", []))
+        if poi_count is not None:
+            try:
+                base = int(domain.get("poi_count", 0)) if poi_count_mode == "increment" else 0
+                domain["poi_count"] = base + int(poi_count)
+            except Exception:
+                domain["poi_count"] = poi_count
+    elif domain_template is not None:
+        domain_summaries.append(domain_template)
+
+    return category_summaries, preference_tags, domain_summaries
+
+
 def apply_bus_baseline_to_ui(category_summaries, preference_tags, domain_summaries, bus_info, apartment):
     old_bus_tag = next(
         (tag for tag in preference_tags if tag.get("key") == "bus"),
@@ -2369,87 +2440,33 @@ def apply_bike_baseline_to_ui(category_summaries, preference_tags, domain_summar
     )
 
     bike_summary = build_bike_category_summary(bike_info)
+    bi = bike_info or {}
+    count = bi.get("station_count_500m", 0)
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "bike"
-    ]
-
-    if bike_summary:
-        result = []
-        inserted = False
-
-        for summary in category_summaries:
-            result.append(summary)
-
-            if summary.get("key") == "bus-baseline":
-                result.append(bike_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(bike_summary)
-
-        category_summaries = result
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "bike"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "bike"
-        ]
-
-    if not bike_info or not bike_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    preference_tags.append({
+    new_tag = {
         "key": "bike",
         "label": "🚲 따릉이",
         "value": old_bike_tag.get("value", 3) if old_bike_tag else 3,
         "level": old_bike_tag.get("level", "보통") if old_bike_tag else "보통",
         "level_class": old_bike_tag.get("level_class", "level-normal") if old_bike_tag else "level-normal",
         "radius": 500,
-        "count": bike_info.get("station_count_500m", 0),
+        "count": count,
         "percentile": None,
-        "seoul_percentile": bike_info.get("seoul_percentile"),
+        "seoul_percentile": bi.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": f"🚲 {bike_info.get('nearest_station', '')}" if bike_info.get("nearest_station") else "",
-        "nearest_distance": bike_info.get("nearest_distance", None),
-    })
+        "nearest_name": f"🚲 {bi.get('nearest_station', '')}" if bi.get("nearest_station") else "",
+        "nearest_distance": bi.get("nearest_distance", None),
+    }
 
-    transport_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "transport"
-        ),
-        None
+    # bus-baseline anchor; transport domain is never created here (matches the
+    # original — bike only augments an existing transport domain).
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="bike", summary=bike_summary, info=bike_info,
+        new_tag=new_tag, domain_key="transport", domain_template=None,
+        anchor_key="bus-baseline", poi_count=count, poi_count_mode="increment",
     )
-
-    if transport_domain:
-        result = []
-        inserted = False
-
-        for summary in transport_domain.get("categories", []):
-            result.append(summary)
-
-            if summary.get("key") == "bus-baseline":
-                result.append(bike_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(bike_summary)
-
-        transport_domain["categories"] = result
-        try:
-            transport_domain["poi_count"] = int(transport_domain.get("poi_count", 0)) + int(bike_info.get("station_count_500m", 0))
-        except Exception:
-            transport_domain["poi_count"] = bike_info.get("station_count_500m", 0)
-
-    return category_summaries, preference_tags, domain_summaries
 
 
 def build_ev_charger_info(apartment_name, gu=None, dong=None):
@@ -3174,74 +3191,42 @@ def build_commercial_category_summary(commercial_info):
 
 def apply_commercial_baseline_to_ui(category_summaries, preference_tags, domain_summaries, commercial_info, apartment):
     commercial_summary = build_commercial_category_summary(commercial_info)
+    ci = commercial_info or {}
+    count = ci.get("commercial_count_1km", 0)
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "commercial"
-    ]
-
-    if commercial_summary:
-        category_summaries.append(commercial_summary)
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "commercial"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "commercial"
-        ]
-
-    if not commercial_info or not commercial_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    preference_tags.append({
+    new_tag = {
         "key": "commercial",
         "label": "🌃 상권",
         "value": 3,
         "level": "보통",
         "level_class": "level-normal",
         "radius": 1000,
-        "count": commercial_info.get("commercial_count_1km", 0),
+        "count": count,
         "percentile": None,
-        "seoul_percentile": commercial_info.get("seoul_percentile"),
+        "seoul_percentile": ci.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": f"🌃 {commercial_info.get('nearest_name', '')}",
-        "nearest_distance": commercial_info.get("nearest_distance", None),
-    })
+        "nearest_name": f"🌃 {ci.get('nearest_name', '')}",
+        "nearest_distance": ci.get("nearest_distance", None),
+    }
 
-    activity_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "activity"
-        ),
-        None
+    domain_template = {
+        "key": "activity",
+        "label": "🌃 상권",
+        "description": "유흥시설, 상권 밀집도",
+        "initial_load": False,
+        "category_count": 1,
+        "poi_count": count,
+        "categories": [commercial_summary],
+        "max_score": 0,
+    }
+
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="commercial", summary=commercial_summary, info=commercial_info,
+        new_tag=new_tag, domain_key="activity", domain_template=domain_template,
+        poi_count=count, poi_count_mode="increment",
     )
-
-    if activity_domain:
-        activity_domain["categories"].append(commercial_summary)
-        try:
-            activity_domain["poi_count"] = int(activity_domain.get("poi_count", 0)) + int(commercial_info.get("commercial_count_1km", 0))
-        except Exception:
-            activity_domain["poi_count"] = commercial_info.get("commercial_count_1km", 0)
-    else:
-        activity_domain = {
-            "key": "activity",
-            "label": "🌃 상권",
-            "description": "유흥시설, 상권 밀집도",
-            "initial_load": False,
-            "category_count": 1,
-            "poi_count": commercial_info.get("commercial_count_1km", 0),
-            "categories": [commercial_summary],
-            "max_score": 0,
-        }
-        domain_summaries.append(activity_domain)
-
-
-    return category_summaries, preference_tags, domain_summaries
 
 
 
@@ -3383,99 +3368,42 @@ def build_shopping_category_summary(shopping_info):
 
 def apply_shopping_baseline_to_ui(category_summaries, preference_tags, domain_summaries, shopping_info, apartment):
     shopping_summary = build_shopping_category_summary(shopping_info)
+    si = shopping_info or {}
+    count = si.get("shopping_count_3km", 0)
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "shopping"
-    ]
-
-    if shopping_summary:
-        result = []
-        inserted = False
-
-        for summary in category_summaries:
-            result.append(summary)
-
-            if summary.get("key") == "commercial":
-                result.append(shopping_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(shopping_summary)
-
-        category_summaries = result
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "shopping"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "shopping"
-        ]
-
-    if not shopping_info or not shopping_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    preference_tags.append({
+    new_tag = {
         "key": "shopping",
         "label": "🛍️ 쇼핑",
         "value": 3,
         "level": "보통",
         "level_class": "level-normal",
         "radius": 3000,
-        "count": shopping_info.get("shopping_count_3km", 0),
+        "count": count,
         "percentile": None,
-        "seoul_percentile": shopping_info.get("seoul_percentile"),
+        "seoul_percentile": si.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": f"🛍️ {shopping_info.get('nearest_name', '')}" if shopping_info.get("nearest_name") else "",
-        "nearest_distance": shopping_info.get("nearest_distance", None),
-    })
+        "nearest_name": f"🛍️ {si.get('nearest_name', '')}" if si.get("nearest_name") else "",
+        "nearest_distance": si.get("nearest_distance", None),
+    }
 
-    activity_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "activity"
-        ),
-        None
+    domain_template = {
+        "key": "activity",
+        "label": "🌃 상권/활기",
+        "description": "상권, 쇼핑, 야간상권 등 활동 인프라",
+        "initial_load": False,
+        "category_count": 1,
+        "poi_count": count,
+        "categories": [shopping_summary],
+        "max_score": 0,
+    }
+
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="shopping", summary=shopping_summary, info=shopping_info,
+        new_tag=new_tag, domain_key="activity", domain_template=domain_template,
+        anchor_key="commercial", poi_count=count, poi_count_mode="increment",
     )
-
-    if activity_domain:
-        result = []
-        inserted = False
-
-        for summary in activity_domain.get("categories", []):
-            result.append(summary)
-
-            if summary.get("key") == "commercial":
-                result.append(shopping_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(shopping_summary)
-
-        activity_domain["categories"] = result
-        try:
-            activity_domain["poi_count"] = int(activity_domain.get("poi_count", 0)) + int(shopping_info.get("shopping_count_3km", 0))
-        except Exception:
-            activity_domain["poi_count"] = shopping_info.get("shopping_count_3km", 0)
-    else:
-        activity_domain = {
-            "key": "activity",
-            "label": "🌃 상권/활기",
-            "description": "상권, 쇼핑, 야간상권 등 활동 인프라",
-            "initial_load": False,
-            "category_count": 1,
-            "poi_count": shopping_info.get("shopping_count_3km", 0),
-            "categories": [shopping_summary],
-            "max_score": 0,
-        }
-        domain_summaries.append(activity_domain)
-
-    return category_summaries, preference_tags, domain_summaries
 
 def build_nightlife_info(apartment_name, gu=None, dong=None):
     row = get_indexed_baseline_row(nightlife_baseline_index, apartment_name, gu, dong)
@@ -3638,74 +3566,43 @@ def apply_nightlife_baseline_to_ui(category_summaries, preference_tags, domain_s
     )
 
     nightlife_summary = build_nightlife_category_summary(nightlife_info)
+    ni = nightlife_info or {}
+    count = ni.get("nightlife_count_500m", 0)
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "nightlife"
-    ]
-
-    if nightlife_summary:
-        category_summaries.append(nightlife_summary)
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "nightlife"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "nightlife"
-        ]
-
-    if not nightlife_info or not nightlife_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    preference_tags.append({
+    new_tag = {
         "key": "nightlife",
         "label": "🍺 유흥주점",
         "value": old_nightlife_tag.get("value", 3) if old_nightlife_tag else 3,
         "level": old_nightlife_tag.get("level", "보통") if old_nightlife_tag else "보통",
         "level_class": old_nightlife_tag.get("level_class", "level-normal") if old_nightlife_tag else "level-normal",
         "radius": 500,
-        "count": nightlife_info.get("nightlife_count_500m", 0),
+        "count": count,
         "percentile": None,
         "seoul_percentile": None,
         "gu_percentile": None,
         "display_percentile": False,
         "district": apartment.get("district", ""),
-        "nearest_name": f"🍺 {nightlife_info.get('nearest_name', '')}" if nightlife_info.get("nearest_name") else "",
-        "nearest_distance": nightlife_info.get("nearest_distance", None),
-    })
+        "nearest_name": f"🍺 {ni.get('nearest_name', '')}" if ni.get("nearest_name") else "",
+        "nearest_distance": ni.get("nearest_distance", None),
+    }
 
-    activity_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "activity"
-        ),
-        None
+    domain_template = {
+        "key": "activity",
+        "label": "🌃 상권/활기",
+        "description": "유흥시설, 상권 밀집도",
+        "initial_load": False,
+        "category_count": 1,
+        "poi_count": count,
+        "categories": [nightlife_summary],
+        "max_score": 0,
+    }
+
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="nightlife", summary=nightlife_summary, info=nightlife_info,
+        new_tag=new_tag, domain_key="activity", domain_template=domain_template,
+        poi_count=count, poi_count_mode="increment",
     )
-
-    if activity_domain:
-        activity_domain["categories"].append(nightlife_summary)
-        try:
-            activity_domain["poi_count"] = int(activity_domain.get("poi_count", 0)) + int(nightlife_info.get("nightlife_count_500m", 0))
-        except Exception:
-            activity_domain["poi_count"] = nightlife_info.get("nightlife_count_500m", 0)
-    else:
-        activity_domain = {
-            "key": "activity",
-            "label": "🌃 상권/활기",
-            "description": "유흥시설, 상권 밀집도",
-            "initial_load": False,
-            "category_count": 1,
-            "poi_count": nightlife_info.get("nightlife_count_500m", 0),
-            "categories": [nightlife_summary],
-            "max_score": 0,
-        }
-        domain_summaries.append(activity_domain)
-
-    return category_summaries, preference_tags, domain_summaries
 
 
 
@@ -4237,73 +4134,42 @@ def apply_academy_baseline_to_ui(category_summaries, preference_tags, domain_sum
     )
 
     academy_summary = build_academy_category_summary(academy_info)
+    ai = academy_info or {}
+    count = ai.get("academy_count_1000m", 0)
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "academy"
-    ]
-
-    if academy_summary:
-        category_summaries.append(academy_summary)
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "academy"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "academy"
-        ]
-
-    if not academy_info or not academy_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    preference_tags.append({
+    new_tag = {
         "key": "academy",
         "label": "✏️ 학원",
         "value": old_academy_tag.get("value", 3) if old_academy_tag else 3,
         "level": old_academy_tag.get("level", "보통") if old_academy_tag else "보통",
         "level_class": old_academy_tag.get("level_class", "level-normal") if old_academy_tag else "level-normal",
         "radius": 1000,
-        "count": academy_info.get("academy_count_1000m", 0),
+        "count": count,
         "percentile": None,
-        "seoul_percentile": academy_info.get("seoul_percentile"),
+        "seoul_percentile": ai.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": f"✏️ {academy_info.get('nearest_name', '')}" if academy_info.get("nearest_name") else "",
-        "nearest_distance": academy_info.get("nearest_distance", None),
-    })
+        "nearest_name": f"✏️ {ai.get('nearest_name', '')}" if ai.get("nearest_name") else "",
+        "nearest_distance": ai.get("nearest_distance", None),
+    }
 
-    education_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "education"
-        ),
-        None
+    domain_template = {
+        "key": "education",
+        "label": "🏫 교육",
+        "description": "학원, 교육 인프라",
+        "initial_load": False,
+        "category_count": 1,
+        "poi_count": count,
+        "categories": [academy_summary],
+        "max_score": 0,
+    }
+
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="academy", summary=academy_summary, info=academy_info,
+        new_tag=new_tag, domain_key="education", domain_template=domain_template,
+        poi_count=count, poi_count_mode="increment",
     )
-
-    if education_domain:
-        education_domain["categories"].append(academy_summary)
-        try:
-            education_domain["poi_count"] = int(education_domain.get("poi_count", 0)) + int(academy_info.get("academy_count_1000m", 0))
-        except Exception:
-            education_domain["poi_count"] = academy_info.get("academy_count_1000m", 0)
-    else:
-        education_domain = {
-            "key": "education",
-            "label": "🏫 교육",
-            "description": "학원, 교육 인프라",
-            "initial_load": False,
-            "category_count": 1,
-            "poi_count": academy_info.get("academy_count_1000m", 0),
-            "categories": [academy_summary],
-            "max_score": 0,
-        }
-        domain_summaries.append(education_domain)
-
-    return category_summaries, preference_tags, domain_summaries
 
 
 def build_culture_info(apartment_name, gu=None, dong=None):
@@ -4459,73 +4325,42 @@ def apply_culture_baseline_to_ui(category_summaries, preference_tags, domain_sum
     )
 
     culture_summary = build_culture_category_summary(culture_info)
+    cu = culture_info or {}
+    count = cu.get("culture_count_1500m", 0)
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "culture"
-    ]
-
-    if culture_summary:
-        category_summaries.append(culture_summary)
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "culture"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "culture"
-        ]
-
-    if not culture_info or not culture_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    preference_tags.append({
+    new_tag = {
         "key": "culture",
         "label": "🎭 문화생활",
         "value": old_culture_tag.get("value", 3) if old_culture_tag else 3,
         "level": old_culture_tag.get("level", "보통") if old_culture_tag else "보통",
         "level_class": old_culture_tag.get("level_class", "level-normal") if old_culture_tag else "level-normal",
         "radius": 1500,
-        "count": culture_info.get("culture_count_1500m", 0),
+        "count": count,
         "percentile": None,
-        "seoul_percentile": culture_info.get("seoul_percentile"),
+        "seoul_percentile": cu.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": f"🎭 {culture_info.get('nearest_name', '')}" if culture_info.get("nearest_name") else "",
-        "nearest_distance": culture_info.get("nearest_distance", None),
-    })
+        "nearest_name": f"🎭 {cu.get('nearest_name', '')}" if cu.get("nearest_name") else "",
+        "nearest_distance": cu.get("nearest_distance", None),
+    }
 
-    culture_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "culture"
-        ),
-        None
+    domain_template = {
+        "key": "culture",
+        "label": "🎭 문화생활",
+        "description": "공연, 전시, 체육, 체험 등 활동형 여가",
+        "initial_load": False,
+        "category_count": 1,
+        "poi_count": count,
+        "categories": [culture_summary],
+        "max_score": 0,
+    }
+
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="culture", summary=culture_summary, info=culture_info,
+        new_tag=new_tag, domain_key="culture", domain_template=domain_template,
+        poi_count=count, poi_count_mode="set",
     )
-
-    if culture_domain:
-        culture_domain["categories"].append(culture_summary)
-        try:
-            culture_domain["poi_count"] = int(culture_info.get("culture_count_1500m", 0))
-        except Exception:
-            culture_domain["poi_count"] = culture_info.get("culture_count_1500m", 0)
-    else:
-        culture_domain = {
-            "key": "culture",
-            "label": "🎭 문화생활",
-            "description": "공연, 전시, 체육, 체험 등 활동형 여가",
-            "initial_load": False,
-            "category_count": 1,
-            "poi_count": culture_info.get("culture_count_1500m", 0),
-            "categories": [culture_summary],
-            "max_score": 0,
-        }
-        domain_summaries.append(culture_domain)
-
-    return category_summaries, preference_tags, domain_summaries
 
 
 def build_fire_station_info(apartment_name, gu=None, dong=None):
@@ -4664,99 +4499,42 @@ def apply_fire_station_baseline_to_ui(category_summaries, preference_tags, domai
     )
 
     fire_summary = build_fire_station_category_summary(fire_station_info)
+    fi = fire_station_info or {}
+    count = fi.get("fire_station_count_1500m", 0)
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "fire-station"
-    ]
-
-    if fire_summary:
-        result = []
-        inserted = False
-
-        for summary in category_summaries:
-            result.append(summary)
-
-            if summary.get("key") == "cctv":
-                result.append(fire_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(fire_summary)
-
-        category_summaries = result
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "fire-station"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "fire-station"
-        ]
-
-    if not fire_station_info or not fire_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    preference_tags.append({
+    new_tag = {
         "key": "fire-station",
         "label": "🚒 119안전센터/구조대",
         "value": old_fire_tag.get("value", 3) if old_fire_tag else 3,
         "level": old_fire_tag.get("level", "보통") if old_fire_tag else "보통",
         "level_class": old_fire_tag.get("level_class", "level-normal") if old_fire_tag else "level-normal",
         "radius": 1500,
-        "count": fire_station_info.get("fire_station_count_1500m", 0),
+        "count": count,
         "percentile": None,
-        "seoul_percentile": fire_station_info.get("seoul_percentile"),
+        "seoul_percentile": fi.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": f"🚒 {fire_station_info.get('nearest_name', '')}" if fire_station_info.get("nearest_name") else "",
-        "nearest_distance": fire_station_info.get("nearest_distance", None),
-    })
+        "nearest_name": f"🚒 {fi.get('nearest_name', '')}" if fi.get("nearest_name") else "",
+        "nearest_distance": fi.get("nearest_distance", None),
+    }
 
-    safety_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "safety"
-        ),
-        None
+    domain_template = {
+        "key": "safety",
+        "label": "🛡 안전",
+        "description": "CCTV, 119안전센터 등 안전 인프라",
+        "initial_load": False,
+        "category_count": 1,
+        "poi_count": count,
+        "categories": [fire_summary],
+        "max_score": 0,
+    }
+
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="fire-station", summary=fire_summary, info=fire_station_info,
+        new_tag=new_tag, domain_key="safety", domain_template=domain_template,
+        anchor_key="cctv", poi_count=count, poi_count_mode="increment",
     )
-
-    if safety_domain:
-        result = []
-        inserted = False
-
-        for summary in safety_domain.get("categories", []):
-            result.append(summary)
-
-            if summary.get("key") == "cctv":
-                result.append(fire_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(fire_summary)
-
-        safety_domain["categories"] = result
-        try:
-            safety_domain["poi_count"] = int(safety_domain.get("poi_count", 0)) + int(fire_station_info.get("fire_station_count_1500m", 0))
-        except Exception:
-            safety_domain["poi_count"] = fire_station_info.get("fire_station_count_1500m", 0)
-    else:
-        safety_domain = {
-            "key": "safety",
-            "label": "🛡 안전",
-            "description": "CCTV, 119안전센터 등 안전 인프라",
-            "initial_load": False,
-            "category_count": 1,
-            "poi_count": fire_station_info.get("fire_station_count_1500m", 0),
-            "categories": [fire_summary],
-            "max_score": 0,
-        }
-        domain_summaries.append(safety_domain)
-
-    return category_summaries, preference_tags, domain_summaries
 
 
 def get_preferences():
