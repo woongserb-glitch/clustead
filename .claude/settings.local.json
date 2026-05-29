@@ -19,7 +19,9 @@
       "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'test\\(P0/P1\\): correctness invariants for matching + scoring *)",
       "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'ux\\(P1\\): explain the score on the result page *)",
       "Bash(python tests/test_correctness.py)",
-      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'perf\\(P2\\): cache Kakao POI lookups \\(memory + disk\\) *)"
+      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'perf\\(P2\\): cache Kakao POI lookups \\(memory + disk\\) *)",
+      "Bash(git check-ignore *)",
+      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'docs: add README, .env.example, and refactor log *)"
     ]
   }
 }
