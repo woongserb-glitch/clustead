@@ -1980,6 +1980,7 @@ def apply_baseline_category_to_ui(
     domain_key,
     domain_template,
     anchor_key=None,
+    insert_position="after",
     poi_count=None,
     poi_count_mode="increment",
 ):
@@ -1987,22 +1988,31 @@ def apply_baseline_category_to_ui(
 
     Removes any existing entry for `key` from category_summaries,
     preference_tags and every domain's categories; then, when info+summary are
-    present, inserts the summary after `anchor_key` (or appends), appends the
-    prebuilt preference tag, and merges the summary into its domain — creating
-    the domain from `domain_template` when missing. poi_count_mode is
-    "increment" (add to existing) or "set" (replace). Behaviour matches the
-    hand-written functions; pinned by tests/snapshot_result.py.
+    present, inserts the summary relative to `anchor_key` (after every match,
+    or before the first match when insert_position="before"; appends when the
+    anchor is absent or None), appends the prebuilt preference tag, and merges
+    the summary into its domain — creating the domain from `domain_template`
+    when missing. poi_count_mode is "increment" (add to existing) or "set"
+    (replace). Behaviour matches the hand-written functions; pinned by
+    tests/snapshot_result.py.
     """
     def insert(items):
         if not anchor_key:
             return list(items) + [summary]
         result = []
         inserted = False
-        for item in items:
-            result.append(item)
-            if item.get("key") == anchor_key:
-                result.append(summary)
-                inserted = True
+        if insert_position == "before":
+            for item in items:
+                if item.get("key") == anchor_key and not inserted:
+                    result.append(summary)
+                    inserted = True
+                result.append(item)
+        else:
+            for item in items:
+                result.append(item)
+                if item.get("key") == anchor_key:
+                    result.append(summary)
+                    inserted = True
         if not inserted:
             result.append(summary)
         return result
@@ -3907,83 +3917,45 @@ def insert_before_category(summaries, target_key, new_summary):
 
 def apply_school_environment_to_ui(category_summaries, preference_tags, domain_summaries, school_environment_info, apartment):
     school_summary = build_school_environment_category_summary(school_environment_info)
+    si = school_environment_info or {}
+    count = school_summary.get("count", 0) if school_summary else 0
+    assigned_school_name = si.get("assigned_school_name", "")
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "school-environment"
-    ]
-
-    category_summaries = insert_before_category(
-        category_summaries,
-        "academy",
-        school_summary
-    )
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "school-environment"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "school-environment"
-        ]
-
-    if not school_environment_info or not school_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    assigned_school_name = school_environment_info.get("assigned_school_name", "")
-
-    preference_tags.append({
+    new_tag = {
         "key": "school-environment",
         "label": "🏫 교육환경",
         "value": 3,
         "level": "정보",
         "level_class": "level-normal",
         "radius": SCHOOL_ENVIRONMENT_RADIUS,
-        "count": school_summary.get("count", 0),
+        "count": count,
         "percentile": None,
         "seoul_percentile": None,
         "gu_percentile": None,
         "display_percentile": False,
         "district": apartment.get("district", ""),
         "nearest_name": f"🏫 {assigned_school_name}" if assigned_school_name else "",
-        "nearest_distance": school_environment_info.get("assigned_distance", None),
-    })
+        "nearest_distance": si.get("assigned_distance", None),
+    }
 
-    education_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "education"
-        ),
-        None
+    domain_template = {
+        "key": "education",
+        "label": "🏫 교육",
+        "description": "학교, 학원 등 교육 인프라",
+        "initial_load": False,
+        "category_count": 1,
+        "poi_count": count,
+        "categories": [school_summary],
+        "max_score": 0,
+    }
+
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="school-environment", summary=school_summary, info=school_environment_info,
+        new_tag=new_tag, domain_key="education", domain_template=domain_template,
+        anchor_key="academy", insert_position="before",
+        poi_count=count, poi_count_mode="increment",
     )
-
-    if education_domain:
-        education_domain["categories"] = insert_before_category(
-            education_domain.get("categories", []),
-            "academy",
-            school_summary
-        )
-        try:
-            education_domain["poi_count"] = int(education_domain.get("poi_count", 0)) + int(school_summary.get("count", 0))
-        except Exception:
-            education_domain["poi_count"] = school_summary.get("count", 0)
-    else:
-        education_domain = {
-            "key": "education",
-            "label": "🏫 교육",
-            "description": "학교, 학원 등 교육 인프라",
-            "initial_load": False,
-            "category_count": 1,
-            "poi_count": school_summary.get("count", 0),
-            "categories": [school_summary],
-            "max_score": 0,
-        }
-        domain_summaries.append(education_domain)
-
-    return category_summaries, preference_tags, domain_summaries
 
 
 def build_academy_category_summary(academy_info):
