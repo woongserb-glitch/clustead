@@ -54,7 +54,16 @@ python tests/snapshot_result.py check    # 리팩토링 회귀 (바이트 동일
   - subway: 최상단 prepend(insert 0), summary 없을 때 strip 안 함, 도메인 라벨 fallback 매칭
   - bus: 이중 키(bus/bus-baseline), tag 키가 bus-baseline, 도메인을 subway 포함여부로 매칭
   - medical: 다중 요약(여러 summary 생성/삽입)
-- `build_X_info`/`build_X_map_pois`/`build_X_category_summary` 트리오(13×) → config 기반 통합.
+- build_X 트리오 공통화: **취약 중복 블록만 추출 완료**(줄수 감소 아님이 목표).
+  - `parse_baseline_items(row, col, float_distance)` — items_json 파싱+정렬, 13개 전부(예외 포함) 재사용. 커밋 17f8d7e.
+  - `build_simple_map_pois(info, …, label_fn, subtype_fn)` — 표준 map_pois 8개. subway/bus/medical/ev 제외. 커밋 de0eaf3.
+  - `build_count_chips(chip_sources)` — count→chip 루프 8개. 커밋 4a53e17.
+  - **`build_baseline_info` 전체 통합은 보류(결정).** 표준 6개라도 info의 *return dict* 가 카테고리별로 다름:
+    count 키 이름(station_count_500m / hangang_count_3km / commercial_count_1km …),
+    nearest 키(bike=nearest_station vs 나머지=nearest_name), extra 필드(nearest_facility_tags,
+    nearest_type, alley/developed/market/tourism_count …), label 변환(prefix/park_name/strip/full_label/none).
+    downstream(summary·apply)이 이 카테고리별 키를 직접 읽으므로, spec로 묶으면 return dict를
+    config-DSL로 옮기는 셈 → 가독성 악화(유지보수성 기준에서 손해). summary 보류와 같은 이유.
 - `/result` 갓-함수(~350줄) → 카테고리 등록 루프화.
 
 **점수 통합 잔여**
