@@ -1465,6 +1465,27 @@ def build_simple_map_pois(info, *, category, icon, source, label_fn, subtype_fn)
     return map_pois
 
 
+def build_count_chips(chip_sources):
+    """Build [{name, count}] chips from (name, count) pairs, keeping only
+    positive counts. Centralises the int(float())-guarded count loop that was
+    duplicated across the count-based chip categories (bus, hangang,
+    commercial, shopping, nightlife, academy, culture, fire)."""
+    chips = []
+    for chip_name, chip_count in chip_sources:
+        try:
+            chip_count = int(float(chip_count))
+        except Exception:
+            chip_count = 0
+
+        if chip_count > 0:
+            chips.append({
+                "name": chip_name,
+                "count": chip_count,
+            })
+
+    return chips
+
+
 def build_subway_info(apartment_name, gu=None, dong=None):
     row = get_indexed_baseline_row(subway_baseline_index, apartment_name, gu, dong)
 
@@ -1678,17 +1699,7 @@ def build_bus_info(apartment_name, gu=None, dong=None):
         ("공항", row.get("airport_bus_count", 0)),
     ]
 
-    for name, count in chip_sources:
-        try:
-            count = int(float(count))
-        except:
-            count = 0
-
-        if count > 0:
-            type_chips.append({
-                "name": name,
-                "count": count,
-            })
+    type_chips = build_count_chips(chip_sources)
 
     return {
         "stop_count_500m":
@@ -2161,17 +2172,7 @@ def build_hangang_info(apartment_name, gu=None, dong=None):
     ]
 
     type_chips = []
-    for name, count in chip_sources:
-        try:
-            count = int(float(count))
-        except Exception:
-            count = 0
-
-        if count > 0:
-            type_chips.append({
-                "name": name,
-                "count": count,
-            })
+    type_chips = build_count_chips(chip_sources)
 
     return {
         "hangang_count_3km": row.get("hangang_count_3km", 0),
@@ -2887,17 +2888,7 @@ def build_commercial_info(apartment_name, gu=None, dong=None):
         ("관광특구", row.get("tourism_count", 0)),
     ]
 
-    for name, count in chip_sources:
-        try:
-            count = int(float(count))
-        except Exception:
-            count = 0
-
-        if count > 0:
-            type_chips.append({
-                "name": name,
-                "count": count,
-            })
+    type_chips = build_count_chips(chip_sources)
 
     return {
         "commercial_count_1km": row.get("commercial_count_1km", 0),
@@ -3032,17 +3023,7 @@ def build_shopping_info(apartment_name, gu=None, dong=None):
     ]
 
     type_chips = []
-    for name, count in chip_sources:
-        try:
-            count = int(float(count))
-        except Exception:
-            count = 0
-
-        if count > 0:
-            type_chips.append({
-                "name": name,
-                "count": count,
-            })
+    type_chips = build_count_chips(chip_sources)
 
     # Nearest must come from the SAME filtered population as the list/count.
     # The baked nearest_shopping_* columns are computed over all subtypes
@@ -3180,17 +3161,7 @@ def build_nightlife_info(apartment_name, gu=None, dong=None):
     ]
 
     type_chips = []
-    for name, count in chip_sources:
-        try:
-            count = int(float(count))
-        except Exception:
-            count = 0
-
-        if count > 0:
-            type_chips.append({
-                "name": name,
-                "count": count,
-            })
+    type_chips = build_count_chips(chip_sources)
 
     for index, item in enumerate(nightlife_items, start=1):
         subtype = clean_text(item.get("subtype", "기타")) or "기타"
@@ -3366,17 +3337,7 @@ def build_academy_info(apartment_name, gu=None, dong=None):
         ("기타", row.get("etc_count", 0)),
     ]
 
-    for name, count in chip_sources:
-        try:
-            count = int(float(count))
-        except Exception:
-            count = 0
-
-        if count > 0:
-            type_chips.append({
-                "name": name,
-                "count": count,
-            })
+    type_chips = build_count_chips(chip_sources)
 
     return {
         "academy_count_1000m": row.get("academy_count_1000m", 0),
@@ -3850,17 +3811,7 @@ def build_culture_info(apartment_name, gu=None, dong=None):
     ]
 
     type_chips = []
-    for name, count in chip_sources:
-        try:
-            count = int(float(count))
-        except Exception:
-            count = 0
-
-        if count > 0:
-            type_chips.append({
-                "name": name,
-                "count": count,
-            })
+    type_chips = build_count_chips(chip_sources)
 
     return {
         "culture_count_1500m": row.get("culture_count_1500m", 0),
@@ -3988,17 +3939,7 @@ def build_fire_station_info(apartment_name, gu=None, dong=None):
         ("기타", row.get("fire_etc_count", 0)),
     ]
 
-    for name, count in chip_sources:
-        try:
-            count = int(float(count))
-        except Exception:
-            count = 0
-
-        if count > 0:
-            type_chips.append({
-                "name": name,
-                "count": count,
-            })
+    type_chips = build_count_chips(chip_sources)
 
     return {
         "fire_station_count_1500m": row.get("fire_station_count_1500m", 0),
