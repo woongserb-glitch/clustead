@@ -1398,43 +1398,44 @@ def build_complex_info(apartment, school_zone, category_summaries):
     return info
 
 
+def parse_baseline_items(row, column, *, float_distance=False):
+    """Parse a baseline `*_items_json` cell into a distance-sorted list.
+
+    Centralises the json-parse + float/None guard + distance sort that was
+    copy-pasted into every build_X_info (and twice in subway, 5x in medical).
+    `float_distance` selects the exact original sort key so output stays
+    byte-identical: most categories used int(distance), while subway/medical
+    used int(float(distance)) — and those differ for values like "123.0"
+    (int("123.0") raises, leaving the list unsorted).
+    """
+    raw = row.get(column, "[]")
+    if raw is None or isinstance(raw, float):
+        raw = "[]"
+
+    try:
+        items = json.loads(str(raw))
+    except Exception:
+        items = []
+
+    try:
+        if float_distance:
+            items = sorted(items, key=lambda item: int(float(item.get("distance", 999999))))
+        else:
+            items = sorted(items, key=lambda item: int(item.get("distance", 999999)))
+    except Exception:
+        pass
+
+    return items
+
+
 def build_subway_info(apartment_name, gu=None, dong=None):
     row = get_indexed_baseline_row(subway_baseline_index, apartment_name, gu, dong)
 
     if not row:
         return None
 
-    items_raw = row.get("subway_items_json", "[]")
-    items_500m_raw = row.get("subway_items_500m_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-    if items_500m_raw is None or isinstance(items_500m_raw, float):
-        items_500m_raw = "[]"
-
-    try:
-        items = json.loads(str(items_raw))
-    except Exception:
-        items = []
-    try:
-        items_500m = json.loads(str(items_500m_raw))
-    except Exception:
-        items_500m = []
-
-    try:
-        items = sorted(
-            items,
-            key=lambda item: int(float(item.get("distance", 999999)))
-        )
-    except Exception:
-        pass
-    try:
-        items_500m = sorted(
-            items_500m,
-            key=lambda item: int(float(item.get("distance", 999999)))
-        )
-    except Exception:
-        pass
+    items = parse_baseline_items(row, "subway_items_json", float_distance=True)
+    items_500m = parse_baseline_items(row, "subway_items_500m_json", float_distance=True)
 
     return {
         "nearest_name": clean_text(row.get("nearest_subway_name") or row.get("nearest_subway", "")),
@@ -1622,26 +1623,7 @@ def build_bus_info(apartment_name, gu=None, dong=None):
             route_preview[:60] + "..."
         )
 
-    bus_items_raw = row.get("bus_items_json", "[]")
-
-    if bus_items_raw is None:
-        bus_items_raw = "[]"
-
-    if isinstance(bus_items_raw, float):
-        bus_items_raw = "[]"
-
-    try:
-        bus_items = json.loads(str(bus_items_raw))
-    except:
-        bus_items = []
-    
-    try:
-        bus_items = sorted(
-            bus_items,
-            key=lambda item: int(item.get("distance", 999999))
-        )
-    except:
-        pass
+    bus_items = parse_baseline_items(row, "bus_items_json")
 
     for item in bus_items:
         item["label"] = str(
@@ -2126,23 +2108,7 @@ def build_hangang_info(apartment_name, gu=None, dong=None):
     if not row:
         return None
 
-    items_raw = row.get("hangang_items_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-
-    try:
-        hangang_items = json.loads(str(items_raw))
-    except Exception:
-        hangang_items = []
-
-    try:
-        hangang_items = sorted(
-            hangang_items,
-            key=lambda item: int(item.get("distance", 999999))
-        )
-    except Exception:
-        pass
+    hangang_items = parse_baseline_items(row, "hangang_items_json")
 
     for item in hangang_items:
         item["label"] = item.get("park_name", "")
@@ -2292,23 +2258,7 @@ def build_bike_info(apartment_name, gu=None, dong=None):
     if not row:
         return None
 
-    items_raw = row.get("bike_items_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-
-    try:
-        bike_items = json.loads(str(items_raw))
-    except Exception:
-        bike_items = []
-
-    try:
-        bike_items = sorted(
-            bike_items,
-            key=lambda item: int(item.get("distance", 999999))
-        )
-    except Exception:
-        pass
+    bike_items = parse_baseline_items(row, "bike_items_json")
 
     for item in bike_items:
         item["label"] = f"🚲 {str(item.get('label', '')).replace('🚲', '').strip()}"
@@ -2428,20 +2378,7 @@ def build_ev_charger_info(apartment_name, gu=None, dong=None):
     if not row:
         return None
 
-    items_raw = row.get("ev_charger_items_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-
-    try:
-        items = json.loads(str(items_raw))
-    except Exception:
-        items = []
-
-    try:
-        items = sorted(items, key=lambda item: int(item.get("distance", 999999)))
-    except Exception:
-        pass
+    items = parse_baseline_items(row, "ev_charger_items_json")
 
     return {
         "count_300m": to_int(row.get("ev_charger_count_300m"), 0),
@@ -2623,21 +2560,7 @@ def build_medical_info(apartment_name, gu=None, dong=None):
         return None
 
     def parse_items(column_name):
-        items_raw = row.get(column_name, "[]")
-        if items_raw is None or isinstance(items_raw, float):
-            items_raw = "[]"
-
-        try:
-            items = json.loads(str(items_raw))
-        except Exception:
-            items = []
-
-        try:
-            items = sorted(items, key=lambda item: int(float(item.get("distance", 999999))))
-        except Exception:
-            pass
-
-        return items
+        return parse_baseline_items(row, column_name, float_distance=True)
 
     items = parse_items("medical_items_json")
     hospital_items = parse_items("hospital_items_json") or [
@@ -2957,23 +2880,7 @@ def build_commercial_info(apartment_name, gu=None, dong=None):
     if not row:
         return None
 
-    items_raw = row.get("commercial_items_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-
-    try:
-        commercial_items = json.loads(str(items_raw))
-    except Exception:
-        commercial_items = []
-
-    try:
-        commercial_items = sorted(
-            commercial_items,
-            key=lambda item: int(item.get("distance", 999999))
-        )
-    except Exception:
-        pass
+    commercial_items = parse_baseline_items(row, "commercial_items_json")
 
     type_chips = []
     chip_sources = [
@@ -3133,23 +3040,7 @@ def build_shopping_info(apartment_name, gu=None, dong=None):
     if not row:
         return None
 
-    items_raw = row.get("shopping_items_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-
-    try:
-        shopping_items = json.loads(str(items_raw))
-    except Exception:
-        shopping_items = []
-
-    try:
-        shopping_items = sorted(
-            shopping_items,
-            key=lambda item: int(item.get("distance", 999999))
-        )
-    except Exception:
-        pass
+    shopping_items = parse_baseline_items(row, "shopping_items_json")
 
     valid_shopping_subtypes = ["백화점", "쇼핑몰", "전문점"]
 
@@ -3324,23 +3215,7 @@ def build_nightlife_info(apartment_name, gu=None, dong=None):
     if not row:
         return None
 
-    items_raw = row.get("nightlife_items_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-
-    try:
-        nightlife_items = json.loads(str(items_raw))
-    except Exception:
-        nightlife_items = []
-
-    try:
-        nightlife_items = sorted(
-            nightlife_items,
-            key=lambda item: int(item.get("distance", 999999))
-        )
-    except Exception:
-        pass
+    nightlife_items = parse_baseline_items(row, "nightlife_items_json")
 
     chip_sources = [
         ("룸살롱", row.get("room_salon_count", 0)),
@@ -3538,23 +3413,7 @@ def build_academy_info(apartment_name, gu=None, dong=None):
     if not row:
         return None
 
-    items_raw = row.get("academy_items_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-
-    try:
-        academy_items = json.loads(str(items_raw))
-    except Exception:
-        academy_items = []
-
-    try:
-        academy_items = sorted(
-            academy_items,
-            key=lambda item: int(item.get("distance", 999999))
-        )
-    except Exception:
-        pass
+    academy_items = parse_baseline_items(row, "academy_items_json")
 
     for item in academy_items:
         item["label"] = str(item.get("label", "")).replace("🏫", "").strip()
@@ -4053,23 +3912,7 @@ def build_culture_info(apartment_name, gu=None, dong=None):
     if not row:
         return None
 
-    items_raw = row.get("culture_items_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-
-    try:
-        culture_items = json.loads(str(items_raw))
-    except Exception:
-        culture_items = []
-
-    try:
-        culture_items = sorted(
-            culture_items,
-            key=lambda item: int(item.get("distance", 999999))
-        )
-    except Exception:
-        pass
+    culture_items = parse_baseline_items(row, "culture_items_json")
 
     for item in culture_items:
         place_name = str(item.get("place_name", "")).replace("🎭", "").strip()
@@ -4244,23 +4087,7 @@ def build_fire_station_info(apartment_name, gu=None, dong=None):
     if not row:
         return None
 
-    items_raw = row.get("fire_station_items_json", "[]")
-
-    if items_raw is None or isinstance(items_raw, float):
-        items_raw = "[]"
-
-    try:
-        fire_items = json.loads(str(items_raw))
-    except Exception:
-        fire_items = []
-
-    try:
-        fire_items = sorted(
-            fire_items,
-            key=lambda item: int(item.get("distance", 999999))
-        )
-    except Exception:
-        pass
+    fire_items = parse_baseline_items(row, "fire_station_items_json")
 
     type_chips = []
     chip_sources = [
