@@ -47,8 +47,13 @@ python tests/snapshot_result.py check    # 리팩토링 회귀 (바이트 동일
 ## 남은 작업 (우선순위)
 
 **P2 유지보수성 (사용자 영향 없음, 작업량 큼)**
-- 특수 apply 6개 통합: subway/bus(고유 형태), medical(다중 요약), ev_charger(충전 카운트),
-  hangang(공원명), school(insert_before) — `apply_baseline_category_to_ui` 확장 필요.
+- apply_X 통합: **10/13 완료**(commercial, nightlife, academy, culture, bike, shopping,
+  fire-station, hangang, ev_charger, school). 헬퍼 `apply_baseline_category_to_ui`는
+  anchor/insert_position(after|before)/poi_count_mode(increment|set)/domain_template 지원.
+  **의도적 제외 3개**(억지 통합 시 특수 파라미터만 늘고 위험):
+  - subway: 최상단 prepend(insert 0), summary 없을 때 strip 안 함, 도메인 라벨 fallback 매칭
+  - bus: 이중 키(bus/bus-baseline), tag 키가 bus-baseline, 도메인을 subway 포함여부로 매칭
+  - medical: 다중 요약(여러 summary 생성/삽입)
 - `build_X_info`/`build_X_map_pois`/`build_X_category_summary` 트리오(13×) → config 기반 통합.
 - `/result` 갓-함수(~350줄) → 카테고리 등록 루프화.
 
