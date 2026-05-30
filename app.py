@@ -2239,99 +2239,42 @@ def apply_hangang_baseline_to_ui(category_summaries, preference_tags, domain_sum
     )
 
     hangang_summary = build_hangang_category_summary(hangang_info)
+    hi = hangang_info or {}
+    count = hi.get("hangang_count_3km", 0)
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "hangang"
-    ]
-
-    if hangang_summary:
-        result = []
-        inserted = False
-
-        for summary in category_summaries:
-            result.append(summary)
-
-            if summary.get("key") == "park":
-                result.append(hangang_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(hangang_summary)
-
-        category_summaries = result
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "hangang"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "hangang"
-        ]
-
-    if not hangang_info or not hangang_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    preference_tags.append({
+    new_tag = {
         "key": "hangang",
         "label": "🌊 한강공원",
         "value": old_hangang_tag.get("value", 3) if old_hangang_tag else 3,
         "level": old_hangang_tag.get("level", "보통") if old_hangang_tag else "보통",
         "level_class": old_hangang_tag.get("level_class", "level-normal") if old_hangang_tag else "level-normal",
         "radius": 3000,
-        "count": hangang_info.get("hangang_count_3km", 0),
+        "count": count,
         "percentile": None,
-        "seoul_percentile": hangang_info.get("seoul_percentile"),
+        "seoul_percentile": hi.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": f"🌊 {hangang_info.get('nearest_name', '')}" if hangang_info.get("nearest_name") else "",
-        "nearest_distance": hangang_info.get("nearest_distance", None),
-    })
+        "nearest_name": f"🌊 {hi.get('nearest_name', '')}" if hi.get("nearest_name") else "",
+        "nearest_distance": hi.get("nearest_distance", None),
+    }
 
-    rest_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "rest"
-        ),
-        None
+    domain_template = {
+        "key": "rest",
+        "label": "☕ 휴식/여가",
+        "description": "카페, 공원, 한강 등 휴식 요소",
+        "initial_load": True,
+        "category_count": 1,
+        "poi_count": count,
+        "categories": [hangang_summary],
+        "max_score": 0,
+    }
+
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="hangang", summary=hangang_summary, info=hangang_info,
+        new_tag=new_tag, domain_key="rest", domain_template=domain_template,
+        anchor_key="park", poi_count=count, poi_count_mode="increment",
     )
-
-    if rest_domain:
-        result = []
-        inserted = False
-
-        for summary in rest_domain.get("categories", []):
-            result.append(summary)
-
-            if summary.get("key") == "park":
-                result.append(hangang_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(hangang_summary)
-
-        rest_domain["categories"] = result
-        try:
-            rest_domain["poi_count"] = int(rest_domain.get("poi_count", 0)) + int(hangang_info.get("hangang_count_3km", 0))
-        except Exception:
-            rest_domain["poi_count"] = hangang_info.get("hangang_count_3km", 0)
-    else:
-        rest_domain = {
-            "key": "rest",
-            "label": "☕ 휴식/여가",
-            "description": "카페, 공원, 한강 등 휴식 요소",
-            "initial_load": True,
-            "category_count": 1,
-            "poi_count": hangang_info.get("hangang_count_3km", 0),
-            "categories": [hangang_summary],
-            "max_score": 0,
-        }
-        domain_summaries.append(rest_domain)
-
-    return category_summaries, preference_tags, domain_summaries
 
 def build_bike_info(apartment_name, gu=None, dong=None):
     row = get_indexed_baseline_row(bike_baseline_index, apartment_name, gu, dong)
@@ -2625,98 +2568,42 @@ def apply_ev_charger_baseline_to_ui(category_summaries, preference_tags, domain_
     )
 
     ev_summary = build_ev_charger_category_summary(ev_charger_info)
+    ei = ev_charger_info or {}
+    count = ei.get("count_1km", 0)
 
-    category_summaries = [
-        summary for summary in category_summaries
-        if summary.get("key") != "ev-charger"
-    ]
-
-    if ev_summary:
-        result = []
-        inserted = False
-
-        for summary in category_summaries:
-            result.append(summary)
-
-            if summary.get("key") == "convenience":
-                result.append(ev_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(ev_summary)
-
-        category_summaries = result
-
-    preference_tags = [
-        tag for tag in preference_tags
-        if tag.get("key") != "ev-charger"
-    ]
-
-    for domain in domain_summaries:
-        domain["categories"] = [
-            summary for summary in domain.get("categories", [])
-            if summary.get("key") != "ev-charger"
-        ]
-
-    if not ev_charger_info or not ev_summary:
-        return category_summaries, preference_tags, domain_summaries
-
-    preference_tags.append({
+    new_tag = {
         "key": "ev-charger",
         "label": "⚡ 전기차 충전",
         "value": old_tag.get("value", 3) if old_tag else 3,
-        "level": old_tag.get("level", ev_charger_info.get("level", "보통")) if old_tag else ev_charger_info.get("level", "보통"),
+        "level": old_tag.get("level", ei.get("level", "보통")) if old_tag else ei.get("level", "보통"),
         "level_class": old_tag.get("level_class", "level-normal") if old_tag else "level-normal",
         "radius": 1000,
-        "count": ev_charger_info.get("count_1km", 0),
+        "count": count,
         "percentile": None,
-        "seoul_percentile": ev_charger_info.get("seoul_percentile"),
+        "seoul_percentile": ei.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": f"⚡ {ev_charger_info.get('nearest_name', '')}" if ev_charger_info.get("nearest_name") else "",
-        "nearest_distance": ev_charger_info.get("nearest_distance", None),
-    })
+        "nearest_name": f"⚡ {ei.get('nearest_name', '')}" if ei.get("nearest_name") else "",
+        "nearest_distance": ei.get("nearest_distance", None),
+    }
 
-    convenience_domain = next(
-        (
-            domain for domain in domain_summaries
-            if domain.get("key") == "convenience"
-        ),
-        None
+    domain_template = {
+        "key": "convenience",
+        "label": "생활편의",
+        "description": "마트, 편의점, 전기차 충전 등 일상 편의시설",
+        "initial_load": True,
+        "category_count": 1,
+        "poi_count": count,
+        "categories": [ev_summary],
+        "max_score": ei.get("score", 0),
+    }
+
+    return apply_baseline_category_to_ui(
+        category_summaries, preference_tags, domain_summaries,
+        key="ev-charger", summary=ev_summary, info=ev_charger_info,
+        new_tag=new_tag, domain_key="convenience", domain_template=domain_template,
+        anchor_key="convenience", poi_count=count, poi_count_mode="increment",
     )
-
-    if convenience_domain:
-        result = []
-        inserted = False
-
-        for summary in convenience_domain.get("categories", []):
-            result.append(summary)
-
-            if summary.get("key") == "convenience":
-                result.append(ev_summary)
-                inserted = True
-
-        if not inserted:
-            result.append(ev_summary)
-
-        convenience_domain["categories"] = result
-        try:
-            convenience_domain["poi_count"] = int(convenience_domain.get("poi_count", 0)) + int(ev_charger_info.get("count_1km", 0))
-        except Exception:
-            convenience_domain["poi_count"] = ev_charger_info.get("count_1km", 0)
-    else:
-        domain_summaries.append({
-            "key": "convenience",
-            "label": "생활편의",
-            "description": "마트, 편의점, 전기차 충전 등 일상 편의시설",
-            "initial_load": True,
-            "category_count": 1,
-            "poi_count": ev_charger_info.get("count_1km", 0),
-            "categories": [ev_summary],
-            "max_score": ev_charger_info.get("score", 0),
-        })
-
-    return category_summaries, preference_tags, domain_summaries
 
 
 def build_medical_info(apartment_name, gu=None, dong=None):
