@@ -1,0 +1,13 @@
+﻿name,gu,dong,road_address,cand_lat,cand_lng,confidence,reason
+일원대우,강남구,일원동,,,,LOW_NO_RESULT,no_road_address
+삼성동롯데캐슬킹덤,강남구,삼성동,,,,LOW_NO_RESULT,no_road_address
+도곡3차아이파크,강남구,도곡동,,,,LOW_NO_RESULT,no_road_address
+도곡2차 I-Park,강남구,도곡동,,,,LOW_NO_RESULT,no_road_address
+청담4차e편한세상,강남구,청담동,,,,LOW_NO_RESULT,no_road_address
+돈암대성유니드,성북구,돈암동,,,,LOW_NO_RESULT,no_road_address
+신월신도브래뉴2차,양천구,신월동,,,,LOW_NO_RESULT,no_road_address
+강동리엔파크9단지아파트,강동구,강일동,서울특별시 강동구 고덕로98길 29,37.5569887157805,127.180230285246,MEDIUM,needs_manual_confirm
+에피소드수유838,강북구,수유동,,,,LOW_NO_RESULT,no_road_address
+고척아이파크MD,구로구,고척동,,,,LOW_NO_RESULT,no_road_address
+약수역 더시티,중구,신당동,,,,LOW_NO_RESULT,no_road_address
+BX201 청년주택,관악구,봉천동,,,,LOW_NO_RESULT,no_road_address
