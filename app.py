@@ -1428,6 +1428,43 @@ def parse_baseline_items(row, column, *, float_distance=False):
     return items
 
 
+def build_simple_map_pois(info, *, category, icon, source, label_fn, subtype_fn):
+    """Map markers for the 'standard' POI categories.
+
+    Centralises the shared, fragile boilerplate — the lat/lng float guard and
+    the marker dict shape — that was identical across bike/hangang/commercial/
+    academy/culture/fire/shopping/nightlife. The genuinely per-category bits
+    (label extraction, subtype) stay explicit as small callables in each
+    caller, so there is no `if category == ...` branching here and output is
+    byte-identical. Excludes subway/bus/medical/ev (meaningfully different
+    marker logic).
+    """
+    if not info:
+        return []
+
+    map_pois = []
+    for item in info.get("items", []):
+        try:
+            lat = float(item.get("lat"))
+            lng = float(item.get("lng"))
+        except Exception:
+            continue
+
+        label = label_fn(item)
+        map_pois.append({
+            "lat": lat,
+            "lng": lng,
+            "category": category,
+            "label": f"{icon} {label}",
+            "name": label,
+            "distance": item.get("distance"),
+            "subtype": subtype_fn(item),
+            "source": source,
+        })
+
+    return map_pois
+
+
 def build_subway_info(apartment_name, gu=None, dong=None):
     row = get_indexed_baseline_row(subway_baseline_index, apartment_name, gu, dong)
 
@@ -2149,32 +2186,12 @@ def build_hangang_info(apartment_name, gu=None, dong=None):
     return None
 
 def build_hangang_map_pois(hangang_info):
-    if not hangang_info:
-        return []
-
-    map_pois = []
-
-    for item in hangang_info.get("items", []):
-        try:
-            lat = float(item.get("lat"))
-            lng = float(item.get("lng"))
-        except Exception:
-            continue
-
-        label = str(item.get("park_name") or item.get("label", "한강공원")).replace("🌊", "").strip()
-
-        map_pois.append({
-            "lat": lat,
-            "lng": lng,
-            "category": "hangang",
-            "label": f"🌊 {label}",
-            "name": label,
-            "distance": item.get("distance"),
-            "subtype": item.get("subtype", "한강공원"),
-            "source": "서울시 한강공원 시설현황",
-        })
-
-    return map_pois
+    return build_simple_map_pois(
+        hangang_info, category="hangang", icon="🌊",
+        source="서울시 한강공원 시설현황",
+        label_fn=lambda item: str(item.get("park_name") or item.get("label", "한강공원")).replace("🌊", "").strip(),
+        subtype_fn=lambda item: item.get("subtype", "한강공원"),
+    )
 
 
 def build_hangang_category_summary(hangang_info):
@@ -2274,32 +2291,12 @@ def build_bike_info(apartment_name, gu=None, dong=None):
     return None
 
 def build_bike_map_pois(bike_info):
-    if not bike_info:
-        return []
-
-    map_pois = []
-
-    for item in bike_info.get("items", []):
-        try:
-            lat = float(item.get("lat"))
-            lng = float(item.get("lng"))
-        except Exception:
-            continue
-
-        label = str(item.get("label", "따릉이 대여소")).replace("🚲", "").strip()
-
-        map_pois.append({
-            "lat": lat,
-            "lng": lng,
-            "category": "bike",
-            "label": f"🚲 {label}",
-            "name": label,
-            "distance": item.get("distance"),
-            "subtype": "따릉이",
-            "source": "서울시 공공자전거 따릉이 대여소 마스터 정보",
-        })
-
-    return map_pois
+    return build_simple_map_pois(
+        bike_info, category="bike", icon="🚲",
+        source="서울시 공공자전거 따릉이 대여소 마스터 정보",
+        label_fn=lambda item: str(item.get("label", "따릉이 대여소")).replace("🚲", "").strip(),
+        subtype_fn=lambda item: "따릉이",
+    )
 
 
 def build_bike_category_summary(bike_info):
@@ -2920,33 +2917,12 @@ def build_commercial_info(apartment_name, gu=None, dong=None):
     return None
 
 def build_commercial_map_pois(commercial_info):
-    if not commercial_info:
-        return []
-
-    map_pois = []
-
-    for item in commercial_info.get("items", []):
-        try:
-            lat = float(item.get("lat"))
-            lng = float(item.get("lng"))
-        except Exception:
-            continue
-
-        label = item.get("label", "상권")
-        subtype = item.get("subtype", "기타")
-
-        map_pois.append({
-            "lat": lat,
-            "lng": lng,
-            "category": "commercial",
-            "label": f"🌃 {label}",
-            "name": label,
-            "distance": item.get("distance"),
-            "subtype": subtype,
-            "source": "서울시 상권분석서비스",
-        })
-
-    return map_pois
+    return build_simple_map_pois(
+        commercial_info, category="commercial", icon="🌃",
+        source="서울시 상권분석서비스",
+        label_fn=lambda item: item.get("label", "상권"),
+        subtype_fn=lambda item: item.get("subtype", "기타"),
+    )
 
 
 def build_commercial_category_summary(commercial_info):
@@ -3097,33 +3073,12 @@ def build_shopping_info(apartment_name, gu=None, dong=None):
     }
 
 def build_shopping_map_pois(shopping_info):
-    if not shopping_info:
-        return []
-
-    map_pois = []
-
-    for item in shopping_info.get("items", []):
-        try:
-            lat = float(item.get("lat"))
-            lng = float(item.get("lng"))
-        except Exception:
-            continue
-
-        label = str(item.get("label", "쇼핑시설")).replace("🛍", "").strip()
-        subtype = item.get("subtype", "기타쇼핑")
-
-        map_pois.append({
-            "lat": lat,
-            "lng": lng,
-            "category": "shopping",
-            "label": f"🛍️ {label}",
-            "name": label,
-            "distance": item.get("distance"),
-            "subtype": subtype,
-            "source": "서울시 대규모점포 인허가 정보",
-        })
-
-    return map_pois
+    return build_simple_map_pois(
+        shopping_info, category="shopping", icon="🛍️",
+        source="서울시 대규모점포 인허가 정보",
+        label_fn=lambda item: str(item.get("label", "쇼핑시설")).replace("🛍", "").strip(),
+        subtype_fn=lambda item: item.get("subtype", "기타쇼핑"),
+    )
 
 
 def build_shopping_category_summary(shopping_info):
@@ -3266,33 +3221,12 @@ def build_nightlife_info(apartment_name, gu=None, dong=None):
     return None
 
 def build_nightlife_map_pois(nightlife_info):
-    if not nightlife_info:
-        return []
-
-    map_pois = []
-
-    for item in nightlife_info.get("items", []):
-        try:
-            lat = float(item.get("lat"))
-            lng = float(item.get("lng"))
-        except Exception:
-            continue
-
-        label = item.get("label", "유흥주점")
-        subtype = item.get("subtype", "기타")
-
-        map_pois.append({
-            "lat": lat,
-            "lng": lng,
-            "category": "nightlife",
-            "label": f"🍺 {label}",
-            "name": label,
-            "distance": item.get("distance"),
-            "subtype": subtype,
-            "source": "서울열린데이터광장",
-        })
-
-    return map_pois
+    return build_simple_map_pois(
+        nightlife_info, category="nightlife", icon="🍺",
+        source="서울열린데이터광장",
+        label_fn=lambda item: item.get("label", "유흥주점"),
+        subtype_fn=lambda item: item.get("subtype", "기타"),
+    )
 
 
 def build_nightlife_category_summary(nightlife_info):
@@ -3458,33 +3392,12 @@ def build_academy_info(apartment_name, gu=None, dong=None):
     return None
 
 def build_academy_map_pois(academy_info):
-    if not academy_info:
-        return []
-
-    map_pois = []
-
-    for item in academy_info.get("items", []):
-        try:
-            lat = float(item.get("lat"))
-            lng = float(item.get("lng"))
-        except Exception:
-            continue
-
-        label = str(item.get("label", "학원")).replace("🏫", "").strip()
-        subtype = item.get("subtype", "기타")
-
-        map_pois.append({
-            "lat": lat,
-            "lng": lng,
-            "category": "academy",
-            "label": f"🏫 {label}",
-            "name": label,
-            "distance": item.get("distance"),
-            "subtype": subtype,
-            "source": "서울시 학원교습소 정보",
-        })
-
-    return map_pois
+    return build_simple_map_pois(
+        academy_info, category="academy", icon="🏫",
+        source="서울시 학원교습소 정보",
+        label_fn=lambda item: str(item.get("label", "학원")).replace("🏫", "").strip(),
+        subtype_fn=lambda item: item.get("subtype", "기타"),
+    )
 
 
 
@@ -3963,33 +3876,12 @@ def build_culture_info(apartment_name, gu=None, dong=None):
     return None
 
 def build_culture_map_pois(culture_info):
-    if not culture_info:
-        return []
-
-    map_pois = []
-
-    for item in culture_info.get("items", []):
-        try:
-            lat = float(item.get("lat"))
-            lng = float(item.get("lng"))
-        except Exception:
-            continue
-
-        label = item.get("label", "문화생활")
-        subtype = item.get("subtype", "기타")
-
-        map_pois.append({
-            "lat": lat,
-            "lng": lng,
-            "category": "culture",
-            "label": f"🎭 {label}",
-            "name": label,
-            "distance": item.get("distance"),
-            "subtype": subtype,
-            "source": "서울시 공공서비스예약",
-        })
-
-    return map_pois
+    return build_simple_map_pois(
+        culture_info, category="culture", icon="🎭",
+        source="서울시 공공서비스예약",
+        label_fn=lambda item: item.get("label", "문화생활"),
+        subtype_fn=lambda item: item.get("subtype", "기타"),
+    )
 
 
 def build_culture_category_summary(culture_info):
@@ -4121,33 +4013,12 @@ def build_fire_station_info(apartment_name, gu=None, dong=None):
     return None
 
 def build_fire_station_map_pois(fire_station_info):
-    if not fire_station_info:
-        return []
-
-    map_pois = []
-
-    for item in fire_station_info.get("items", []):
-        try:
-            lat = float(item.get("lat"))
-            lng = float(item.get("lng"))
-        except Exception:
-            continue
-
-        label = str(item.get("label", "119안전센터/구조대")).replace("🚒", "").strip()
-        subtype = item.get("subtype", "기타")
-
-        map_pois.append({
-            "lat": lat,
-            "lng": lng,
-            "category": "fire-station",
-            "label": f"🚒 {label}",
-            "name": label,
-            "distance": item.get("distance"),
-            "subtype": subtype,
-            "source": "서울시 119안전센터/구조대 위치정보",
-        })
-
-    return map_pois
+    return build_simple_map_pois(
+        fire_station_info, category="fire-station", icon="🚒",
+        source="서울시 119안전센터/구조대 위치정보",
+        label_fn=lambda item: str(item.get("label", "119안전센터/구조대")).replace("🚒", "").strip(),
+        subtype_fn=lambda item: item.get("subtype", "기타"),
+    )
 
 
 def build_fire_station_category_summary(fire_station_info):
