@@ -3623,31 +3623,6 @@ def build_school_environment_category_summary(school_environment_info):
     }
 
 
-def insert_before_category(summaries, target_key, new_summary):
-    if not new_summary:
-        return summaries
-
-    cleaned = [
-        summary for summary in summaries
-        if summary.get("key") != new_summary.get("key")
-    ]
-
-    result = []
-    inserted = False
-
-    for summary in cleaned:
-        if summary.get("key") == target_key and not inserted:
-            result.append(new_summary)
-            inserted = True
-
-        result.append(summary)
-
-    if not inserted:
-        result.append(new_summary)
-
-    return result
-
-
 def apply_school_environment_to_ui(category_summaries, preference_tags, domain_summaries, school_environment_info, apartment):
     school_summary = build_school_environment_category_summary(school_environment_info)
     si = school_environment_info or {}
@@ -4063,30 +4038,6 @@ def get_preferences():
             preferences[key] = 3
 
     return preferences
-
-
-def calculate_personal_score(scores, preferences):
-    total_weight = 0
-    weighted_sum = 0
-
-    for key in PREFERENCE_KEYS:
-        weight = preferences.get(key, 0)
-
-        if weight <= 0:
-            continue
-
-        score = scores.get(key, 0)
-
-        if key == "nightlife":
-            score = 100 - score
-
-        weighted_sum += score * weight
-        total_weight += weight
-
-    if total_weight == 0:
-        return 0
-
-    return round(weighted_sum / total_weight)
 
 
 def make_result_url(apartment_name, preferences, gu="", dong=""):
