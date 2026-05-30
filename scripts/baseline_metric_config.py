@@ -69,10 +69,10 @@ BASELINE_METRIC_CONFIG = {
     "bus": metric_config(
         label="버스",
         file="bus_baseline.csv",
-        required_columns=["name", "gu", "dong", "lat", "lng", "bus_stop_count_500m"],
-        primary_metric="bus_stop_count_500m",
+        required_columns=["name", "gu", "dong", "lat", "lng", "bus_stop_count_500m", "bus_route_count"],
+        primary_metric="bus_route_count",
         direction=HIGHER_BETTER,
-        display_metric_label="500m 내 버스정류장 수",
+        display_metric_label="500m 내 이용 가능 버스 노선 수",
         json_columns=["bus_items_json"],
         radius_rules=[("bus_stop_count_300m", "bus_stop_count_500m")],
     ),

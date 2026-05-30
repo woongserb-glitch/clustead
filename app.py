@@ -1769,7 +1769,7 @@ def build_bus_info(apartment_name, gu=None, dong=None):
         "items": bus_items,
         
         "type_chips": type_chips,
-        "seoul_percentile": get_baseline_percentile(row, "bus_stop_count_500m_seoul_percentile"),
+        "seoul_percentile": get_baseline_percentile(row, "bus_route_count_seoul_percentile"),
     }
 
     return None
