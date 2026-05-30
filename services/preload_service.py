@@ -39,6 +39,7 @@ subway_baseline_index = {}
 
 # Baseline row indexes for fast result-page lookup.
 # Key: normalized apartment name / Value: baseline row dict
+cctv_baseline_index = {}
 bus_baseline_index = {}
 commercial_baseline_index = {}
 nightlife_baseline_index = {}
@@ -451,7 +452,7 @@ def load_subway_baseline_data():
 
 
 def load_cctv_baseline_data():
-    global cctv_baseline_data
+    global cctv_baseline_data, cctv_baseline_index
 
     path = "data/baseline/cctv_baseline.csv"
     loaded = []
@@ -482,6 +483,7 @@ def load_cctv_baseline_data():
 
             cctv_baseline_data.clear()
             cctv_baseline_data.extend(loaded)
+            rebuild_baseline_index(cctv_baseline_index, cctv_baseline_data)
 
             print(f"[BASELINE] CCTV {len(cctv_baseline_data)}개 로드 완료")
             return

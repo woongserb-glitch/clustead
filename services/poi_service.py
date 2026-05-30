@@ -1,8 +1,17 @@
 from services.baseline_service import get_subway_percentiles
-from services.baseline_service import get_cctv_percentiles
 from services.baseline_service import get_convenience_percentiles
 from services.baseline_service import get_mart_percentiles
 from services.baseline_service import get_cafe_percentiles
+from services.preload_service import cctv_baseline_index, get_indexed_baseline_row
+
+
+def _to_num(value):
+    try:
+        if value is None or value == "":
+            return None
+        return float(value)
+    except Exception:
+        return None
 
 
 CATEGORY_META = {
@@ -619,15 +628,6 @@ def get_category_summaries(apartment, preference_keys):
                 seoul_percentile = percentile_result.get("seoul")
                 gu_percentile = percentile_result.get("gu")
             
-            if key == "cctv":
-                percentile_result = get_cctv_percentiles(
-                    len(related_pois),
-                    apartment.get("district")
-                )
-
-                seoul_percentile = percentile_result.get("seoul")
-                gu_percentile = percentile_result.get("gu")
-
             if key == "convenience":
 
                 percentile_result = (
@@ -666,6 +666,29 @@ def get_category_summaries(apartment, preference_keys):
                 seoul_percentile = percentile_result.get("seoul")
                 gu_percentile = percentile_result.get("gu")
 
+        count = len(related_pois)
+
+        # CCTV uses the baked baseline (single source of truth) for score and
+        # count; the POI list stays the live preloaded cctv_data above. This
+        # replaces the request-time live-count percentile path. baked count is
+        # built from the same cctv_data + 500m, so it equals the live count.
+        if key == "cctv":
+            cctv_row = get_indexed_baseline_row(
+                cctv_baseline_index,
+                apartment.get("name"),
+                apartment.get("district"),
+                apartment.get("dong"),
+            )
+            if cctv_row is not None:
+                seoul_percentile = _to_num(cctv_row.get("cctv_count_500m_seoul_percentile"))
+                gu_percentile = None
+                baked_score = _to_num(cctv_row.get("cctv_count_500m_seoul_score"))
+                if baked_score is not None:
+                    score = round(baked_score)
+                baked_count = _to_num(cctv_row.get("cctv_count_500m"))
+                if baked_count is not None:
+                    count = int(baked_count)
+
         summaries.append({
             "key": key,
             "label": meta["label"],
@@ -675,7 +698,7 @@ def get_category_summaries(apartment, preference_keys):
             "empty": meta["empty"],
             "score": score,
             "score_class": get_score_class(score),
-            "count": len(related_pois),
+            "count": count,
             "pois": related_pois,
             "radius": meta["radius"],
             "percentile": seoul_percentile if seoul_percentile is not None else percentile,
