@@ -44,6 +44,9 @@ with open(
         "lng",
         "cafe_count_300m",
         "cafe_count_500m",
+        "franchise_total_500m",
+        "brand_diversity_500m",
+        "cafe_access_score_raw",
         "cafe_items_json",
     ] + get_subtype_csv_columns(
         "cafe",
@@ -86,6 +89,22 @@ with open(
                 500
             )
 
+            franchise_total_500m = sum(
+                int(stat.get("count", 0) or 0)
+                for stat in subtype_stats.values()
+            )
+
+            brand_diversity_500m = sum(
+                1
+                for stat in subtype_stats.values()
+                if int(stat.get("count", 0) or 0) > 0
+            )
+
+            cafe_access_score_raw = (
+                franchise_total_500m
+                + brand_diversity_500m * 2
+            )
+
             items = build_result_card_items(
                 "cafe",
                 apartment["lat"],
@@ -102,6 +121,9 @@ with open(
                 apartment["lng"],
                 count_300m,
                 count_500m,
+                franchise_total_500m,
+                brand_diversity_500m,
+                cafe_access_score_raw,
                 json.dumps(items, ensure_ascii=False),
             ] + get_subtype_csv_values(
                 "cafe",

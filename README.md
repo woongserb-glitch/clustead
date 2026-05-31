@@ -52,7 +52,7 @@ services/
 scripts/
   baseline_metric_config.py   카테고리별 metric/방향(HIGHER/LOWER_BETTER) 정본 config
   build_*_baseline.py         원천 데이터 → 베이스라인 CSV
-  build_all_baselines.py      위 빌더 일괄 실행
+  build_all_baselines.py      baseline_config.BASELINE_JOBS에 등록된 전체 베이스라인 일괄 실행
   enrich_baseline_percentiles.py  베이스라인에 *_seoul_percentile / *_seoul_score 컬럼 굽기
   validate_baselines.py       검증
 templates/  result.html(메인) 등
@@ -76,6 +76,10 @@ python -m scripts.build_all_baselines        # 베이스라인 재생성
 cd scripts && python enrich_baseline_percentiles.py   # 점수/percentile 재-bake
 python -m scripts.validate_baselines          # 검증
 ```
+
+`scripts.build_all_baselines`는 전체 baseline 재생성의 정본 진입점이다. 새 `build_*_baseline.py`
+스크립트를 추가하거나 percentile/validation 대상 baseline을 추가할 때는 반드시
+`scripts/baseline_config.py`의 `BASELINE_JOBS`에도 등록해야 한다.
 
 ---
 

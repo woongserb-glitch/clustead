@@ -78,4 +78,14 @@ python tests/snapshot_result.py check    # 리팩토링 회귀 (바이트 동일
 - 죽은 코드 제거: `app.calculate_personal_score`, `baseline_service.get_subway_percentiles`.
 - 베이스라인 일부 CSV의 깨진 컬럼명/인코딩(cp949 혼재) 정리.
 
+## 2026-06-01 데이터 빌드 정본 보정
+
+- `scripts.build_all_baselines`가 README의 "전체 baseline 일괄 실행" 설명과 다르게
+  `bus`, `school_zone`, `medical`, `lifestyle_food`를 실행하지 않던 문제를 확인.
+- 네 builder를 `scripts/baseline_config.py`의 `BASELINE_JOBS`에 등록해 전체 재빌드 대상과
+  percentile/validation 대상의 불일치를 제거.
+- `cafe` 빌더가 `cafe_access_score_raw`를 직접 생성하도록 맞춰 별도 보정 스크립트 없이도
+  `build_all_baselines -> enrich -> validate` 흐름이 통과하도록 정리.
+- rawdata 다운로드 없이 기존 rawdata와 보강된 아파트 좌표 기준으로 baseline 재생성 및 검증.
+
 > 원칙: 빅뱅 금지. 리팩토링은 반드시 골든마스터 `check` 통과를 확인하며 한 번에 하나씩.

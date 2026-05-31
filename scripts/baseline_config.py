@@ -5,6 +5,12 @@ BASELINE_JOBS = {
         "source": "kakao",
         "description": "최근접 지하철역 거리 baseline",
     },
+    "bus": {
+        "builder": "scripts.build_bus_baseline",
+        "output": "data/baseline/bus_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 버스 정류장/노선 접근성 baseline",
+    },
     "park": {
         "builder": "scripts.build_park_baseline",
         "output": "data/baseline/park_baseline.csv",
@@ -34,6 +40,12 @@ BASELINE_JOBS = {
         "output": "data/baseline/convenience_baseline.csv",
         "source": "kakao_api",
         "description": "편의점 생활권 density baseline",
+    },
+    "lifestyle_food": {
+        "builder": "scripts.build_lifestyle_food_baseline",
+        "output": "data/baseline/lifestyle_food_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 일반음식점 인허가 기반 생활 음식점 baseline",
     },
     "commercial": {
         "builder": "scripts.build_commercial_baseline",
@@ -65,6 +77,12 @@ BASELINE_JOBS = {
         "source": "local_csv_with_kakao_geocoding",
         "description": "서울시 학원·교습소 주소 기반 접근성 baseline",
     },
+    "school_zone": {
+        "builder": "scripts.build_school_zone_baseline",
+        "output": "data/baseline/school_zone_baseline.csv",
+        "source": "local_json",
+        "description": "서울시 초등학교 통학구역 배정 baseline",
+    },
     "culture": {
         "builder": "scripts.build_culture_baseline",
         "output": "data/baseline/culture_baseline.csv",
@@ -88,5 +106,11 @@ BASELINE_JOBS = {
         "output": "data/baseline/ev_charger_baseline.csv",
         "source": "public_data_portal_api",
         "description": "전국전기차충전소표준데이터 기반 서울 EV 충전 접근성 baseline",
+    },
+    "medical": {
+        "builder": "scripts.build_medical_baseline",
+        "output": "data/baseline/medical_baseline.csv",
+        "source": "local_csv",
+        "description": "서울시 병의원/약국 접근성 baseline",
     },
 }
