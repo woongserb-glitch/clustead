@@ -13,6 +13,23 @@ def _to_num(value):
         return None
 
 
+def is_cafe_franchise(poi):
+    """True if a cafe POI belongs to one of the major franchises in
+    SUBTYPE_RULES['cafe']. Used to keep the cafe card (count/list/chips/
+    nearest) consistent with the franchise_total_500m metric — non-franchise
+    (기타) cafes are excluded from the card. Same matching as get_subtype_chips."""
+    haystack = " ".join([
+        str(poi.get("name", "")),
+        str(poi.get("label", "")),
+        str(poi.get("subtype", "")),
+    ]).lower()
+    for rule in SUBTYPE_RULES.get("cafe", []):
+        for keyword in rule["keywords"]:
+            if keyword.lower() in haystack:
+                return True
+    return False
+
+
 CATEGORY_META = {
     "subway": {
         "label": "🚇 지하철역",
@@ -618,6 +635,11 @@ def get_category_summaries(apartment, preference_keys):
             poi for poi in pois
             if poi.get("category") == key
         ]
+
+        # Cafe is scored on franchise_total_500m, so the card shows only the
+        # major franchises — drop 기타/non-franchise cafes from count/list/chips.
+        if key == "cafe":
+            related_pois = [poi for poi in related_pois if is_cafe_franchise(poi)]
 
         meta = CATEGORY_META[key]
 

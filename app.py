@@ -745,6 +745,15 @@ def build_category_evidence(summary):
             return f"반경 {radius} 내 확인된 유흥주점 정보가 없습니다."
         return f"반경 {radius} 내 유흥주점 {format_count_phrase(count)}이 확인됩니다."
 
+    if key == "cafe":
+        # Card is franchise-only (matches the franchise_total_500m metric).
+        if count <= 0:
+            return f"반경 {radius} 내 확인된 주요 카페 프랜차이즈가 없습니다."
+        cafe_names = summarize_names(summary.get("pois", []), 2)
+        if cafe_names:
+            return f"반경 {radius} 내 주요 카페 프랜차이즈 {format_count_phrase(count)}이 있습니다. {compact_example_text(cafe_names)} 등을 이용할 수 있습니다."
+        return f"반경 {radius} 내 주요 카페 프랜차이즈 {format_count_phrase(count)}이 있습니다."
+
     names = summarize_names(summary.get("pois", []), 2)
     label = clean_evidence_label(summary.get("label", "생활시설"))
     if names and count > len(names):
