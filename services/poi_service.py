@@ -713,9 +713,9 @@ def get_category_summaries(apartment, preference_keys):
                 apartment.get("dong"),
             )
             if cafe_row is not None:
-                seoul_percentile = _to_num(cafe_row.get("franchise_total_500m_seoul_percentile"))
+                seoul_percentile = _to_num(cafe_row.get("cafe_access_score_raw_seoul_percentile"))
                 gu_percentile = None
-                baked_score = _to_num(cafe_row.get("franchise_total_500m_seoul_score"))
+                baked_score = _to_num(cafe_row.get("cafe_access_score_raw_seoul_score"))
                 if baked_score is not None:
                     score = round(baked_score)
 

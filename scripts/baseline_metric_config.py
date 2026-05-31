@@ -111,10 +111,10 @@ BASELINE_METRIC_CONFIG = {
     "cafe": metric_config(
         label="카페",
         file="cafe_baseline.csv",
-        required_columns=["name", "gu", "dong", "lat", "lng", "cafe_count_500m", "franchise_total_500m"],
-        primary_metric="franchise_total_500m",
+        required_columns=["name", "gu", "dong", "lat", "lng", "cafe_count_500m", "franchise_total_500m", "cafe_access_score_raw"],
+        primary_metric="cafe_access_score_raw",
         direction=HIGHER_BETTER,
-        display_metric_label="500m 내 주요 카페 프랜차이즈 수",
+        display_metric_label="카페 접근성(프랜차이즈 수 + 브랜드 다양성)",
         json_columns=["cafe_items_json"],
         radius_rules=[("cafe_count_300m", "cafe_count_500m")],
     ),

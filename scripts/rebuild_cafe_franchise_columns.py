@@ -33,6 +33,8 @@ CAFE_RULES = SUBTYPE_RULES["cafe"]
 BRANDS = [rule["name"] for rule in CAFE_RULES]  # 10 franchises, priority order
 BRAND_COLS = [f"{name}_count_500m" for name in BRANDS]
 TOTAL_COL = "franchise_total_500m"
+DIVERSITY_COL = "brand_diversity_500m"   # # of the 10 brands with >=1 within 500m (0-10)
+ACCESS_COL = "cafe_access_score_raw"     # franchise_total_500m + brand_diversity_500m * 2
 
 
 def classify(item):
@@ -76,7 +78,7 @@ def main():
         fieldnames = list(reader.fieldnames)
         rows = list(reader)
 
-    for col in BRAND_COLS + [TOTAL_COL]:
+    for col in BRAND_COLS + [TOTAL_COL, DIVERSITY_COL, ACCESS_COL]:
         if col not in fieldnames:
             fieldnames.append(col)
 
@@ -85,12 +87,16 @@ def main():
     for row in rows:
         counts = franchise_counts(row.get("cafe_items_json", ""))
         total = sum(counts.values())
+        diversity = sum(1 for name in BRANDS if counts[name] > 0)
+        access_raw = total + diversity * 2
         totals.append(total)
         for name in BRANDS:
             row[f"{name}_count_500m"] = counts[name]
             if counts[name] > 0:
                 brand_coverage[name] += 1
         row[TOTAL_COL] = total
+        row[DIVERSITY_COL] = diversity
+        row[ACCESS_COL] = access_raw
 
     if apply:
         with CAFE_CSV.open("w", encoding="utf-8-sig", newline="") as f:
@@ -105,6 +111,11 @@ def main():
     print(f"brands ({len(BRANDS)}): {BRANDS}")
     print(f"franchise_total_500m: max={max(totals)} mean={sum(totals)/n:.2f} "
           f"median={totals_sorted[n//2]} #at_max={totals.count(max(totals))}")
+    divs = sorted(int(r[DIVERSITY_COL]) for r in rows)
+    accs = sorted(int(r[ACCESS_COL]) for r in rows)
+    print(f"brand_diversity_500m: max={divs[-1]} mean={sum(divs)/n:.2f} median={divs[n//2]}")
+    print(f"cafe_access_score_raw: max={accs[-1]} mean={sum(accs)/n:.2f} median={accs[n//2]} "
+          f"#at_max={accs.count(accs[-1])}")
     print("brand coverage (complexes with >=1):")
     for name in BRANDS:
         print(f"   {name}: {brand_coverage[name]} ({100*brand_coverage[name]/n:.0f}%)")
