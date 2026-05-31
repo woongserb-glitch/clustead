@@ -1,4 +1,5 @@
 import csv
+import json
 import time
 
 from services.preload_service import (
@@ -11,6 +12,7 @@ from services.kakao_local_service import (
 )
 
 from services.baseline_builder_service import (
+    build_result_card_items,
     count_places_within_radius,
     extract_subtype_stats,
     get_subtype_csv_columns,
@@ -42,6 +44,7 @@ with open(
         "lng",
         "cafe_count_300m",
         "cafe_count_500m",
+        "cafe_items_json",
     ] + get_subtype_csv_columns(
         "cafe",
         500
@@ -83,6 +86,14 @@ with open(
                 500
             )
 
+            items = build_result_card_items(
+                "cafe",
+                apartment["lat"],
+                apartment["lng"],
+                places,
+                500
+            )
+
             writer.writerow([
                 apartment["name"],
                 apartment["gu"],
@@ -91,6 +102,7 @@ with open(
                 apartment["lng"],
                 count_300m,
                 count_500m,
+                json.dumps(items, ensure_ascii=False),
             ] + get_subtype_csv_values(
                 "cafe",
                 subtype_stats,

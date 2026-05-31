@@ -92,6 +92,7 @@ BASELINE_METRIC_CONFIG = {
         primary_metric="convenience_count_500m",
         direction=HIGHER_BETTER,
         display_metric_label="500m 내 편의점 수",
+        json_columns=["convenience_items_json"],
         radius_rules=[("convenience_count_300m", "convenience_count_500m")],
     ),
     "mart": metric_config(
@@ -101,6 +102,7 @@ BASELINE_METRIC_CONFIG = {
         primary_metric="mart_count_1000m",
         direction=HIGHER_BETTER,
         display_metric_label="1km 내 대형마트 수",
+        json_columns=["mart_items_json"],
         radius_rules=[
             ("mart_count_500m", "mart_count_1000m"),
             ("mart_count_1000m", "mart_count_1500m"),
@@ -109,10 +111,11 @@ BASELINE_METRIC_CONFIG = {
     "cafe": metric_config(
         label="카페",
         file="cafe_baseline.csv",
-        required_columns=["name", "gu", "dong", "lat", "lng", "cafe_count_500m"],
-        primary_metric="cafe_count_500m",
+        required_columns=["name", "gu", "dong", "lat", "lng", "cafe_count_500m", "franchise_total_500m"],
+        primary_metric="franchise_total_500m",
         direction=HIGHER_BETTER,
-        display_metric_label="500m 내 카페 수",
+        display_metric_label="500m 내 주요 카페 프랜차이즈 수",
+        json_columns=["cafe_items_json"],
         radius_rules=[("cafe_count_300m", "cafe_count_500m")],
     ),
     "medical": metric_config(

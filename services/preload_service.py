@@ -1,4 +1,5 @@
 import csv
+import math
 import re
 import os
 import pandas as pd
@@ -40,6 +41,7 @@ subway_baseline_index = {}
 # Baseline row indexes for fast result-page lookup.
 # Key: normalized apartment name / Value: baseline row dict
 cctv_baseline_index = {}
+cafe_baseline_index = {}
 bus_baseline_index = {}
 commercial_baseline_index = {}
 nightlife_baseline_index = {}
@@ -372,6 +374,9 @@ def load_apartment_data():
         except Exception:
             continue
 
+        if not math.isfinite(lat) or not math.isfinite(lng):
+            continue
+
         apartment = {
             "name": str(row.get("k-아파트명", "")).strip(),
             "gu": str(row.get("주소(시군구)", "")).strip(),
@@ -693,7 +698,7 @@ def load_mart_baseline_data():
 
 
 def load_cafe_baseline_data():
-    global cafe_baseline_data
+    global cafe_baseline_data, cafe_baseline_index
 
     path = (
         "data/baseline/"
@@ -752,6 +757,7 @@ def load_cafe_baseline_data():
             cafe_baseline_data.extend(
                 loaded
             )
+            rebuild_baseline_index(cafe_baseline_index, cafe_baseline_data)
 
             print(
                 f"[BASELINE] "

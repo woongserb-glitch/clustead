@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -53,7 +54,10 @@ def to_float(value):
     try:
         if value is None or value == "":
             return None
-        return float(value)
+        number = float(value)
+        if not math.isfinite(number):
+            return None
+        return number
     except Exception:
         return None
 

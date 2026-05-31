@@ -1,8 +1,7 @@
 from services.baseline_service import get_subway_percentiles
 from services.baseline_service import get_convenience_percentiles
 from services.baseline_service import get_mart_percentiles
-from services.baseline_service import get_cafe_percentiles
-from services.preload_service import cctv_baseline_index, get_indexed_baseline_row
+from services.preload_service import cctv_baseline_index, cafe_baseline_index, get_indexed_baseline_row
 
 
 def _to_num(value):
@@ -281,6 +280,34 @@ SUBTYPE_RULES = {
             "keywords": ["빽다방"],
             "priority": 6,
             "style": "brand-paik",
+        },
+        {
+            "name": "할리스",
+            "display": "할리스",
+            "keywords": ["할리스", "HOLLYS", "할리스커피"],
+            "priority": 7,
+            "style": "brand-hollys",
+        },
+        {
+            "name": "커피빈",
+            "display": "커피빈",
+            "keywords": ["커피빈", "커피 빈", "COFFEE BEAN", "COFFEEBEAN"],
+            "priority": 8,
+            "style": "brand-coffeebean",
+        },
+        {
+            "name": "폴바셋",
+            "display": "폴바셋",
+            "keywords": ["폴바셋", "폴 바셋", "PAUL BASSETT", "PAULBASSETT"],
+            "priority": 9,
+            "style": "brand-paulbassett",
+        },
+        {
+            "name": "엔제리너스",
+            "display": "엔제리너스",
+            "keywords": ["엔제리너스", "엔젤리너스", "ANGELINUS", "ANGEL-IN-US"],
+            "priority": 10,
+            "style": "brand-angelinus",
         },
     ],
     "subway": [
@@ -649,24 +676,26 @@ def get_category_summaries(apartment, preference_keys):
                 seoul_percentile = percentile_result.get("seoul")
                 gu_percentile = percentile_result.get("gu")
                 
-            if key == "cafe":
-                percentile_result = get_cafe_percentiles(
-                    len(related_pois),
-                    apartment.get("district")
-                )
-
-                seoul_percentile = (
-                    percentile_result.get("seoul")
-                )
-
-                gu_percentile = (
-                    percentile_result.get("gu")
-                )
-
-                seoul_percentile = percentile_result.get("seoul")
-                gu_percentile = percentile_result.get("gu")
-
         count = len(related_pois)
+
+        # Cafe scores on the baked franchise metric (franchise_total_500m) — the
+        # single source of truth shared with ranking/admin — instead of a
+        # request-time percentile of the raw (45-capped) cafe count. The card's
+        # count and POI list stay as the nearby cafes; only score/percentile
+        # come from the baked franchise baseline.
+        if key == "cafe":
+            cafe_row = get_indexed_baseline_row(
+                cafe_baseline_index,
+                apartment.get("name"),
+                apartment.get("district"),
+                apartment.get("dong"),
+            )
+            if cafe_row is not None:
+                seoul_percentile = _to_num(cafe_row.get("franchise_total_500m_seoul_percentile"))
+                gu_percentile = None
+                baked_score = _to_num(cafe_row.get("franchise_total_500m_seoul_score"))
+                if baked_score is not None:
+                    score = round(baked_score)
 
         # CCTV uses the baked baseline (single source of truth) for score and
         # count; the POI list stays the live preloaded cctv_data above. This

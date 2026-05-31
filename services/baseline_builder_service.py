@@ -1,4 +1,5 @@
 from services.geo_service import get_distance_m
+from services.poi_service import get_subtype_chips
 
 
 def find_nearest_place(
@@ -50,6 +51,47 @@ def count_places_within_radius(source_lat, source_lng, places, radius):
 
 
 from services.poi_service import SUBTYPE_RULES
+
+
+def build_result_card_items(category, source_lat, source_lng, places, radius):
+    items = []
+
+    for place in places:
+        try:
+            lat = float(place.get("lat"))
+            lng = float(place.get("lng"))
+        except Exception:
+            continue
+
+        try:
+            distance = int(float(place.get("distance")))
+        except Exception:
+            distance = get_distance_m(source_lat, source_lng, lat, lng)
+
+        if distance > radius:
+            continue
+
+        item = {
+            "category": place.get("category") or category,
+            "label": place.get("label") or place.get("name", ""),
+            "distance": int(distance),
+            "lat": round(lat, 7),
+            "lng": round(lng, 7),
+        }
+
+        if place.get("address"):
+            item["address"] = place.get("address")
+
+        if place.get("name"):
+            item["name"] = place.get("name")
+
+        items.append(item)
+
+    items.sort(key=lambda item: item.get("distance", 999999))
+    get_subtype_chips(category, items)
+    items.sort(key=lambda item: item.get("distance", 999999))
+
+    return items
 
 
 def extract_subtype_stats(category, places, radius):
