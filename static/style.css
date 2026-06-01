@@ -1868,13 +1868,6 @@ body:not(.home-page) #resultLoadingOverlay {
     margin-bottom: 7px;
 }
 
-.subtype-chip-note {
-    font-size: 11px;
-    line-height: 1.4;
-    color: #9aa1ad;
-    margin: -2px 0 7px;
-}
-
 .subtype-chip {
     display: inline-flex;
     align-items: center;
