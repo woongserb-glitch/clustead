@@ -305,8 +305,9 @@ def nearest_display_label(value, key=None):
 def poi_list_display_label(value, key=None):
     text = compact_label(value)
     if key == "hangang" and text:
-        name = hangang_park_name(text)
-        return f"🌊 {name}" if name else ""
+        # Scroll-box list rows stay icon-free for consistency with other cards;
+        # keep only the extracted park name (no 🌊 prefix).
+        return hangang_park_name(text)
     return text
 
 
@@ -767,7 +768,7 @@ def enhance_category_summaries(category_summaries):
     # List item icons are intentionally conservative.
     # Card header and nearest-POI rows may use icons, but generic scroll lists should not.
     # Hangang is the only list-level exception requested for visual consistency.
-    list_icon_keys = {"hangang"}
+    list_icon_keys = set()
 
     for summary in category_summaries:
         key = summary.get("key")
@@ -789,6 +790,13 @@ def enhance_category_summaries(category_summaries):
                     poi["label"] = f"{icon} {clean_label}"
 
         if key == "cctv":
+            # Nearest icon should match the nearest CCTV's subtype (same icon as
+            # its subtype chip), not the generic category shield.
+            nearest_subtype = (summary.get("nearest_poi") or {}).get("subtype") or "기타"
+            summary["nearest_icon"] = CCTV_ICON_BY_SUBTYPE.get(
+                nearest_subtype, CCTV_ICON_BY_SUBTYPE["기타"]
+            )
+
             for chip in summary.get("subtype_chips", []) or []:
                 name = chip.get("name") or chip.get("display") or "기타"
                 icon = CCTV_ICON_BY_SUBTYPE.get(name, CCTV_ICON_BY_SUBTYPE["기타"])
