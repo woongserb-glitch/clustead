@@ -741,6 +741,20 @@ def get_category_summaries(apartment, preference_keys):
                 apartment.get("dong"),
             )
             if cafe_row is not None:
+                related_pois = [
+                    poi for poi in _parse_baked_items(
+                        cafe_row,
+                        "cafe_items_json"
+                    )
+                    if is_cafe_franchise(poi)
+                ]
+                subtype_chips = get_subtype_chips(key, related_pois)
+                nearest_poi = related_pois[0] if related_pois else None
+
+                baked_count = _to_num(cafe_row.get("franchise_total_500m"))
+                if baked_count is not None:
+                    count = int(baked_count)
+
                 seoul_percentile = _to_num(cafe_row.get("cafe_access_score_raw_seoul_percentile"))
                 gu_percentile = None
                 baked_score = _to_num(cafe_row.get("cafe_access_score_raw_seoul_score"))

@@ -91,13 +91,10 @@ load_dotenv()
 
 app = Flask(__name__)
 
-KAKAO_RESULT_FALLBACK_CATEGORIES = (
-    "cafe",
-)
+KAKAO_RESULT_FALLBACK_CATEGORIES = ()
 KAKAO_RESULT_ALL_CATEGORIES = (
     "subway",
     "hospital",
-    "cafe",
     "pharmacy",
 )
 load_cctv_data()
@@ -4620,11 +4617,13 @@ def result():
             categories=KAKAO_RESULT_ALL_CATEGORIES,
         )
     else:
-        real_pois = get_real_pois(
-            apartment["lat"],
-            apartment["lng"],
-            categories=KAKAO_RESULT_FALLBACK_CATEGORIES,
-        )
+        real_pois = []
+        if KAKAO_RESULT_FALLBACK_CATEGORIES:
+            real_pois = get_real_pois(
+                apartment["lat"],
+                apartment["lng"],
+                categories=KAKAO_RESULT_FALLBACK_CATEGORIES,
+            )
 
     if real_pois:
         pois = real_pois
@@ -4680,7 +4679,7 @@ def result():
 
     baked_poi_summaries = [
         summary for summary in category_summaries
-        if summary.get("key") in {"convenience", "mart"}
+        if summary.get("key") in {"cafe", "convenience", "mart"}
     ]
     if baked_poi_summaries:
         baked_categories = {
