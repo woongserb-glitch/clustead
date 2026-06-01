@@ -1885,18 +1885,23 @@ def get_bus_routes_for_stop(stop, route_map):
     return sorted(route_map.get(node_id, []))
 
 
-def get_primary_bus_subtype(routes):
-    subtype_priority = ["광역", "간선", "지선", "마을", "심야", "공항", "기타"]
+BUS_SUBTYPE_PRIORITY = ["광역", "간선", "지선", "마을", "심야", "공항", "기타"]
+
+
+def get_bus_subtypes(routes):
+    """Every route type present at a stop, ordered by priority (deduped),
+    e.g. ["간선", "지선", "심야"]. Used for map filtering so a stop is matched
+    by EVERY type it serves, not just its primary type."""
     subtype_set = {
         BUS_TYPE_LABELS.get(classify_bus_route_type(route), "기타")
         for route in routes
     }
+    return [subtype for subtype in BUS_SUBTYPE_PRIORITY if subtype in subtype_set]
 
-    for subtype in subtype_priority:
-        if subtype in subtype_set:
-            return subtype
 
-    return "기타"
+def get_primary_bus_subtype(routes):
+    subtypes = get_bus_subtypes(routes)
+    return subtypes[0] if subtypes else "기타"
 
 
 def build_bus_map_pois(apartment):
@@ -1918,7 +1923,8 @@ def build_bus_map_pois(apartment):
             continue
 
         routes = get_bus_routes_for_stop(stop, route_map)
-        subtype = get_primary_bus_subtype(routes)
+        subtypes = get_bus_subtypes(routes)
+        subtype = subtypes[0] if subtypes else "기타"
         route_preview = ", ".join(routes[:6])
         stop_name = str(stop.get("name", "버스정류장")).replace("?", "·")
 
@@ -1935,6 +1941,7 @@ def build_bus_map_pois(apartment):
             "name": stop_name,
             "distance": distance,
             "subtype": subtype,
+            "subtypes": subtypes,
             "source": "서울시 버스 데이터",
         })
 

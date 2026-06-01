@@ -340,6 +340,9 @@
                         </button>
                         {% endfor %}
                     </div>
+                    {% if summary.key == "bus-baseline" %}
+                    <p class="subtype-chip-note">칩 숫자는 노선 수입니다. 칩을 누르면 해당 노선 유형이 정차하는 정류장을 지도에 표시합니다.</p>
+                    {% endif %}
                     {% endif %}
 
                     {% if summary.pois %}
