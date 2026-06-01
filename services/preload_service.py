@@ -42,6 +42,8 @@ subway_baseline_index = {}
 # Key: normalized apartment name / Value: baseline row dict
 cctv_baseline_index = {}
 cafe_baseline_index = {}
+convenience_baseline_index = {}
+mart_baseline_index = {}
 bus_baseline_index = {}
 commercial_baseline_index = {}
 nightlife_baseline_index = {}
@@ -508,7 +510,7 @@ def load_cctv_baseline_data():
 
 
 def load_convenience_baseline_data():
-    global convenience_baseline_data
+    global convenience_baseline_data, convenience_baseline_index
 
     path = (
         "data/baseline/"
@@ -568,6 +570,11 @@ def load_convenience_baseline_data():
                 loaded
             )
 
+            rebuild_baseline_index(
+                convenience_baseline_index,
+                convenience_baseline_data
+            )
+
             print(
                 f"[BASELINE] "
                 f"CONVENIENCE "
@@ -603,7 +610,7 @@ def load_convenience_baseline_data():
 
 
 def load_mart_baseline_data():
-    global mart_baseline_data
+    global mart_baseline_data, mart_baseline_index
 
     path = (
         "data/baseline/"
@@ -661,6 +668,11 @@ def load_mart_baseline_data():
 
             mart_baseline_data.extend(
                 loaded
+            )
+
+            rebuild_baseline_index(
+                mart_baseline_index,
+                mart_baseline_data
             )
 
             print(

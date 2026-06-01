@@ -45,6 +45,8 @@ with open(
         "mart_count_500m",
         "mart_count_1000m",
         "mart_count_1500m",
+        "mart_brand_diversity",
+        "mart_access_score_raw",
         "mart_items_json",
     ] + get_subtype_csv_columns(
         "mart",
@@ -95,6 +97,16 @@ with open(
                 places,
                 1500
             )
+            mart_total = sum(
+                stats.get("count", 0)
+                for stats in subtype_stats.values()
+            )
+            mart_brand_diversity = sum(
+                1
+                for stats in subtype_stats.values()
+                if stats.get("count", 0) > 0
+            )
+            mart_access_score_raw = mart_total + mart_brand_diversity
 
             items = build_result_card_items(
                 "mart",
@@ -113,6 +125,8 @@ with open(
                 count_500m,
                 count_1000m,
                 count_1500m,
+                mart_brand_diversity,
+                mart_access_score_raw,
                 json.dumps(items, ensure_ascii=False),
             ] + get_subtype_csv_values(
                 "mart",

@@ -93,8 +93,12 @@ app = Flask(__name__)
 
 KAKAO_RESULT_FALLBACK_CATEGORIES = (
     "cafe",
-    "convenience",
-    "mart",
+)
+KAKAO_RESULT_ALL_CATEGORIES = (
+    "subway",
+    "hospital",
+    "cafe",
+    "pharmacy",
 )
 load_cctv_data()
 load_park_data()
@@ -4613,6 +4617,7 @@ def result():
         real_pois = get_real_pois(
             apartment["lat"],
             apartment["lng"],
+            categories=KAKAO_RESULT_ALL_CATEGORIES,
         )
     else:
         real_pois = get_real_pois(
@@ -4672,6 +4677,21 @@ def result():
         apartment_with_real_pois,
         PREFERENCE_KEYS
     )
+
+    baked_poi_summaries = [
+        summary for summary in category_summaries
+        if summary.get("key") in {"convenience", "mart"}
+    ]
+    if baked_poi_summaries:
+        baked_categories = {
+            summary.get("key") for summary in baked_poi_summaries
+        }
+        pois = [
+            poi for poi in pois
+            if poi.get("category") not in baked_categories
+        ]
+        for summary in baked_poi_summaries:
+            pois = pois + (summary.get("pois") or [])
 
     subway_info = build_subway_info(
         apartment["name"], apartment["district"], apartment["dong"]

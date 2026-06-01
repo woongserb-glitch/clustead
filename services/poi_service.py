@@ -1,7 +1,15 @@
+import json
+
 from services.baseline_service import get_subway_percentiles
 from services.baseline_service import get_convenience_percentiles
 from services.baseline_service import get_mart_percentiles
-from services.preload_service import cctv_baseline_index, cafe_baseline_index, get_indexed_baseline_row
+from services.preload_service import (
+    cctv_baseline_index,
+    cafe_baseline_index,
+    convenience_baseline_index,
+    mart_baseline_index,
+    get_indexed_baseline_row,
+)
 
 
 def _to_num(value):
@@ -11,6 +19,26 @@ def _to_num(value):
         return float(value)
     except Exception:
         return None
+
+
+def _parse_baked_items(row, column):
+    raw_items = row.get(column) or "[]"
+    try:
+        items = json.loads(raw_items)
+    except Exception:
+        return []
+
+    if not isinstance(items, list):
+        return []
+
+    parsed = [
+        item for item in items
+        if isinstance(item, dict)
+    ]
+
+    parsed.sort(key=lambda item: item.get("distance", 99999) or 99999)
+
+    return parsed
 
 
 def is_cafe_franchise(poi):
@@ -716,6 +744,76 @@ def get_category_summaries(apartment, preference_keys):
                 seoul_percentile = _to_num(cafe_row.get("cafe_access_score_raw_seoul_percentile"))
                 gu_percentile = None
                 baked_score = _to_num(cafe_row.get("cafe_access_score_raw_seoul_score"))
+                if baked_score is not None:
+                    score = round(baked_score)
+
+        # Convenience now uses the baked baseline as the result-page source of
+        # truth. Count/score/percentile and the visible item list all come from
+        # convenience_baseline.csv; no request-time Kakao count or brand bonus.
+        if key == "convenience":
+            convenience_row = get_indexed_baseline_row(
+                convenience_baseline_index,
+                apartment.get("name"),
+                apartment.get("district"),
+                apartment.get("dong"),
+            )
+            if convenience_row is not None:
+                related_pois = _parse_baked_items(
+                    convenience_row,
+                    "convenience_items_json"
+                )
+                subtype_chips = get_subtype_chips(key, related_pois)
+                nearest_poi = related_pois[0] if related_pois else None
+
+                baked_count = _to_num(
+                    convenience_row.get("convenience_count_500m")
+                )
+                if baked_count is not None:
+                    count = int(baked_count)
+
+                seoul_percentile = _to_num(
+                    convenience_row.get(
+                        "convenience_count_500m_seoul_percentile"
+                    )
+                )
+                gu_percentile = None
+
+                baked_score = _to_num(
+                    convenience_row.get("convenience_count_500m_seoul_score")
+                )
+                if baked_score is not None:
+                    score = round(baked_score)
+
+        # Mart uses the baked B-policy metric:
+        # mart_access_score_raw = mart_total + mart_brand_diversity.
+        # The visible item list stays in sync with mart_items_json.
+        if key == "mart":
+            mart_row = get_indexed_baseline_row(
+                mart_baseline_index,
+                apartment.get("name"),
+                apartment.get("district"),
+                apartment.get("dong"),
+            )
+            if mart_row is not None:
+                related_pois = _parse_baked_items(
+                    mart_row,
+                    "mart_items_json"
+                )
+                subtype_chips = get_subtype_chips(key, related_pois)
+                nearest_poi = related_pois[0] if related_pois else None
+
+                baked_count = _to_num(mart_row.get("mart_count_1500m"))
+                if baked_count is not None:
+                    count = int(baked_count)
+
+                seoul_percentile = _to_num(
+                    mart_row.get("mart_access_score_raw_seoul_percentile")
+                )
+                gu_percentile = None
+
+                baked_score = _to_num(
+                    mart_row.get("mart_access_score_raw_seoul_score")
+                )
                 if baked_score is not None:
                     score = round(baked_score)
 

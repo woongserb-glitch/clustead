@@ -98,8 +98,8 @@ BASELINE_METRIC_CONFIG = {
     "mart": metric_config(
         label="대형마트",
         file="mart_baseline.csv",
-        required_columns=["name", "gu", "dong", "lat", "lng", "mart_count_1000m"],
-        primary_metric="mart_count_1000m",
+        required_columns=["name", "gu", "dong", "lat", "lng", "mart_access_score_raw"],
+        primary_metric="mart_access_score_raw",
         direction=HIGHER_BETTER,
         display_metric_label="1km 내 대형마트 수",
         json_columns=["mart_items_json"],
