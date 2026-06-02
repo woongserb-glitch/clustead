@@ -76,8 +76,19 @@
                         </div>
                     </div>
 
+                    <div class="priority-search-group" data-priority-search>
+                        <span>생활 인프라 우선순위</span>
+                        <p class="priority-hint">카테고리를 고르고 브랜드/유형을 선택하세요. 위에서부터 정렬 우선순위입니다(개수 많은 순 → 가까운 순). 모두 보유한 단지만 추천됩니다.</p>
+                        <div class="priority-rows" data-priority-rows></div>
+                        <button type="button" class="priority-add-btn" data-priority-add>＋ 우선순위 추가</button>
+                    </div>
+
                     <button type="submit" class="primary-tool-button">탐색하기</button>
                 </form>
+                <script>
+                    window.livefitSubtypeOptions = {{ subtype_search_options | tojson | safe }};
+                    window.livefitSelectedPriorities = {{ selected_priorities | tojson | safe }};
+                </script>
             </section>
 
             <section class="tool-results-card">

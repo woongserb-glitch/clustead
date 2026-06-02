@@ -575,12 +575,152 @@ function showSubtypeOverlays(category, subtype) {
     }
 }
 
+function setupPrioritySearch() {
+    const container = document.querySelector("[data-priority-search]");
+    if (!container) return;
+
+    const rowsEl = container.querySelector("[data-priority-rows]");
+    const addBtn = container.querySelector("[data-priority-add]");
+    const options = window.livefitSubtypeOptions || [];
+    if (!options.length) {
+        container.style.display = "none";
+        return;
+    }
+    const optByKey = {};
+    options.forEach((o) => { optByKey[o.key] = o; });
+
+    function takenSubtypes(exceptRow) {
+        const set = new Set();
+        rowsEl.querySelectorAll(".priority-row").forEach((row) => {
+            if (row !== exceptRow && row.dataset.subtype) set.add(row.dataset.subtype);
+        });
+        return set;
+    }
+
+    function refreshChipStates() {
+        rowsEl.querySelectorAll(".priority-row").forEach((row) => {
+            const taken = takenSubtypes(row);
+            row.querySelectorAll(".priority-chip").forEach((chip) => {
+                const sub = chip.dataset.subtype;
+                const isSelected = row.dataset.subtype === sub;
+                const disabled = taken.has(sub) && !isSelected;
+                chip.classList.toggle("active", isSelected);
+                chip.classList.toggle("disabled", disabled);
+                chip.disabled = disabled;
+            });
+        });
+    }
+
+    function syncHidden(row) {
+        let hidden = row.querySelector('input[type="hidden"][name="priority"]');
+        if (row.dataset.category && row.dataset.subtype) {
+            if (!hidden) {
+                hidden = document.createElement("input");
+                hidden.type = "hidden";
+                hidden.name = "priority";
+                row.appendChild(hidden);
+            }
+            hidden.value = `${row.dataset.category}:${row.dataset.subtype}`;
+        } else if (hidden) {
+            hidden.remove();
+        }
+    }
+
+    function renderChips(row) {
+        const chipsWrap = row.querySelector(".priority-chips");
+        chipsWrap.innerHTML = "";
+        const opt = optByKey[row.dataset.category];
+        if (!opt) return;
+        opt.subtypes.forEach((sub) => {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "priority-chip";
+            chip.dataset.subtype = sub;
+            chip.textContent = sub;
+            chip.addEventListener("click", () => {
+                if (chip.disabled) return;
+                row.dataset.subtype = row.dataset.subtype === sub ? "" : sub;
+                syncHidden(row);
+                refreshChipStates();
+            });
+            chipsWrap.appendChild(chip);
+        });
+        refreshChipStates();
+    }
+
+    function addRow(initialCat, initialSub) {
+        const row = document.createElement("div");
+        row.className = "priority-row";
+        row.dataset.category = initialCat || "";
+        row.dataset.subtype = initialSub || "";
+
+        const select = document.createElement("select");
+        select.className = "priority-cat-select";
+        const blank = document.createElement("option");
+        blank.value = "";
+        blank.textContent = "카테고리 선택";
+        select.appendChild(blank);
+        options.forEach((o) => {
+            const op = document.createElement("option");
+            op.value = o.key;
+            op.textContent = `${o.icon} ${o.label} (${o.radius_label})`;
+            if (o.key === initialCat) op.selected = true;
+            select.appendChild(op);
+        });
+        select.addEventListener("change", () => {
+            row.dataset.category = select.value;
+            row.dataset.subtype = "";
+            syncHidden(row);
+            renderChips(row);
+        });
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "priority-remove-btn";
+        removeBtn.setAttribute("aria-label", "우선순위 삭제");
+        removeBtn.textContent = "✕";
+        removeBtn.addEventListener("click", () => {
+            row.remove();
+            refreshChipStates();
+        });
+
+        const head = document.createElement("div");
+        head.className = "priority-row-head";
+        head.appendChild(select);
+        head.appendChild(removeBtn);
+
+        const chipsWrap = document.createElement("div");
+        chipsWrap.className = "priority-chips";
+
+        row.appendChild(head);
+        row.appendChild(chipsWrap);
+        rowsEl.appendChild(row);
+
+        if (initialCat) {
+            renderChips(row);
+            if (initialSub) syncHidden(row);
+        }
+        return row;
+    }
+
+    const selected = window.livefitSelectedPriorities || [];
+    if (selected.length) {
+        selected.forEach((p) => addRow(p.category, p.subtype));
+    } else {
+        addRow();
+    }
+    refreshChipStates();
+
+    addBtn.addEventListener("click", () => addRow());
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     setupHomeLoadingOverlay();
     setupAutocomplete();
     setupKnownApartmentForms();
     setupDependentDongSelect();
     setupSubwayStationDependency();
+    setupPrioritySearch();
 
     const detailCards = document.querySelectorAll(".detail-card");
 

@@ -3525,6 +3525,110 @@ body:not(.home-page) #resultLoadingOverlay {
     cursor: pointer;
 }
 
+/* Explore — 생활 인프라 우선순위 검색 */
+.priority-search-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.priority-search-group > span {
+    font-size: 13px;
+    font-weight: 800;
+    color: #374151;
+}
+
+.priority-hint {
+    font-size: 11px;
+    line-height: 1.45;
+    color: #9aa1ad;
+    margin: 0 0 2px;
+}
+
+.priority-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.priority-row {
+    border: 1px solid #edf0f5;
+    border-radius: 12px;
+    padding: 8px;
+    background: #fafbfc;
+}
+
+.priority-row-head {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.priority-cat-select {
+    flex: 1;
+    height: 34px;
+    border: 1px solid #d8dde6;
+    border-radius: 8px;
+    padding: 0 8px;
+    background: #fff;
+}
+
+.priority-remove-btn {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border: 1px solid #e3e7ee;
+    border-radius: 8px;
+    background: #fff;
+    color: #9aa1ad;
+    cursor: pointer;
+}
+
+.priority-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 7px;
+}
+
+.priority-chips:empty {
+    margin-top: 0;
+}
+
+.priority-chip {
+    border: 1px solid #d8dde6;
+    border-radius: 999px;
+    padding: 4px 10px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    color: #374151;
+    cursor: pointer;
+}
+
+.priority-chip.active {
+    background: #111827;
+    border-color: #111827;
+    color: #fff;
+}
+
+.priority-chip.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.priority-add-btn {
+    align-self: flex-start;
+    border: 1px dashed #c5ccd6;
+    border-radius: 9px;
+    padding: 6px 12px;
+    background: #fff;
+    color: #4b5563;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+}
+
 .explore-result-list,
 .ranking-list {
     display: grid;
