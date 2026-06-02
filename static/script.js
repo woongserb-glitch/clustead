@@ -38,12 +38,48 @@ function setupHomeLoadingOverlay() {
     });
 }
 
+function hasExploreSearchCriteria(form) {
+    const hasValue = (selector) => !!form.querySelector(selector)?.value.trim();
+    const hasChecked = (selector) => !!form.querySelector(selector)?.checked;
+    const hasAnyChecked = (selector) => Array.from(form.querySelectorAll(selector)).some((input) => input.checked);
+    const hasHiddenValue = (selector) => Array.from(form.querySelectorAll(selector)).some((input) => input.value.trim());
+
+    return (
+        hasValue('select[name="gu"]')
+        || hasValue('select[name="dong"]')
+        || hasValue('input[name="assigned_elementary"]')
+        || hasValue('input[name="school"]')
+        || hasAnyChecked('input[name="area"]')
+        || hasValue('select[name="price"]')
+        || hasValue('select[name="line"]')
+        || hasValue('input[name="station"]')
+        || hasValue('select[name="bus_type"]')
+        || hasValue('input[name="bus_route"]')
+        || hasChecked('input[name="no_nightlife"]')
+        || hasHiddenValue('input[type="hidden"][name="priority"]')
+    );
+}
+
+function setExploreSubmitFeedback(form, visible) {
+    const feedback = form.querySelector("#exploreSubmitFeedback");
+    if (!feedback) return;
+    feedback.classList.toggle("is-visible", visible);
+}
+
 function setupExploreLoading() {
     const form = document.querySelector(".explore-filter-form");
-    if (!form || !document.getElementById("homeLoadingOverlay")) {
+    if (!form) {
         return;
     }
-    form.addEventListener("submit", () => {
+    form.addEventListener("submit", (event) => {
+        if (!hasExploreSearchCriteria(form)) {
+            event.preventDefault();
+            hidePageLoading();
+            setExploreSubmitFeedback(form, true);
+            form.querySelector("#exploreSubmitFeedback")?.scrollIntoView({ block: "nearest" });
+            return;
+        }
+        setExploreSubmitFeedback(form, false);
         showPageLoading();
     });
 }
@@ -609,10 +645,33 @@ function setupPrioritySearch() {
     const optByKey = {};
     options.forEach((o) => { optByKey[o.key] = o; });
 
+    function isMultiSelectRow(row) {
+        return row.dataset.category === "academy";
+    }
+
+    function selectedSubtypes(row) {
+        if (!isMultiSelectRow(row)) {
+            return row.dataset.subtype ? [row.dataset.subtype] : [];
+        }
+        try {
+            const parsed = JSON.parse(row.dataset.subtypes || "[]");
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function setSelectedSubtypes(row, subtypes) {
+        const unique = Array.from(new Set(subtypes.filter(Boolean)));
+        row.dataset.subtypes = JSON.stringify(unique);
+        row.dataset.subtype = unique[0] || "";
+    }
+
     function takenSubtypes(exceptRow) {
         const set = new Set();
         rowsEl.querySelectorAll(".priority-row").forEach((row) => {
-            if (row !== exceptRow && row.dataset.subtype) set.add(row.dataset.subtype);
+            if (row === exceptRow) return;
+            selectedSubtypes(row).forEach((subtype) => set.add(subtype));
         });
         return set;
     }
@@ -620,9 +679,10 @@ function setupPrioritySearch() {
     function refreshChipStates() {
         rowsEl.querySelectorAll(".priority-row").forEach((row) => {
             const taken = takenSubtypes(row);
+            const selected = new Set(selectedSubtypes(row));
             row.querySelectorAll(".priority-chip").forEach((chip) => {
                 const sub = chip.dataset.subtype;
-                const isSelected = row.dataset.subtype === sub;
+                const isSelected = selected.has(sub);
                 const disabled = taken.has(sub) && !isSelected;
                 chip.classList.toggle("active", isSelected);
                 chip.classList.toggle("disabled", disabled);
@@ -632,23 +692,26 @@ function setupPrioritySearch() {
     }
 
     function syncHidden(row) {
-        let hidden = row.querySelector('input[type="hidden"][name="priority"]');
-        if (row.dataset.category && row.dataset.subtype) {
-            if (!hidden) {
-                hidden = document.createElement("input");
-                hidden.type = "hidden";
-                hidden.name = "priority";
-                row.appendChild(hidden);
-            }
-            hidden.value = `${row.dataset.category}:${row.dataset.subtype}`;
-        } else if (hidden) {
+        row.querySelectorAll('input[type="hidden"][name="priority"]').forEach((hidden) => {
             hidden.remove();
-        }
+        });
+        if (!row.dataset.category) return;
+        selectedSubtypes(row).forEach((subtype) => {
+            const hidden = document.createElement("input");
+            hidden.type = "hidden";
+            hidden.name = "priority";
+            hidden.value = `${row.dataset.category}:${subtype}`;
+            row.appendChild(hidden);
+        });
     }
 
     function renderChips(row) {
         const chipsWrap = row.querySelector(".priority-chips");
+        const helperText = row.querySelector(".priority-helper-text");
         chipsWrap.innerHTML = "";
+        if (helperText) {
+            helperText.remove();
+        }
         const opt = optByKey[row.dataset.category];
         if (!opt) return;
         opt.subtypes.forEach((sub) => {
@@ -659,12 +722,29 @@ function setupPrioritySearch() {
             chip.textContent = sub;
             chip.addEventListener("click", () => {
                 if (chip.disabled) return;
-                row.dataset.subtype = row.dataset.subtype === sub ? "" : sub;
+                if (isMultiSelectRow(row)) {
+                    const selected = new Set(selectedSubtypes(row));
+                    if (selected.has(sub)) {
+                        selected.delete(sub);
+                    } else {
+                        selected.add(sub);
+                    }
+                    setSelectedSubtypes(row, Array.from(selected));
+                } else {
+                    row.dataset.subtype = row.dataset.subtype === sub ? "" : sub;
+                    row.dataset.subtypes = "[]";
+                }
                 syncHidden(row);
                 refreshChipStates();
             });
             chipsWrap.appendChild(chip);
         });
+        if (opt.helper_text) {
+            const helper = document.createElement("p");
+            helper.className = "priority-helper-text";
+            helper.textContent = opt.helper_text;
+            chipsWrap.insertAdjacentElement("afterend", helper);
+        }
         refreshChipStates();
     }
 
@@ -672,7 +752,13 @@ function setupPrioritySearch() {
         const row = document.createElement("div");
         row.className = "priority-row";
         row.dataset.category = initialCat || "";
-        row.dataset.subtype = initialSub || "";
+        row.dataset.subtype = "";
+        row.dataset.subtypes = "[]";
+        if (initialCat === "academy") {
+            setSelectedSubtypes(row, Array.isArray(initialSub) ? initialSub : [initialSub]);
+        } else {
+            row.dataset.subtype = Array.isArray(initialSub) ? (initialSub[0] || "") : (initialSub || "");
+        }
 
         const select = document.createElement("select");
         select.className = "priority-cat-select";
@@ -690,6 +776,7 @@ function setupPrioritySearch() {
         select.addEventListener("change", () => {
             row.dataset.category = select.value;
             row.dataset.subtype = "";
+            row.dataset.subtypes = "[]";
             syncHidden(row);
             renderChips(row);
         });
@@ -725,7 +812,15 @@ function setupPrioritySearch() {
 
     const selected = window.livefitSelectedPriorities || [];
     if (selected.length) {
-        selected.forEach((p) => addRow(p.category, p.subtype));
+        const academySelected = selected
+            .filter((p) => p.category === "academy")
+            .map((p) => p.subtype);
+        if (academySelected.length) {
+            addRow("academy", academySelected);
+        }
+        selected
+            .filter((p) => p.category !== "academy")
+            .forEach((p) => addRow(p.category, p.subtype));
     } else {
         addRow();
     }

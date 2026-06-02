@@ -4490,15 +4490,59 @@ def get_baseline_rows_for_apartment(apartment_name):
     }
 
 
+# 학원: 종류(서브타입)별 1km 내 개수. 결과페이지 칩과 동일 분류.
+EXPLORE_ACADEMY_TYPES = [
+    {"key": "exam", "label": "입시/보습", "column": "exam_count"},
+    {"key": "english", "label": "영어", "column": "english_count"},
+    {"key": "math", "label": "수학", "column": "math_count"},
+    {"key": "arts_sports", "label": "예체능", "column": "arts_sports_count"},
+    {"key": "study_room", "label": "독서실", "column": "study_room_count"},
+    {"key": "career", "label": "직업/자격", "column": "career_count"},
+    {"key": "chinese", "label": "중국어", "column": "chinese_count"},
+    {"key": "japanese", "label": "일본어", "column": "japanese_count"},
+    {"key": "etc", "label": "기타", "column": "etc_count"},
+]
+_ACADEMY_TYPE_BY_KEY = {t["key"]: t for t in EXPLORE_ACADEMY_TYPES}
+_ACADEMY_KEY_BY_LABEL = {t["label"]: t["key"] for t in EXPLORE_ACADEMY_TYPES}
+
 # Explore 생활 인프라 우선순위 검색 — 카테고리별 서브타입(브랜드/유형)의
 # 반경 내 개수 + 최근접 거리 baked 컬럼. 순차 AND 필터 + 선택순서 정렬에 사용.
 # Tier 1: 개수 + 서브타입별 최근접 둘 다 보유(정확 구현).
 SUBTYPE_SEARCH_CONFIG = {
+    "academy": {
+        "label": "학원",
+        "icon": "📚",
+        "radius_label": "반경 1km이내",
+        "helper_text": "선택한 종류 학원 수의 합계가 많은 단지가 상위로 추천됩니다.",
+        "subtypes": [t["label"] for t in EXPLORE_ACADEMY_TYPES],
+    },
+    "medical": {
+        "label": "의료",
+        "icon": "🏥",
+        "derived": "medical",
+        "radius_label": "반경 500m이내",
+        "helper_text": "응급실은 반경 3km이내, 종합병원은 반경 5km이내 기준입니다.",
+        "subtypes": ["응급실", "종합병원", "소아과", "산부인과"],
+    },
+    "culture": {
+        "label": "문화",
+        "icon": "🎭",
+        "derived": "culture",
+        "radius_label": "반경 1.5km이내",
+        "subtypes": ["공연", "전시", "체육", "키즈", "체험"],
+    },
+    "park": {
+        "label": "공원",
+        "icon": "🌳",
+        "derived": "park",
+        "radius_label": "반경 내 가까운 순",
+        "subtypes": ["일반공원", "한강공원", "대형공원"],
+    },
     "mart": {
         "label": "대형마트",
         "icon": "🛒",
         "data": mart_baseline_data,
-        "radius_label": "1.5km",
+        "radius_label": "반경 1.5km이내",
         "subtypes": ["이마트", "홈플러스", "롯데마트", "트레이더스", "코스트코",
                      "GS더프레시", "하나로마트"],
         "count_col": lambda s: f"{s}_count_1500m",
@@ -4508,7 +4552,7 @@ SUBTYPE_SEARCH_CONFIG = {
         "label": "카페",
         "icon": "☕",
         "data": cafe_baseline_data,
-        "radius_label": "500m",
+        "radius_label": "반경 500m이내",
         "subtypes": ["스타벅스", "투썸플레이스", "메가MGC", "컴포즈커피", "이디야",
                      "빽다방", "할리스", "커피빈", "폴바셋", "엔제리너스"],
         "count_col": lambda s: f"{s}_count_500m",
@@ -4518,31 +4562,10 @@ SUBTYPE_SEARCH_CONFIG = {
         "label": "편의점",
         "icon": "🏪",
         "data": convenience_baseline_data,
-        "radius_label": "500m",
+        "radius_label": "반경 500m이내",
         "subtypes": ["CU", "GS25", "세븐일레븐", "이마트24"],
         "count_col": lambda s: f"{s}_count_500m",
         "nearest_col": lambda s: f"nearest_{s}_distance",
-    },
-    "medical": {
-        "label": "의료",
-        "icon": "🏥",
-        "derived": "medical",
-        "radius_label": "소아·산부인과 도보권 500m / 응급실·종합병원",
-        "subtypes": ["응급실", "종합병원", "소아과", "산부인과"],
-    },
-    "culture": {
-        "label": "문화",
-        "icon": "🎭",
-        "derived": "culture",
-        "radius_label": "1.5km",
-        "subtypes": ["공연", "전시", "체육", "키즈", "체험"],
-    },
-    "park": {
-        "label": "공원",
-        "icon": "🌳",
-        "derived": "park",
-        "radius_label": "반경 내 가까운 순",
-        "subtypes": ["일반공원", "한강공원", "대형공원"],
     },
 }
 
@@ -4754,20 +4777,6 @@ _PRICE_BUCKET_BY_TYPE = {
     t["key"]: {b["key"]: b for b in t["buckets"]} for t in EXPLORE_PRICE_TYPE_OPTIONS
 }
 
-# 학원: 종류(서브타입)별 1km 내 개수 + 최소 개수 임계값. 결과페이지 칩과 동일 분류.
-EXPLORE_ACADEMY_TYPES = [
-    {"key": "exam", "label": "입시/보습", "column": "exam_count"},
-    {"key": "english", "label": "영어", "column": "english_count"},
-    {"key": "math", "label": "수학", "column": "math_count"},
-    {"key": "arts_sports", "label": "예체능", "column": "arts_sports_count"},
-    {"key": "study_room", "label": "독서실", "column": "study_room_count"},
-    {"key": "career", "label": "직업/자격", "column": "career_count"},
-    {"key": "chinese", "label": "중국어", "column": "chinese_count"},
-    {"key": "japanese", "label": "일본어", "column": "japanese_count"},
-    {"key": "etc", "label": "기타", "column": "etc_count"},
-]
-_ACADEMY_TYPE_BY_KEY = {t["key"]: t for t in EXPLORE_ACADEMY_TYPES}
-
 # (공원은 우선순위 카테고리로 이동) — 단일지표 임계 필터 슬롯(현재 없음).
 EXPLORE_RANGE_FILTERS = []
 
@@ -4935,9 +4944,6 @@ def build_explore_results(filters, limit=10):
         if opt:
             range_selections.append((cfg, opt))
 
-    # 학원 종류(서브타입) 멀티선택 → 선택 종류 합계 내림차순으로 추천순위 반영
-    academy_subtypes = [s for s in (filters.get("academy_subtypes", []) or []) if s in _ACADEMY_TYPE_BY_KEY]
-
     # 버스 노선유형/번호
     bus_type = clean_text(filters.get("bus_type", ""))
     if bus_type not in EXPLORE_BUS_TYPES:
@@ -4987,7 +4993,7 @@ def build_explore_results(filters, limit=10):
             ).get((name, gu, dong))
             if nightlife_count is None or nightlife_count > 0:
                 continue
-            matched.append("🍺 500m 내 유흥시설 없음")
+            matched.append("🍺 반경 500m이내 유흥시설 없음")
             score += 1
 
         # 대표배정초: 해당 학교가 이 단지의 대표배정초인 경우만
@@ -5028,14 +5034,6 @@ def build_explore_results(filters, limit=10):
             type_label = "전세" if price_type == "jeonse" else "매매"
             matched.append(f"💰 {type_label} {price_bucket['label']}")
             score += 1
-
-        # 학원: 선택 종류(서브타입)들의 1km 내 개수 합계(정렬 반영, 필터 아님)
-        academy_sum = 0
-        if academy_subtypes:
-            arow = _academy_subtype_lookup().get((name, gu, dong)) or {}
-            academy_sum = sum(arow.get(s, 0) for s in academy_subtypes)
-            if academy_sum > 0:
-                matched.append(f"📚 선택학원 {academy_sum}곳")
 
         # 공원: 반경 내 공원 유무(park_distance ≤ 반경) AND 필터(데이터 없으면 제외)
         if range_selections:
@@ -5083,6 +5081,14 @@ def build_explore_results(filters, limit=10):
             priority_ok = True
             for category, subtype in priorities:
                 cfg = SUBTYPE_SEARCH_CONFIG[category]
+                if category == "academy":
+                    academy_key = _ACADEMY_KEY_BY_LABEL.get(subtype, "")
+                    arow = _academy_subtype_lookup().get((name, gu, dong)) or {}
+                    count = arow.get(academy_key, 0)
+                    sort_parts.append(-count)
+                    if count > 0:
+                        matched.append(f"{cfg['icon']} {subtype} {count}곳")
+                    continue
                 if cfg.get("derived"):
                     stats = _derived_category_stats(cfg["derived"]).get((name, gu, dong)) or {}
                     count, nearest = stats.get(subtype, (0, None))
@@ -5118,15 +5124,12 @@ def build_explore_results(filters, limit=10):
             "dong": dong,
             "score": score,
             "sort_key": sort_key,
-            "academy_sum": academy_sum,
             "matched_features": matched[:5] or ["생활 균형형"],
             "url": make_result_url(name, get_preferences(), gu, dong),
         })
 
     def order_key(item):
         parts = []
-        if academy_subtypes:               # 선택 학원 종류 합계 내림차순을 최우선 반영
-            parts.append(-item["academy_sum"])
         if priorities:                     # 그 다음 선택 순서 우선순위(개수 DESC, 최근접 ASC)
             parts.append(item["sort_key"])
         else:
@@ -5190,19 +5193,24 @@ def build_lifestyle_ranking_sections():
 
 @app.route("/explore")
 def explore():
+    priority_args = request.args.getlist("priority")
+    for legacy_academy_key in request.args.getlist("academy"):
+        academy_type = _ACADEMY_TYPE_BY_KEY.get(clean_text(legacy_academy_key))
+        if academy_type:
+            priority_args.append(f"academy:{academy_type['label']}")
+
     filters = {
         "gu": request.args.get("gu", ""),
         "dong": request.args.get("dong", ""),
         "line": request.args.get("line", ""),
         "station": request.args.get("station", ""),
         "no_nightlife": request.args.get("no_nightlife", ""),
-        "priorities": parse_priorities(request.args.getlist("priority")),
+        "priorities": parse_priorities(priority_args),
         "assigned_elementary": request.args.get("assigned_elementary", ""),
         "school": request.args.get("school", ""),
         "area_buckets": request.args.getlist("area"),
         "price_type": request.args.get("price_type", ""),
         "price": request.args.get("price", ""),
-        "academy_subtypes": request.args.getlist("academy"),
         "bus_type": request.args.get("bus_type", ""),
         "bus_route": request.args.get("bus_route", ""),
     }
@@ -5232,6 +5240,7 @@ def explore():
             "label": cfg["label"],
             "icon": cfg["icon"],
             "radius_label": cfg["radius_label"],
+            "helper_text": cfg.get("helper_text", ""),
             "subtypes": cfg["subtypes"],
         }
         for category, cfg in SUBTYPE_SEARCH_CONFIG.items()
@@ -5260,7 +5269,6 @@ def explore():
         current_price_buckets=current_price_buckets,
         price_buckets_by_type=price_buckets_by_type,
         range_filter_options=EXPLORE_RANGE_FILTERS,
-        academy_type_options=EXPLORE_ACADEMY_TYPES,
         bus_type_options=EXPLORE_BUS_TYPES,
     )
 

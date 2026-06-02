@@ -27,136 +27,140 @@
         <main class="tool-layout">
             <section class="tool-filter-card">
                 <form action="/explore" method="get" class="explore-filter-form">
-                    <label>
-                        <span>구</span>
-                        <select name="gu" data-dong-source>
-                            <option value="">전체</option>
-                            {% for gu in gu_options %}
-                            <option value="{{ gu }}" {% if filters.gu == gu %}selected{% endif %}>{{ gu }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <label>
-                        <span>동</span>
-                        <select name="dong" data-dong-target data-selected="{{ filters.dong }}">
-                            <option value="">전체</option>
-                            {% for dong in dong_options %}
-                            <option value="{{ dong }}" {% if filters.dong == dong %}selected{% endif %}>{{ dong }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <label>
-                        <span>대표배정초</span>
-                        <div class="autocomplete-field">
-                            <input type="text" name="assigned_elementary" value="{{ filters.assigned_elementary }}" placeholder="배정 초등학교명 검색" autocomplete="off" data-autocomplete="assigned-elementary">
-                        </div>
-                        <p class="filter-note">※ 배정초는 대표 좌표 기준 통학구역이며, 대단지는 동별 배정학교가 달라질 수 있습니다.</p>
-                    </label>
-
-                    <label>
-                        <span>중·고등학교 (1.5km 내)</span>
-                        <div class="autocomplete-field">
-                            <input type="text" name="school" value="{{ filters.school }}" placeholder="중/고 학교명 검색" autocomplete="off" data-autocomplete="mid-high-school">
-                        </div>
-                    </label>
-
-                    <div class="feature-choice-group">
-                        <span>전용면적</span>
-                        <div class="feature-choice-grid">
-                            {% for bucket in area_bucket_options %}
-                            <label class="feature-choice">
-                                <input type="checkbox" name="area" value="{{ bucket.key }}" {% if bucket.key in filters.area_buckets %}checked{% endif %}>
-                                <span>{{ bucket.label }}</span>
-                            </label>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <label>
-                        <span>가격 (최근 1년 평균)</span>
-                        <div class="price-filter" data-price-filter>
-                            <select name="price_type" data-price-type>
-                                {% for opt in price_type_options %}
-                                <option value="{{ opt.key }}" {% if filters.price_type == opt.key %}selected{% endif %}>{{ opt.label }}</option>
-                                {% endfor %}
-                            </select>
-                            <select name="price" data-price-bucket>
+                    <div class="filter-section">
+                        <div class="filter-section-head">📍 지역</div>
+                        <label>
+                            <span>구</span>
+                            <select name="gu" data-dong-source>
                                 <option value="">전체</option>
-                                {% for bucket in current_price_buckets %}
-                                <option value="{{ bucket.key }}" {% if filters.price == bucket.key %}selected{% endif %}>{{ bucket.label }}</option>
+                                {% for gu in gu_options %}
+                                <option value="{{ gu }}" {% if filters.gu == gu %}selected{% endif %}>{{ gu }}</option>
                                 {% endfor %}
                             </select>
-                        </div>
-                        <p class="filter-note">※ 거래 데이터가 없는 단지는 가격 조건 선택 시 제외됩니다.</p>
-                    </label>
+                        </label>
 
-                    <label>
-                        <span>지하철 노선</span>
-                        <select name="line" data-subway-line-source>
-                            <option value="">전체</option>
-                            {% for line in subway_line_options %}
-                            <option value="{{ line }}" {% if filters.line == line %}selected{% endif %}>{{ line }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <label>
-                        <span>지하철역</span>
-                        <div class="autocomplete-field">
-                            <input type="text" name="station" value="{{ filters.station }}" placeholder="노선 선택 후 역 검색" autocomplete="off" data-autocomplete="subway-stations" data-line-source="[data-subway-line-source]">
-                        </div>
-                    </label>
-
-                    <label>
-                        <span>🚌 버스 노선유형</span>
-                        <select name="bus_type" data-bus-type-source>
-                            <option value="">전체</option>
-                            {% for t in bus_type_options %}
-                            <option value="{{ t }}" {% if filters.bus_type == t %}selected{% endif %}>{{ t }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <label>
-                        <span>버스 번호</span>
-                        <div class="autocomplete-field">
-                            <input type="text" name="bus_route" value="{{ filters.bus_route }}" placeholder="유형 선택 후 번호 검색 (예: 간선 472)" autocomplete="off" data-autocomplete="bus-routes" data-bus-type-source="[data-bus-type-source]">
-                        </div>
-                    </label>
-
-                    <div class="feature-choice-group">
-                        <span>📚 학원 종류 (1km 내, 복수선택 가능)</span>
-                        <div class="feature-choice-grid">
-                            {% for t in academy_type_options %}
-                            <label class="feature-choice">
-                                <input type="checkbox" name="academy" value="{{ t.key }}" {% if t.key in filters.academy_subtypes %}checked{% endif %}>
-                                <span>{{ t.label }}</span>
-                            </label>
-                            {% endfor %}
-                        </div>
-                        <p class="filter-note">※ 선택한 종류 학원 수의 합계가 많은 단지가 상위로 추천됩니다.</p>
+                        <label>
+                            <span>동</span>
+                            <select name="dong" data-dong-target data-selected="{{ filters.dong }}">
+                                <option value="">전체</option>
+                                {% for dong in dong_options %}
+                                <option value="{{ dong }}" {% if filters.dong == dong %}selected{% endif %}>{{ dong }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
                     </div>
 
-                    <div class="feature-choice-group">
-                        <span>🍺 정온 환경</span>
-                        <div class="feature-choice-grid">
-                            <label class="feature-choice">
+                    <div class="filter-section">
+                        <div class="filter-section-head">🏫 교육</div>
+                        <label>
+                            <span>대표배정초</span>
+                            <div class="autocomplete-field">
+                                <input type="text" name="assigned_elementary" value="{{ filters.assigned_elementary }}" placeholder="배정 초등학교명 검색" autocomplete="off" data-autocomplete="assigned-elementary">
+                            </div>
+                            <p class="filter-note">※ 배정초는 대표 좌표 기준 통학구역이며, 대단지는 동별 배정학교가 달라질 수 있습니다.</p>
+                        </label>
+
+                        <label>
+                            <span>중·고등학교 (1.5km 내)</span>
+                            <div class="autocomplete-field">
+                                <input type="text" name="school" value="{{ filters.school }}" placeholder="중/고 학교명 검색" autocomplete="off" data-autocomplete="mid-high-school">
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-head">📐 면적·가격</div>
+                        <div class="feature-choice-group">
+                            <span>전용면적</span>
+                            <div class="feature-choice-grid">
+                                {% for bucket in area_bucket_options %}
+                                <label class="feature-choice">
+                                    <input type="checkbox" name="area" value="{{ bucket.key }}" {% if bucket.key in filters.area_buckets %}checked{% endif %}>
+                                    <span>{{ bucket.label }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <label>
+                            <span>💰 가격 (최근 1년 평균)</span>
+                            <div class="price-filter" data-price-filter>
+                                <select name="price_type" data-price-type>
+                                    {% for opt in price_type_options %}
+                                    <option value="{{ opt.key }}" {% if filters.price_type == opt.key %}selected{% endif %}>{{ opt.label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <select name="price" data-price-bucket>
+                                    <option value="">전체</option>
+                                    {% for bucket in current_price_buckets %}
+                                    <option value="{{ bucket.key }}" {% if filters.price == bucket.key %}selected{% endif %}>{{ bucket.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <p class="filter-note">※ 거래 데이터가 없는 단지는 가격 조건 선택 시 제외됩니다.</p>
+                        </label>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-head">🚇 지하철</div>
+                        <label>
+                            <span>지하철 노선</span>
+                            <select name="line" data-subway-line-source>
+                                <option value="">전체</option>
+                                {% for line in subway_line_options %}
+                                <option value="{{ line }}" {% if filters.line == line %}selected{% endif %}>{{ line }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label>
+                            <span>지하철역</span>
+                            <div class="autocomplete-field">
+                                <input type="text" name="station" value="{{ filters.station }}" placeholder="노선 선택 후 역 검색" autocomplete="off" data-autocomplete="subway-stations" data-line-source="[data-subway-line-source]">
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-head">🚍 버스</div>
+                        <label>
+                            <span>버스 노선유형</span>
+                            <select name="bus_type" data-bus-type-source>
+                                <option value="">전체</option>
+                                {% for t in bus_type_options %}
+                                <option value="{{ t }}" {% if filters.bus_type == t %}selected{% endif %}>{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label>
+                            <span>버스 번호</span>
+                            <div class="autocomplete-field">
+                                <input type="text" name="bus_route" value="{{ filters.bus_route }}" placeholder="유형 선택 후 번호 검색 (예: 간선 472)" autocomplete="off" data-autocomplete="bus-routes" data-bus-type-source="[data-bus-type-source]">
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="filter-section filter-section-priority">
+                        <div class="filter-section-head">🏪 생활 인프라</div>
+                        <div class="priority-search-group" data-priority-search>
+                            <div class="priority-title-row">
+                                <span>생활 인프라 우선순위</span>
+                            </div>
+                            <p class="priority-hint">카테고리(학원·의료·문화·공원·대형마트·카페·편의점)를 고르고 브랜드/유형을 선택하세요. 위에서부터 정렬 우선순위입니다(개수 많은 순 → 가까운 순). 학원은 선택 종류 수가 많은 순으로 추천됩니다.</p>
+                            <label class="priority-quiet-check">
                                 <input type="checkbox" name="no_nightlife" value="1" {% if filters.no_nightlife %}checked{% endif %}>
-                                <span>500m 내 유흥시설 없음</span>
+                                <span>반경 500m이내 유흥시설 없음</span>
                             </label>
+                            <div class="priority-rows" data-priority-rows></div>
+                            <button type="button" class="priority-add-btn" data-priority-add>＋ 우선순위 추가</button>
                         </div>
-                    </div>
-
-                    <div class="priority-search-group" data-priority-search>
-                        <span>생활 인프라 우선순위</span>
-                        <p class="priority-hint">카테고리(대형마트·카페·편의점·의료·문화·공원)를 고르고 브랜드/유형을 선택하세요. 위에서부터 정렬 우선순위입니다(개수 많은 순 → 가까운 순). 모두 보유한 단지만 추천됩니다.</p>
-                        <div class="priority-rows" data-priority-rows></div>
-                        <button type="button" class="priority-add-btn" data-priority-add>＋ 우선순위 추가</button>
                     </div>
 
                     <button type="submit" class="primary-tool-button">탐색하기</button>
+                    <p class="explore-submit-feedback" id="exploreSubmitFeedback" aria-live="polite">
+                        적어도 한 개 이상의 검색조건을 입력해주세요.
+                    </p>
                 </form>
                 <script>
                     window.livefitSubtypeOptions = {{ subtype_search_options | tojson | safe }};

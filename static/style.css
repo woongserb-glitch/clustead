@@ -3457,7 +3457,7 @@ body:not(.home-page) #resultLoadingOverlay {
 
 .explore-filter-form {
     display: grid;
-    gap: 12px;
+    gap: 10px;
 }
 
 .explore-filter-form label,
@@ -3467,6 +3467,26 @@ body:not(.home-page) #resultLoadingOverlay {
     color: #475569;
     font-size: 12px;
     font-weight: 800;
+}
+
+.filter-section {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #edf2f7;
+    border-radius: 12px;
+    background: transparent;
+}
+
+.filter-section-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 20px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.2;
 }
 
 .explore-filter-form input[type="text"],
@@ -3528,6 +3548,20 @@ body:not(.home-page) #resultLoadingOverlay {
     cursor: pointer;
 }
 
+.explore-submit-feedback {
+    display: none;
+    margin: -4px 0 0;
+    color: #dc2626;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+    text-align: center;
+}
+
+.explore-submit-feedback.is-visible {
+    display: block;
+}
+
 .filter-note {
     font-size: 11px;
     line-height: 1.4;
@@ -3554,10 +3588,45 @@ body:not(.home-page) #resultLoadingOverlay {
     gap: 6px;
 }
 
-.priority-search-group > span {
+.priority-title-row {
+    display: flex;
+    align-items: center;
+}
+
+.priority-title-row > span {
     font-size: 13px;
     font-weight: 800;
     color: #374151;
+}
+
+.priority-quiet-check {
+    align-self: flex-end;
+    display: inline-flex !important;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    width: auto;
+    max-width: 100%;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.2;
+    cursor: pointer;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.priority-quiet-check input {
+    flex: 0 0 auto;
+    width: 13px;
+    height: 13px;
+    accent-color: #111827;
+}
+
+.priority-quiet-check span {
+    display: inline-block;
+    white-space: nowrap;
 }
 
 .priority-hint {
@@ -3615,6 +3684,14 @@ body:not(.home-page) #resultLoadingOverlay {
 
 .priority-chips:empty {
     margin-top: 0;
+}
+
+.priority-helper-text {
+    margin: 6px 0 0;
+    color: #8a94a6;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
 }
 
 .priority-chip {
@@ -3754,5 +3831,9 @@ body:not(.home-page) #resultLoadingOverlay {
     .insight-key-grid,
     .insight-support-grid {
         grid-template-columns: 1fr;
+    }
+
+    .priority-quiet-check {
+        align-self: flex-end;
     }
 }
