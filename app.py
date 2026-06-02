@@ -4513,6 +4513,27 @@ SUBTYPE_SEARCH_CONFIG = {
         "count_col": lambda s: f"{s}_count_500m",
         "nearest_col": lambda s: f"nearest_{s}_distance",
     },
+    "medical": {
+        "label": "의료",
+        "icon": "🏥",
+        "derived": "medical",
+        "radius_label": "응급실·종합병원 / 소아·산부인과 1km",
+        "subtypes": ["응급실", "종합병원", "소아과", "산부인과"],
+    },
+    "culture": {
+        "label": "문화",
+        "icon": "🎭",
+        "derived": "culture",
+        "radius_label": "1.5km",
+        "subtypes": ["공연", "전시", "체육", "키즈", "체험"],
+    },
+    "park": {
+        "label": "공원",
+        "icon": "🌳",
+        "derived": "park",
+        "radius_label": "반경 내 가까운 순",
+        "subtypes": ["일반공원", "한강공원", "대형공원"],
+    },
 }
 
 _SUBTYPE_LOOKUP_CACHE = {}
@@ -4533,6 +4554,132 @@ def _subtype_lookup(category):
             lookup[key] = row
         _SUBTYPE_LOOKUP_CACHE[category] = lookup
     return _SUBTYPE_LOOKUP_CACHE[category]
+
+
+_DERIVED_STATS_CACHE = {}
+
+
+def _raise_csv_field_limit():
+    limit = sys.maxsize
+    while True:
+        try:
+            csv.field_size_limit(limit)
+            return
+        except OverflowError:
+            limit = int(limit / 10)
+
+
+def _csv_key(row):
+    return (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+
+
+def _big_park_nearest_lookup():
+    """{(name,gu,dong): 가장 가까운 대형공원(면적 10만㎡+) 거리(m)} — park_data 기반 라이브 계산(캐시)."""
+    if "big_park" not in _DERIVED_STATS_CACHE:
+        bigs = []
+        for park in park_data:
+            if park.get("subtype") == "대형공원":
+                try:
+                    bigs.append((float(park["lat"]), float(park["lng"])))
+                except Exception:
+                    continue
+        result = {}
+        for apartment in apartment_data:
+            key = _csv_key(apartment)
+            try:
+                alat, alng = float(apartment["lat"]), float(apartment["lng"])
+            except Exception:
+                result[key] = None
+                continue
+            best = None
+            for plat, plng in bigs:
+                dist = get_distance_m(alat, alng, plat, plng)
+                if best is None or dist < best:
+                    best = dist
+            result[key] = best
+        _DERIVED_STATS_CACHE["big_park"] = result
+    return _DERIVED_STATS_CACHE["big_park"]
+
+
+def _derived_category_stats(kind):
+    """{(name,gu,dong): {subtype: (count, nearest_distance|None)}} for derived 우선순위
+    categories (의료/문화/공원). 캐시."""
+    if kind in _DERIVED_STATS_CACHE:
+        return _DERIVED_STATS_CACHE[kind]
+    _raise_csv_field_limit()
+    result = {}
+
+    if kind == "medical":
+        # 응급실/종합병원은 baked 컬럼, 소아과/산부인과는 medical_items_json 1km 내 집계.
+        try:
+            with open("data/baseline/medical_baseline.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    stats = {
+                        "응급실": (to_int(row.get("emergency_count_1km"), 0),
+                                 parse_optional_float(row.get("nearest_emergency_distance"))),
+                        "종합병원": (to_int(row.get("superior_hospital_count_5km"), 0),
+                                  parse_optional_float(row.get("nearest_superior_hospital_distance"))),
+                    }
+                    try:
+                        items = json.loads(row.get("medical_items_json", "[]") or "[]")
+                    except Exception:
+                        items = []
+                    for sub in ("소아과", "산부인과"):
+                        cnt, near = 0, None
+                        for item in items:
+                            if clean_text(item.get("subtype", "")) == sub:
+                                dist = parse_optional_float(item.get("distance"))
+                                if dist is not None and dist <= 1000:
+                                    cnt += 1
+                                    if near is None or dist < near:
+                                        near = dist
+                        stats[sub] = (cnt, near)
+                    result[_csv_key(row)] = stats
+        except Exception:
+            pass
+
+    elif kind == "culture":
+        colmap = {"공연": "performance_count", "전시": "exhibition_count",
+                  "체육": "sports_count", "키즈": "kids_count", "체험": "experience_count"}
+        try:
+            with open("data/baseline/culture_baseline.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    near = parse_optional_float(row.get("nearest_culture_distance"))
+                    result[_csv_key(row)] = {
+                        label: (to_int(row.get(col), 0), near) for label, col in colmap.items()
+                    }
+        except Exception:
+            pass
+
+    elif kind == "park":
+        park_dist = {}
+        try:
+            with open("data/baseline/park_baseline.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    park_dist[_csv_key(row)] = parse_optional_float(row.get("park_distance"))
+        except Exception:
+            pass
+        hangang_dist = {}
+        try:
+            with open("data/baseline/hangang_baseline.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    hangang_dist[_csv_key(row)] = parse_optional_float(row.get("nearest_hangang_distance"))
+        except Exception:
+            pass
+        big = _big_park_nearest_lookup()
+        keys = set(park_dist) | set(hangang_dist) | set(big)
+        for key in keys:
+            pdist = park_dist.get(key)
+            hdist = hangang_dist.get(key)
+            bdist = big.get(key)
+            result[key] = {
+                "일반공원": (1 if (pdist is not None and pdist <= 1000) else 0, pdist),
+                "한강공원": (1 if (hdist is not None and hdist <= 3000) else 0, hdist),
+                "대형공원": (1 if (bdist is not None and bdist <= 3000) else 0, bdist),
+            }
+
+    _DERIVED_STATS_CACHE[kind] = result
+    return result
 
 
 def parse_priorities(raw_list):
@@ -4607,14 +4754,8 @@ EXPLORE_ACADEMY_TYPES = [
 ]
 _ACADEMY_TYPE_BY_KEY = {t["key"]: t for t in EXPLORE_ACADEMY_TYPES}
 
-# 공원/(외 단일지표) 임계 필터: baseline 단일 지표 min/max AND 필터.
-EXPLORE_RANGE_FILTERS = [
-    {"param": "park", "label": "공원", "note": "반경 내 공원 유무", "icon": "🌳",
-     "file": "park_baseline.csv", "column": "park_distance", "mode": "max", "suffix": "m",
-     "options": [{"key": "300", "label": "300m 내 있음", "value": 300},
-                 {"key": "500", "label": "500m 내 있음", "value": 500},
-                 {"key": "1000", "label": "1km 내 있음", "value": 1000}]},
-]
+# (공원은 우선순위 카테고리로 이동) — 단일지표 임계 필터 슬롯(현재 없음).
+EXPLORE_RANGE_FILTERS = []
 
 # 버스: 노선유형(간선/지선/마을/심야/공항/기타)별 번호 검색 — 지하철 노선/역과 동일 컨셉.
 EXPLORE_BUS_TYPES = ["간선", "지선", "마을", "심야", "공항", "기타"]
@@ -4757,7 +4898,7 @@ def _bus_routes_by_type():
 
 
 def build_explore_results(filters, limit=10):
-    selected_features = filters.get("features", [])
+    no_nightlife = bool(filters.get("no_nightlife"))
     gu_filter = clean_text(filters.get("gu", ""))
     dong_filter = clean_text(filters.get("dong", ""))
     line_filter = clean_text(filters.get("line", ""))
@@ -4825,18 +4966,15 @@ def build_explore_results(filters, limit=10):
             matched.append(f"{station_filter}역 접근")
             score += 3
 
-        failed = False
-        for feature in selected_features:
-            if has_feature_from_rows(feature, rows):
-                label = next((item["label"] for item in FEATURE_OPTIONS if item["key"] == feature), feature)
-                matched.append(label)
-                score += 2
-            else:
-                failed = True
-                break
-
-        if failed:
-            continue
+        # 유흥시설 없음: 500m 내 유흥시설이 0곳인 단지만
+        if no_nightlife:
+            nightlife_count = _baseline_metric_lookup(
+                "nightlife500", "nightlife_baseline.csv", "nightlife_count_500m"
+            ).get((name, gu, dong))
+            if nightlife_count is None or nightlife_count > 0:
+                continue
+            matched.append("🍺 500m 내 유흥시설 없음")
+            score += 1
 
         # 대표배정초: 해당 학교가 이 단지의 대표배정초인 경우만
         if assigned_elem:
@@ -4931,15 +5069,23 @@ def build_explore_results(filters, limit=10):
             priority_ok = True
             for category, subtype in priorities:
                 cfg = SUBTYPE_SEARCH_CONFIG[category]
-                row = _subtype_lookup(category).get((name, gu, dong)) or {}
-                count = to_int(row.get(cfg["count_col"](subtype)), 0)
-                if count < 1:                    # AND: 해당 서브타입 미보유 → 제외
+                if cfg.get("derived"):
+                    stats = _derived_category_stats(cfg["derived"]).get((name, gu, dong)) or {}
+                    count, nearest = stats.get(subtype, (0, None))
+                else:
+                    row = _subtype_lookup(category).get((name, gu, dong)) or {}
+                    count = to_int(row.get(cfg["count_col"](subtype)), 0)
+                    nearest = parse_optional_float(row.get(cfg["nearest_col"](subtype)))
+                if count < 1:                    # AND: 해당 서브타입 미보유/반경 밖 → 제외
                     priority_ok = False
                     break
-                nearest = parse_optional_float(row.get(cfg["nearest_col"](subtype)))
                 sort_parts.append(-count)
                 sort_parts.append(nearest if nearest is not None else float("inf"))
-                matched.append(f"{cfg['icon']} {subtype} {count}곳")
+                if cfg.get("derived") == "park":
+                    dist_label = f"{int(round(nearest))}m" if nearest is not None else "-"
+                    matched.append(f"{cfg['icon']} {subtype} {dist_label}")
+                else:
+                    matched.append(f"{cfg['icon']} {subtype} {count}곳")
             if not priority_ok:
                 continue
             sort_key = tuple(sort_parts)
@@ -5035,7 +5181,7 @@ def explore():
         "dong": request.args.get("dong", ""),
         "line": request.args.get("line", ""),
         "station": request.args.get("station", ""),
-        "features": request.args.getlist("feature"),
+        "no_nightlife": request.args.get("no_nightlife", ""),
         "priorities": parse_priorities(request.args.getlist("priority")),
         "assigned_elementary": request.args.get("assigned_elementary", ""),
         "school": request.args.get("school", ""),
@@ -5043,7 +5189,6 @@ def explore():
         "price_type": request.args.get("price_type", ""),
         "price": request.args.get("price", ""),
         "academy_subtypes": request.args.getlist("academy"),
-        "park": request.args.get("park", ""),
         "bus_type": request.args.get("bus_type", ""),
         "bus_route": request.args.get("bus_route", ""),
     }
@@ -5089,7 +5234,6 @@ def explore():
 
     return render_template(
         "explore.html",
-        feature_options=FEATURE_OPTIONS,
         filters=filters,
         results=results,
         gu_options=gu_options,

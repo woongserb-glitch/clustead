@@ -139,31 +139,19 @@
                         <p class="filter-note">※ 선택한 종류 학원 수의 합계가 많은 단지가 상위로 추천됩니다.</p>
                     </div>
 
-                    <label>
-                        <span>🌳 공원 (반경 내 공원 유무)</span>
-                        <select name="park">
-                            <option value="">전체</option>
-                            <option value="300" {% if filters.park == '300' %}selected{% endif %}>300m 내 있음</option>
-                            <option value="500" {% if filters.park == '500' %}selected{% endif %}>500m 내 있음</option>
-                            <option value="1000" {% if filters.park == '1000' %}selected{% endif %}>1km 내 있음</option>
-                        </select>
-                    </label>
-
                     <div class="feature-choice-group">
-                        <span>생활 요소</span>
+                        <span>🍺 정온 환경</span>
                         <div class="feature-choice-grid">
-                            {% for feature in feature_options %}
                             <label class="feature-choice">
-                                <input type="checkbox" name="feature" value="{{ feature.key }}" {% if feature.key in filters.features %}checked{% endif %}>
-                                <span>{{ feature.icon }} {{ feature.label }}</span>
+                                <input type="checkbox" name="no_nightlife" value="1" {% if filters.no_nightlife %}checked{% endif %}>
+                                <span>500m 내 유흥시설 없음</span>
                             </label>
-                            {% endfor %}
                         </div>
                     </div>
 
                     <div class="priority-search-group" data-priority-search>
                         <span>생활 인프라 우선순위</span>
-                        <p class="priority-hint">카테고리를 고르고 브랜드/유형을 선택하세요. 위에서부터 정렬 우선순위입니다(개수 많은 순 → 가까운 순). 모두 보유한 단지만 추천됩니다.</p>
+                        <p class="priority-hint">카테고리(대형마트·카페·편의점·의료·문화·공원)를 고르고 브랜드/유형을 선택하세요. 위에서부터 정렬 우선순위입니다(개수 많은 순 → 가까운 순). 모두 보유한 단지만 추천됩니다.</p>
                         <div class="priority-rows" data-priority-rows></div>
                         <button type="button" class="priority-add-btn" data-priority-add>＋ 우선순위 추가</button>
                     </div>
