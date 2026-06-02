@@ -17,7 +17,9 @@ HOSPITAL_RAW_PATH = BASE_DIR / "data" / "medical" / "hospital_seoul.csv"
 PHARMACY_RAW_PATH = BASE_DIR / "data" / "medical" / "pharmacy_hours_seoul.csv"
 OUTPUT_PATH = BASE_DIR / "data" / "baseline" / "medical_baseline.csv"
 
-MAX_ITEMS = 50
+# academy와 동일하게 표시 목록 cap 해제(사실상 무제한). 진료과 칩이 전체 목록 기준이 되어
+# {진료과}_count_1km 컬럼 및 Explore 의료 랭킹과 정확히 일치한다.
+MAX_ITEMS = 9999
 SUPERIOR_HOSPITAL_RADIUS_M = 5000
 
 # 진료과 분류 규칙. 복합명(소아치과·어린이안과 등)이 일반과로 흡수되지 않도록
@@ -399,11 +401,7 @@ def main():
             nearest_superior_name, nearest_superior_distance = nearest_name_distance(superior_5km)
             nearest_pharmacy_name, nearest_pharmacy_distance = nearest_name_distance(pharmacies_1km)
 
-            display_items = (
-                hospitals_1km[:20]
-                + emergency_3km[:15]
-                + pharmacies_1km[:20]
-            )
+            display_items = hospitals_1km + emergency_3km + pharmacies_1km
             display_items = sorted(display_items, key=lambda item: item.get("distance", 999999))[:MAX_ITEMS]
 
             writer.writerow({
