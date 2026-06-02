@@ -2753,11 +2753,11 @@ def build_medical_category_summaries(medical_info):
             "label": "🏥 병원",
             "domain": "medical",
             "domain_label": "🏥 의료",
-            "score": f"{to_int(medical_info.get('hospital_count_1km'), 0)}곳",
+            "score": f"{to_int(medical_info.get('hospital_count_500m'), 0)}곳",
             "score_class": "score-normal",
-            "description": "반경 1km 내 병원 접근성과 진료과 분포입니다.",
-            "radius": 1000,
-            "count": to_int(medical_info.get("hospital_count_1km"), 0),
+            "description": "도보권(반경 500m) 병원 접근성과 진료과 분포입니다.",
+            "radius": 500,
+            "count": to_int(medical_info.get("hospital_count_500m"), 0),
             "seoul_percentile": medical_info.get("seoul_percentile"),
             "gu_percentile": None,
             "source": "서울열린데이터광장",
@@ -4527,7 +4527,7 @@ SUBTYPE_SEARCH_CONFIG = {
         "label": "의료",
         "icon": "🏥",
         "derived": "medical",
-        "radius_label": "응급실·종합병원 / 소아·산부인과 1km",
+        "radius_label": "소아·산부인과 도보권 500m / 응급실·종합병원",
         "subtypes": ["응급실", "종합병원", "소아과", "산부인과"],
     },
     "culture": {
@@ -4620,9 +4620,9 @@ def _derived_category_stats(kind):
     result = {}
 
     if kind == "medical":
-        # 응급실/종합병원/소아과/산부인과 모두 baked 카운트 컬럼(전체 기준, 정확).
-        # 최근접 거리는 medical_items_json에서 보강(가장 가까운 항목은 cap 안쪽이라 정확).
-        # 진료과 카운트 컬럼이 아직 없는(재빌드 전) CSV는 json 집계로 폴백.
+        # 소아과/산부인과는 도보권(500m) 전체 카운트 컬럼(정확). 응급실(1km)·종합병원(5km)은
+        # 차량 이동 시설이라 각자 반경 baked 컬럼 사용. 최근접 거리는 json에서 보강.
+        # 진료과 500m 카운트 컬럼이 아직 없는(재빌드 전) CSV는 json 집계로 폴백.
         try:
             with open("data/baseline/medical_baseline.csv", encoding="utf-8-sig", newline="") as file:
                 for row in csv.DictReader(file):
@@ -4641,11 +4641,11 @@ def _derived_category_stats(kind):
                         for item in items:
                             if clean_text(item.get("subtype", "")) == sub:
                                 dist = parse_optional_float(item.get("distance"))
-                                if dist is not None and dist <= 1000:
+                                if dist is not None and dist <= 500:
                                     json_cnt += 1
                                     if near is None or dist < near:
                                         near = dist
-                        col_val = row.get(f"{sub}_count_1km")
+                        col_val = row.get(f"{sub}_count_500m")
                         count = to_int(col_val, 0) if (col_val not in (None, "")) else json_cnt
                         stats[sub] = (count, near)
                     result[_csv_key(row)] = stats

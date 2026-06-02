@@ -45,12 +45,12 @@ HOSPITAL_SUBTYPE_RULES = [
 
 PHARMACY_SUBTYPE_ORDER = ["일반", "야간", "주말", "휴일"]
 
-# 진료과별 1km 내 전체 카운트 컬럼(items_json cap 영향 없는 정확 카운트).
+# 진료과별 도보권(500m) 전체 카운트 컬럼(items_json cap 영향 없는 정확 카운트).
 HOSPITAL_SPECIALTY_SUBTYPES = [subtype for subtype, _ in HOSPITAL_SUBTYPE_RULES]
 
 
 def specialty_count_column(subtype):
-    return f"{subtype}_count_1km"
+    return f"{subtype}_count_500m"
 
 
 def read_csv_with_fallback(path):
@@ -390,8 +390,9 @@ def main():
             pharmacies_500m = collect_within(apartment, pharmacies, 500, "pharmacy")
             pharmacies_1km = collect_within(apartment, pharmacies, 1000, "pharmacy")
 
+            # 진료과별 도보권(500m) 카운트 — 의원/치과/한의원은 걸어가는 시설.
             specialty_counts = {subtype: 0 for subtype in HOSPITAL_SPECIALTY_SUBTYPES}
-            for hospital in hospitals_1km:
+            for hospital in hospitals_500m:
                 subtype = hospital.get("subtype")
                 if subtype in specialty_counts:
                     specialty_counts[subtype] += 1
@@ -401,7 +402,8 @@ def main():
             nearest_superior_name, nearest_superior_distance = nearest_name_distance(superior_5km)
             nearest_pharmacy_name, nearest_pharmacy_distance = nearest_name_distance(pharmacies_1km)
 
-            display_items = hospitals_1km + emergency_3km + pharmacies_1km
+            # 병원(의원/치과/한의원)은 도보권 500m, 응급실·약국은 각자 반경으로 표시.
+            display_items = hospitals_500m + emergency_3km + pharmacies_1km
             display_items = sorted(display_items, key=lambda item: item.get("distance", 999999))[:MAX_ITEMS]
 
             writer.writerow({
@@ -430,7 +432,7 @@ def main():
                 "nearest_pharmacy_name": nearest_pharmacy_name,
                 "nearest_pharmacy_distance": nearest_pharmacy_distance,
                 "hospital_items_json": json.dumps(
-                    [output_item(item) for item in hospitals_1km[:MAX_ITEMS]],
+                    [output_item(item) for item in hospitals_500m[:MAX_ITEMS]],
                     ensure_ascii=False,
                 ),
                 "emergency_items_json": json.dumps(
