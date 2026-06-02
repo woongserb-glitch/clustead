@@ -127,22 +127,29 @@
                     </label>
 
                     <label>
-                        <span>📚 학원가 (1km 내 학원 수)</span>
-                        <select name="academy">
+                        <span>📚 학원 (1km 내 종류별)</span>
+                        <select name="academy_type">
                             <option value="">전체</option>
-                            <option value="100" {% if filters.academy == '100' %}selected{% endif %}>100개 이상</option>
-                            <option value="200" {% if filters.academy == '200' %}selected{% endif %}>200개 이상</option>
-                            <option value="300" {% if filters.academy == '300' %}selected{% endif %}>300개 이상</option>
+                            {% for t in academy_type_options %}
+                            <option value="{{ t.key }}" {% if filters.academy_type == t.key %}selected{% endif %}>{{ t.label }}</option>
+                            {% endfor %}
                         </select>
+                        <select name="academy_min">
+                            <option value="">개수 무관(1개 이상)</option>
+                            {% for o in academy_min_options %}
+                            <option value="{{ o.key }}" {% if filters.academy_min == o.key %}selected{% endif %}>{{ o.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="filter-note">※ 종류를 선택하면 해당 학원이 1km 내에 최소 개수 이상인 단지만 표시됩니다.</p>
                     </label>
 
                     <label>
-                        <span>🌳 공원 (가장 가까운 공원 거리)</span>
+                        <span>🌳 공원 (반경 내 공원 유무)</span>
                         <select name="park">
                             <option value="">전체</option>
-                            <option value="300" {% if filters.park == '300' %}selected{% endif %}>300m 이내</option>
-                            <option value="500" {% if filters.park == '500' %}selected{% endif %}>500m 이내</option>
-                            <option value="1000" {% if filters.park == '1000' %}selected{% endif %}>1km 이내</option>
+                            <option value="300" {% if filters.park == '300' %}selected{% endif %}>300m 내 있음</option>
+                            <option value="500" {% if filters.park == '500' %}selected{% endif %}>500m 내 있음</option>
+                            <option value="1000" {% if filters.park == '1000' %}selected{% endif %}>1km 내 있음</option>
                         </select>
                     </label>
 

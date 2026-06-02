@@ -4593,19 +4593,34 @@ _PRICE_BUCKET_BY_TYPE = {
     t["key"]: {b["key"]: b for b in t["buckets"]} for t in EXPLORE_PRICE_TYPE_OPTIONS
 }
 
-# Tier1 추가 필터(학원/공원/버스): baseline 단일 지표 임계값(min/max) AND 필터.
-# 임계값은 서울 전체 분포 분위수 기준(min=값 이상 통과, max=거리 이내 통과).
+# 학원: 종류(서브타입)별 1km 내 개수 + 최소 개수 임계값. 결과페이지 칩과 동일 분류.
+EXPLORE_ACADEMY_TYPES = [
+    {"key": "exam", "label": "입시/보습", "column": "exam_count"},
+    {"key": "english", "label": "영어", "column": "english_count"},
+    {"key": "math", "label": "수학", "column": "math_count"},
+    {"key": "arts_sports", "label": "예체능", "column": "arts_sports_count"},
+    {"key": "study_room", "label": "독서실", "column": "study_room_count"},
+    {"key": "career", "label": "직업/자격", "column": "career_count"},
+    {"key": "chinese", "label": "중국어", "column": "chinese_count"},
+    {"key": "japanese", "label": "일본어", "column": "japanese_count"},
+    {"key": "etc", "label": "기타", "column": "etc_count"},
+]
+_ACADEMY_TYPE_BY_KEY = {t["key"]: t for t in EXPLORE_ACADEMY_TYPES}
+EXPLORE_ACADEMY_MIN_OPTIONS = [
+    {"key": "10", "label": "10개 이상", "value": 10},
+    {"key": "30", "label": "30개 이상", "value": 30},
+    {"key": "50", "label": "50개 이상", "value": 50},
+    {"key": "100", "label": "100개 이상", "value": 100},
+]
+_ACADEMY_MIN_BY_KEY = {o["key"]: o for o in EXPLORE_ACADEMY_MIN_OPTIONS}
+
+# 공원/(외 단일지표) 임계 필터: baseline 단일 지표 min/max AND 필터.
 EXPLORE_RANGE_FILTERS = [
-    {"param": "academy", "label": "학원가", "note": "1km 내 학원 수", "icon": "📚",
-     "file": "academy_baseline.csv", "column": "academy_count_1000m", "mode": "min", "suffix": "개",
-     "options": [{"key": "100", "label": "100개 이상", "value": 100},
-                 {"key": "200", "label": "200개 이상", "value": 200},
-                 {"key": "300", "label": "300개 이상", "value": 300}]},
-    {"param": "park", "label": "공원", "note": "가장 가까운 공원 거리", "icon": "🌳",
+    {"param": "park", "label": "공원", "note": "반경 내 공원 유무", "icon": "🌳",
      "file": "park_baseline.csv", "column": "park_distance", "mode": "max", "suffix": "m",
-     "options": [{"key": "300", "label": "300m 이내", "value": 300},
-                 {"key": "500", "label": "500m 이내", "value": 500},
-                 {"key": "1000", "label": "1km 이내", "value": 1000}]},
+     "options": [{"key": "300", "label": "300m 내 있음", "value": 300},
+                 {"key": "500", "label": "500m 내 있음", "value": 500},
+                 {"key": "1000", "label": "1km 내 있음", "value": 1000}]},
 ]
 
 # 버스: 노선유형(간선/지선/마을/심야/공항/기타)별 번호 검색 — 지하철 노선/역과 동일 컨셉.
@@ -4742,13 +4757,18 @@ def build_explore_results(filters, limit=10):
         price_type = "trade"
     price_bucket = _PRICE_BUCKET_BY_TYPE[price_type].get(clean_text(filters.get("price", "")))
 
-    # 학원/공원 임계값 선택 파싱
+    # 공원 임계값 선택 파싱
     range_selections = []
     for cfg in EXPLORE_RANGE_FILTERS:
         raw = clean_text(filters.get(cfg["param"], ""))
         opt = next((o for o in cfg["options"] if o["key"] == raw), None)
         if opt:
             range_selections.append((cfg, opt))
+
+    # 학원 종류/최소 개수
+    academy_type_cfg = _ACADEMY_TYPE_BY_KEY.get(clean_text(filters.get("academy_type", "")))
+    academy_min_opt = _ACADEMY_MIN_BY_KEY.get(clean_text(filters.get("academy_min", "")))
+    academy_threshold = academy_min_opt["value"] if academy_min_opt else 1
 
     # 버스 노선유형/번호
     bus_type = clean_text(filters.get("bus_type", ""))
@@ -4844,7 +4864,17 @@ def build_explore_results(filters, limit=10):
             matched.append(f"💰 {type_label} {price_bucket['label']}")
             score += 1
 
-        # 학원/공원/버스: baseline 단일 지표 임계값 AND 필터(데이터 없으면 제외)
+        # 학원: 종류(서브타입)별 1km 내 개수 임계값(미선택 시 ≥1, 데이터 없으면 제외)
+        if academy_type_cfg:
+            val = _baseline_metric_lookup(
+                "academy_" + academy_type_cfg["key"], "academy_baseline.csv", academy_type_cfg["column"]
+            ).get((name, gu, dong))
+            if val is None or val < academy_threshold:
+                continue
+            matched.append(f"📚 {academy_type_cfg['label']} {int(round(val))}개")
+            score += 2
+
+        # 공원: 반경 내 공원 유무(park_distance ≤ 반경) AND 필터(데이터 없으면 제외)
         if range_selections:
             range_ok = True
             for cfg, opt in range_selections:
@@ -4993,7 +5023,8 @@ def explore():
         "area_buckets": request.args.getlist("area"),
         "price_type": request.args.get("price_type", ""),
         "price": request.args.get("price", ""),
-        "academy": request.args.get("academy", ""),
+        "academy_type": request.args.get("academy_type", ""),
+        "academy_min": request.args.get("academy_min", ""),
         "park": request.args.get("park", ""),
         "bus_type": request.args.get("bus_type", ""),
         "bus_route": request.args.get("bus_route", ""),
@@ -5053,6 +5084,8 @@ def explore():
         current_price_buckets=current_price_buckets,
         price_buckets_by_type=price_buckets_by_type,
         range_filter_options=EXPLORE_RANGE_FILTERS,
+        academy_type_options=EXPLORE_ACADEMY_TYPES,
+        academy_min_options=EXPLORE_ACADEMY_MIN_OPTIONS,
         bus_type_options=EXPLORE_BUS_TYPES,
     )
 
