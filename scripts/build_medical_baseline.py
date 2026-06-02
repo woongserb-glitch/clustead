@@ -40,6 +40,13 @@ HOSPITAL_SUBTYPE_RULES = [
 
 PHARMACY_SUBTYPE_ORDER = ["일반", "야간", "주말", "휴일"]
 
+# 진료과별 1km 내 전체 카운트 컬럼(items_json cap 영향 없는 정확 카운트).
+HOSPITAL_SPECIALTY_SUBTYPES = [subtype for subtype, _ in HOSPITAL_SUBTYPE_RULES]
+
+
+def specialty_count_column(subtype):
+    return f"{subtype}_count_1km"
+
 
 def read_csv_with_fallback(path):
     for enc in ["utf-8-sig", "cp949", "euc-kr", "utf-8"]:
@@ -348,6 +355,7 @@ def main():
             "superior_hospital_count_5km",
             "pharmacy_count_500m",
             "pharmacy_count_1km",
+            *[specialty_count_column(subtype) for subtype in HOSPITAL_SPECIALTY_SUBTYPES],
             "nearest_hospital_name",
             "nearest_hospital_distance",
             "nearest_emergency_name",
@@ -376,6 +384,12 @@ def main():
             pharmacies_500m = collect_within(apartment, pharmacies, 500, "pharmacy")
             pharmacies_1km = collect_within(apartment, pharmacies, 1000, "pharmacy")
 
+            specialty_counts = {subtype: 0 for subtype in HOSPITAL_SPECIALTY_SUBTYPES}
+            for hospital in hospitals_1km:
+                subtype = hospital.get("subtype")
+                if subtype in specialty_counts:
+                    specialty_counts[subtype] += 1
+
             nearest_hospital_name, nearest_hospital_distance = nearest_name_distance(hospitals_1km)
             nearest_emergency_name, nearest_emergency_distance = nearest_name_distance(emergency_3km)
             nearest_superior_name, nearest_superior_distance = nearest_name_distance(superior_5km)
@@ -403,6 +417,8 @@ def main():
                 "superior_hospital_count_5km": len(superior_5km),
                 "pharmacy_count_500m": len(pharmacies_500m),
                 "pharmacy_count_1km": len(pharmacies_1km),
+                **{specialty_count_column(subtype): specialty_counts[subtype]
+                   for subtype in HOSPITAL_SPECIALTY_SUBTYPES},
                 "nearest_hospital_name": nearest_hospital_name,
                 "nearest_hospital_distance": nearest_hospital_distance,
                 "nearest_emergency_name": nearest_emergency_name,

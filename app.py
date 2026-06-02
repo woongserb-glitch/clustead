@@ -4610,7 +4610,9 @@ def _derived_category_stats(kind):
     result = {}
 
     if kind == "medical":
-        # 응급실/종합병원은 baked 컬럼, 소아과/산부인과는 medical_items_json 1km 내 집계.
+        # 응급실/종합병원/소아과/산부인과 모두 baked 카운트 컬럼(전체 기준, 정확).
+        # 최근접 거리는 medical_items_json에서 보강(가장 가까운 항목은 cap 안쪽이라 정확).
+        # 진료과 카운트 컬럼이 아직 없는(재빌드 전) CSV는 json 집계로 폴백.
         try:
             with open("data/baseline/medical_baseline.csv", encoding="utf-8-sig", newline="") as file:
                 for row in csv.DictReader(file):
@@ -4625,15 +4627,17 @@ def _derived_category_stats(kind):
                     except Exception:
                         items = []
                     for sub in ("소아과", "산부인과"):
-                        cnt, near = 0, None
+                        near, json_cnt = None, 0
                         for item in items:
                             if clean_text(item.get("subtype", "")) == sub:
                                 dist = parse_optional_float(item.get("distance"))
                                 if dist is not None and dist <= 1000:
-                                    cnt += 1
+                                    json_cnt += 1
                                     if near is None or dist < near:
                                         near = dist
-                        stats[sub] = (cnt, near)
+                        col_val = row.get(f"{sub}_count_1km")
+                        count = to_int(col_val, 0) if (col_val not in (None, "")) else json_cnt
+                        stats[sub] = (count, near)
                     result[_csv_key(row)] = stats
         except Exception:
             pass
