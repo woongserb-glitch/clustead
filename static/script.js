@@ -32,17 +32,19 @@ function setupHomeLoadingOverlay() {
     const overlay = document.getElementById("homeLoadingOverlay");
     if (!overlay) return;
 
-    const title = overlay.querySelector("strong");
-    const message = overlay.querySelector("p");
-    if (title) {
-        title.textContent = "LiveFit 분석 중";
-    }
-    if (message) {
-        message.innerHTML = "아파트 생활 데이터를 정리하고 있습니다.<br>교통 · 생활편의 · 의료 · 거래 정보를 함께 확인 중입니다.";
-    }
-
+    // 오버레이 문구는 각 페이지 마크업을 단일 소스로 사용한다.
     window.addEventListener("pageshow", () => {
         hidePageLoading();
+    });
+}
+
+function setupExploreLoading() {
+    const form = document.querySelector(".explore-filter-form");
+    if (!form || !document.getElementById("homeLoadingOverlay")) {
+        return;
+    }
+    form.addEventListener("submit", () => {
+        showPageLoading();
     });
 }
 
@@ -758,6 +760,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupSubwayStationDependency();
     setupPrioritySearch();
     setupPriceTypeToggle();
+    setupExploreLoading();
 
     const detailCards = document.querySelectorAll(".detail-card");
 
