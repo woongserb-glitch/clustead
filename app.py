@@ -902,6 +902,16 @@ def format_manwon(value):
 app.jinja_env.filters["format_manwon"] = format_manwon
 
 
+def format_thousands(value):
+    try:
+        return f"{int(value):,}"
+    except (TypeError, ValueError):
+        return value
+
+
+app.jinja_env.filters["thousands"] = format_thousands
+
+
 def apply_result_percentile_labels(category_summaries, preference_tags, domain_summaries, district):
     def apply_summary_labels(summary):
         if summary.get("display_percentile") is False:

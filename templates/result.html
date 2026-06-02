@@ -238,7 +238,7 @@
                                 <p>{{ domain.description }}</p>
                             </div>
                             <div class="domain-group-actions">
-                                <span>{{ domain.poi_count }}곳</span>
+                                <span>{{ domain.poi_count|thousands }}곳</span>
                                 <button type="button" class="domain-scroll-btn" data-dir="-1">‹</button>
                                 <button type="button" class="domain-scroll-btn" data-dir="1">›</button>
                             </div>
@@ -256,7 +256,7 @@
                                 </div>
 
                                 <div class="preference-tag-sub">
-                                    <span>근처({{ tag.radius|distance_m }} 내) {{ tag.count }}곳</span>
+                                    <span>근처({{ tag.radius|distance_m }} 내) {{ tag.count|thousands }}곳</span>
                                 </div>
 
                                 {% if tag.nearest_name %}
@@ -310,7 +310,7 @@
 
                     <div class="detail-meta">
                         <span>반경 {{ summary.radius|distance_m }}</span>
-                        <span>근처 {{ summary.count }}곳</span>
+                        <span>근처 {{ summary.count|thousands }}곳</span>
                         {% if summary.grade %}
                         <span class="grade-badge grade-{{ summary.grade|lower }}">{{ summary.grade }} · {{ summary.grade_text }}</span>
                         {% endif %}
