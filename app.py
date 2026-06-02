@@ -4606,13 +4606,6 @@ EXPLORE_ACADEMY_TYPES = [
     {"key": "etc", "label": "기타", "column": "etc_count"},
 ]
 _ACADEMY_TYPE_BY_KEY = {t["key"]: t for t in EXPLORE_ACADEMY_TYPES}
-EXPLORE_ACADEMY_MIN_OPTIONS = [
-    {"key": "10", "label": "10개 이상", "value": 10},
-    {"key": "30", "label": "30개 이상", "value": 30},
-    {"key": "50", "label": "50개 이상", "value": 50},
-    {"key": "100", "label": "100개 이상", "value": 100},
-]
-_ACADEMY_MIN_BY_KEY = {o["key"]: o for o in EXPLORE_ACADEMY_MIN_OPTIONS}
 
 # 공원/(외 단일지표) 임계 필터: baseline 단일 지표 min/max AND 필터.
 EXPLORE_RANGE_FILTERS = [
@@ -4694,6 +4687,28 @@ def _baseline_metric_lookup(cache_key, filename, column):
     return _EXPLORE_LOOKUP_CACHE[cache_key]
 
 
+def _academy_subtype_lookup():
+    """{(name,gu,dong): {subtype_key: count(int)}} — 1km 내 학원 종류별 개수(캐시)."""
+    if "academy_subtypes" not in _EXPLORE_LOOKUP_CACHE:
+        limit = sys.maxsize
+        while True:
+            try:
+                csv.field_size_limit(limit)
+                break
+            except OverflowError:
+                limit = int(limit / 10)
+        lookup = {}
+        try:
+            with open("data/baseline/academy_baseline.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+                    lookup[key] = {t["key"]: to_int(row.get(t["column"]), 0) for t in EXPLORE_ACADEMY_TYPES}
+        except Exception:
+            pass
+        _EXPLORE_LOOKUP_CACHE["academy_subtypes"] = lookup
+    return _EXPLORE_LOOKUP_CACHE["academy_subtypes"]
+
+
 def _bus_route_lookup():
     """{(name,gu,dong): {subtype: set(노선번호)}} — 500m 내 버스, bus_items_json 파싱(캐시).
     label 형식 '정류장 · 노선1, 노선2'에서 마지막 '·' 뒤를 노선 목록으로 사용."""
@@ -4765,10 +4780,8 @@ def build_explore_results(filters, limit=10):
         if opt:
             range_selections.append((cfg, opt))
 
-    # 학원 종류/최소 개수
-    academy_type_cfg = _ACADEMY_TYPE_BY_KEY.get(clean_text(filters.get("academy_type", "")))
-    academy_min_opt = _ACADEMY_MIN_BY_KEY.get(clean_text(filters.get("academy_min", "")))
-    academy_threshold = academy_min_opt["value"] if academy_min_opt else 1
+    # 학원 종류(서브타입) 멀티선택 → 선택 종류 합계 내림차순으로 추천순위 반영
+    academy_subtypes = [s for s in (filters.get("academy_subtypes", []) or []) if s in _ACADEMY_TYPE_BY_KEY]
 
     # 버스 노선유형/번호
     bus_type = clean_text(filters.get("bus_type", ""))
@@ -4864,15 +4877,13 @@ def build_explore_results(filters, limit=10):
             matched.append(f"💰 {type_label} {price_bucket['label']}")
             score += 1
 
-        # 학원: 종류(서브타입)별 1km 내 개수 임계값(미선택 시 ≥1, 데이터 없으면 제외)
-        if academy_type_cfg:
-            val = _baseline_metric_lookup(
-                "academy_" + academy_type_cfg["key"], "academy_baseline.csv", academy_type_cfg["column"]
-            ).get((name, gu, dong))
-            if val is None or val < academy_threshold:
-                continue
-            matched.append(f"📚 {academy_type_cfg['label']} {int(round(val))}개")
-            score += 2
+        # 학원: 선택 종류(서브타입)들의 1km 내 개수 합계(정렬 반영, 필터 아님)
+        academy_sum = 0
+        if academy_subtypes:
+            arow = _academy_subtype_lookup().get((name, gu, dong)) or {}
+            academy_sum = sum(arow.get(s, 0) for s in academy_subtypes)
+            if academy_sum > 0:
+                matched.append(f"📚 선택학원 {academy_sum}곳")
 
         # 공원: 반경 내 공원 유무(park_distance ≤ 반경) AND 필터(데이터 없으면 제외)
         if range_selections:
@@ -4947,15 +4958,23 @@ def build_explore_results(filters, limit=10):
             "dong": dong,
             "score": score,
             "sort_key": sort_key,
+            "academy_sum": academy_sum,
             "matched_features": matched[:5] or ["생활 균형형"],
             "url": make_result_url(name, get_preferences(), gu, dong),
         })
 
-    if priorities:
-        # 선택 순서가 곧 정렬 우선순위 (개수 DESC, 최근접 ASC 의 순차 적용)
-        results.sort(key=lambda item: (item["sort_key"], item["gu"], item["dong"], item["name"]))
-    else:
-        results.sort(key=lambda item: (-item["score"], item["gu"], item["dong"], item["name"]))
+    def order_key(item):
+        parts = []
+        if academy_subtypes:               # 선택 학원 종류 합계 내림차순을 최우선 반영
+            parts.append(-item["academy_sum"])
+        if priorities:                     # 그 다음 선택 순서 우선순위(개수 DESC, 최근접 ASC)
+            parts.append(item["sort_key"])
+        else:
+            parts.append(-item["score"])
+        parts.extend([item["gu"], item["dong"], item["name"]])
+        return tuple(parts)
+
+    results.sort(key=order_key)
     return results[:limit]
 
 
@@ -5023,8 +5042,7 @@ def explore():
         "area_buckets": request.args.getlist("area"),
         "price_type": request.args.get("price_type", ""),
         "price": request.args.get("price", ""),
-        "academy_type": request.args.get("academy_type", ""),
-        "academy_min": request.args.get("academy_min", ""),
+        "academy_subtypes": request.args.getlist("academy"),
         "park": request.args.get("park", ""),
         "bus_type": request.args.get("bus_type", ""),
         "bus_route": request.args.get("bus_route", ""),
@@ -5085,7 +5103,6 @@ def explore():
         price_buckets_by_type=price_buckets_by_type,
         range_filter_options=EXPLORE_RANGE_FILTERS,
         academy_type_options=EXPLORE_ACADEMY_TYPES,
-        academy_min_options=EXPLORE_ACADEMY_MIN_OPTIONS,
         bus_type_options=EXPLORE_BUS_TYPES,
     )
 

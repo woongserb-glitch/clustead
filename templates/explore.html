@@ -126,22 +126,18 @@
                         <p class="filter-note">※ 거래 데이터가 없는 단지는 가격 조건 선택 시 제외됩니다.</p>
                     </label>
 
-                    <label>
-                        <span>📚 학원 (1km 내 종류별)</span>
-                        <select name="academy_type">
-                            <option value="">전체</option>
+                    <div class="feature-choice-group">
+                        <span>📚 학원 종류 (1km 내, 복수 선택)</span>
+                        <div class="feature-choice-grid">
                             {% for t in academy_type_options %}
-                            <option value="{{ t.key }}" {% if filters.academy_type == t.key %}selected{% endif %}>{{ t.label }}</option>
+                            <label class="feature-choice">
+                                <input type="checkbox" name="academy" value="{{ t.key }}" {% if t.key in filters.academy_subtypes %}checked{% endif %}>
+                                <span>{{ t.label }}</span>
+                            </label>
                             {% endfor %}
-                        </select>
-                        <select name="academy_min">
-                            <option value="">개수 무관(1개 이상)</option>
-                            {% for o in academy_min_options %}
-                            <option value="{{ o.key }}" {% if filters.academy_min == o.key %}selected{% endif %}>{{ o.label }}</option>
-                            {% endfor %}
-                        </select>
-                        <p class="filter-note">※ 종류를 선택하면 해당 학원이 1km 내에 최소 개수 이상인 단지만 표시됩니다.</p>
-                    </label>
+                        </div>
+                        <p class="filter-note">※ 선택한 종류 학원 수의 합계가 많은 단지가 상위로 추천됩니다.</p>
+                    </div>
 
                     <label>
                         <span>🌳 공원 (반경 내 공원 유무)</span>
