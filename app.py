@@ -4622,7 +4622,6 @@ def build_explore_results(filters, limit=10):
     dong_filter = clean_text(filters.get("dong", ""))
     line_filter = clean_text(filters.get("line", ""))
     station_filter = clean_text(filters.get("station", "")).replace("역", "")
-    query = clean_text(filters.get("q", ""))
     priorities = filters.get("priorities", [])
 
     assigned_elem = clean_text(filters.get("assigned_elementary", ""))
@@ -4648,8 +4647,6 @@ def build_explore_results(filters, limit=10):
         if gu_filter and gu_filter != gu:
             continue
         if dong_filter and dong_filter != dong:
-            continue
-        if query and query not in name:
             continue
 
         rows = get_baseline_rows_for_apartment(name)
@@ -4823,7 +4820,6 @@ def build_lifestyle_ranking_sections():
 @app.route("/explore")
 def explore():
     filters = {
-        "q": request.args.get("q", ""),
         "gu": request.args.get("gu", ""),
         "dong": request.args.get("dong", ""),
         "line": request.args.get("line", ""),
