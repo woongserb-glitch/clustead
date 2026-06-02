@@ -4570,6 +4570,26 @@ _PRICE_BUCKET_BY_TYPE = {
     t["key"]: {b["key"]: b for b in t["buckets"]} for t in EXPLORE_PRICE_TYPE_OPTIONS
 }
 
+# Tier1 추가 필터(학원/공원/버스): baseline 단일 지표 임계값(min/max) AND 필터.
+# 임계값은 서울 전체 분포 분위수 기준(min=값 이상 통과, max=거리 이내 통과).
+EXPLORE_RANGE_FILTERS = [
+    {"param": "academy", "label": "학원가", "note": "1km 내 학원 수", "icon": "📚",
+     "file": "academy_baseline.csv", "column": "academy_count_1000m", "mode": "min", "suffix": "개",
+     "options": [{"key": "100", "label": "100개 이상", "value": 100},
+                 {"key": "200", "label": "200개 이상", "value": 200},
+                 {"key": "300", "label": "300개 이상", "value": 300}]},
+    {"param": "park", "label": "공원", "note": "가장 가까운 공원 거리", "icon": "🌳",
+     "file": "park_baseline.csv", "column": "park_distance", "mode": "max", "suffix": "m",
+     "options": [{"key": "300", "label": "300m 이내", "value": 300},
+                 {"key": "500", "label": "500m 이내", "value": 500},
+                 {"key": "1000", "label": "1km 이내", "value": 1000}]},
+    {"param": "bus", "label": "버스", "note": "500m 내 버스 노선 수", "icon": "🚌",
+     "file": "bus_baseline.csv", "column": "bus_route_count", "mode": "min", "suffix": "개",
+     "options": [{"key": "10", "label": "10개 이상", "value": 10},
+                 {"key": "20", "label": "20개 이상", "value": 20},
+                 {"key": "30", "label": "30개 이상", "value": 30}]},
+]
+
 _EXPLORE_LOOKUP_CACHE = {}
 
 
@@ -4616,6 +4636,28 @@ def _transaction_price_lookup():
     return _EXPLORE_LOOKUP_CACHE["price"]
 
 
+def _baseline_metric_lookup(cache_key, filename, column):
+    """{(name,gu,dong): float|None} for one baseline column, cached per process."""
+    if cache_key not in _EXPLORE_LOOKUP_CACHE:
+        limit = sys.maxsize
+        while True:
+            try:
+                csv.field_size_limit(limit)
+                break
+            except OverflowError:
+                limit = int(limit / 10)
+        lookup = {}
+        try:
+            with open(f"data/baseline/{filename}", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+                    lookup[key] = parse_optional_float(row.get(column))
+        except Exception:
+            pass
+        _EXPLORE_LOOKUP_CACHE[cache_key] = lookup
+    return _EXPLORE_LOOKUP_CACHE[cache_key]
+
+
 def build_explore_results(filters, limit=10):
     selected_features = filters.get("features", [])
     gu_filter = clean_text(filters.get("gu", ""))
@@ -4631,6 +4673,14 @@ def build_explore_results(filters, limit=10):
     if price_type not in _PRICE_BUCKET_BY_TYPE:
         price_type = "trade"
     price_bucket = _PRICE_BUCKET_BY_TYPE[price_type].get(clean_text(filters.get("price", "")))
+
+    # 학원/공원/버스 임계값 선택 파싱
+    range_selections = []
+    for cfg in EXPLORE_RANGE_FILTERS:
+        raw = clean_text(filters.get(cfg["param"], ""))
+        opt = next((o for o in cfg["options"] if o["key"] == raw), None)
+        if opt:
+            range_selections.append((cfg, opt))
 
     # 중/고 선택 시 학교 좌표를 1회 확보(없으면 결과 없음)
     school_coords = _midhigh_school_coords(school_mh) if school_mh else None
@@ -4719,6 +4769,25 @@ def build_explore_results(filters, limit=10):
             type_label = "전세" if price_type == "jeonse" else "매매"
             matched.append(f"💰 {type_label} {price_bucket['label']}")
             score += 1
+
+        # 학원/공원/버스: baseline 단일 지표 임계값 AND 필터(데이터 없으면 제외)
+        if range_selections:
+            range_ok = True
+            for cfg, opt in range_selections:
+                val = _baseline_metric_lookup(cfg["param"], cfg["file"], cfg["column"]).get((name, gu, dong))
+                if val is None:
+                    range_ok = False
+                    break
+                if cfg["mode"] == "min" and val < opt["value"]:
+                    range_ok = False
+                    break
+                if cfg["mode"] == "max" and val > opt["value"]:
+                    range_ok = False
+                    break
+                matched.append(f"{cfg['icon']} {cfg['label']} {int(round(val))}{cfg['suffix']}")
+                score += 1
+            if not range_ok:
+                continue
 
         # 생활 인프라 우선순위: 순차 AND 필터(서브타입 보유 = 반경 내 개수 >= 1) +
         # 선택순서 정렬키(개수 DESC, 최근접 거리 ASC).
@@ -4831,6 +4900,9 @@ def explore():
         "area_buckets": request.args.getlist("area"),
         "price_type": request.args.get("price_type", ""),
         "price": request.args.get("price", ""),
+        "academy": request.args.get("academy", ""),
+        "park": request.args.get("park", ""),
+        "bus": request.args.get("bus", ""),
     }
     gu_options = sorted({clean_text(item.get("gu", "")) for item in apartment_data if clean_text(item.get("gu", ""))})
     dong_options = sorted({
@@ -4886,6 +4958,7 @@ def explore():
         price_type_options=EXPLORE_PRICE_TYPE_OPTIONS,
         current_price_buckets=current_price_buckets,
         price_buckets_by_type=price_buckets_by_type,
+        range_filter_options=EXPLORE_RANGE_FILTERS,
     )
 
 

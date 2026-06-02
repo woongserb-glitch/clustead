@@ -109,6 +109,18 @@
                         <p class="filter-note">※ 거래 데이터가 없는 단지는 가격 조건 선택 시 제외됩니다.</p>
                     </label>
 
+                    {% for rf in range_filter_options %}
+                    <label>
+                        <span>{{ rf.icon }} {{ rf.label }} ({{ rf.note }})</span>
+                        <select name="{{ rf.param }}">
+                            <option value="">전체</option>
+                            {% for opt in rf.options %}
+                            <option value="{{ opt.key }}" {% if filters[rf.param] == opt.key %}selected{% endif %}>{{ opt.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    {% endfor %}
+
                     <div class="feature-choice-group">
                         <span>생활 요소</span>
                         <div class="feature-choice-grid">
