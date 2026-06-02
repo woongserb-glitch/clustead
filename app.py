@@ -4504,6 +4504,67 @@ def parse_priorities(raw_list):
     return priorities
 
 
+# Explore 기본 검색 — 평수(전용 ㎡ 4구간 세대수) / 가격(최근1년 평균매매가, 만원).
+EXPLORE_AREA_BUCKETS = [
+    {"key": "u60", "label": "전용 60㎡ 이하", "column": "area_under_60"},
+    {"key": "60_85", "label": "전용 60~85㎡", "column": "area_60_85"},
+    {"key": "85_135", "label": "전용 85~135㎡", "column": "area_85_135"},
+    {"key": "o135", "label": "전용 135㎡ 초과", "column": "area_over_135"},
+]
+_AREA_BUCKET_COL = {b["key"]: b["column"] for b in EXPLORE_AREA_BUCKETS}
+
+EXPLORE_PRICE_BUCKETS = [
+    {"key": "u50000", "label": "5억 이하", "min": None, "max": 50000},
+    {"key": "50000_100000", "label": "5~10억", "min": 50000, "max": 100000},
+    {"key": "100000_150000", "label": "10~15억", "min": 100000, "max": 150000},
+    {"key": "150000_200000", "label": "15~20억", "min": 150000, "max": 200000},
+    {"key": "o200000", "label": "20억 이상", "min": 200000, "max": None},
+]
+_PRICE_BUCKET_BY_KEY = {b["key"]: b for b in EXPLORE_PRICE_BUCKETS}
+
+_EXPLORE_LOOKUP_CACHE = {}
+
+
+def _assigned_elementary_lookup():
+    """{(name,gu,dong): 대표배정초 이름} from school_zone baseline."""
+    if "assigned_elem" not in _EXPLORE_LOOKUP_CACHE:
+        lookup = {}
+        for row in school_zone_baseline_data:
+            key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+            lookup[key] = clean_text(row.get("assigned_elementary_school", ""))
+        _EXPLORE_LOOKUP_CACHE["assigned_elem"] = lookup
+    return _EXPLORE_LOOKUP_CACHE["assigned_elem"]
+
+
+def _midhigh_school_coords(school_name):
+    """(lat, lng) of a middle/high school by exact name, else None."""
+    target = clean_text(school_name)
+    if not target:
+        return None
+    for row in school_data:
+        if row.get("subtype") in ("middle", "high") and clean_text(row.get("name", "")) == target:
+            try:
+                return (float(row["lat"]), float(row["lng"]))
+            except Exception:
+                return None
+    return None
+
+
+def _transaction_price_lookup():
+    """{(name,gu,dong): avg_trade_amount_1y(만원, float)} from transaction_summary."""
+    if "price" not in _EXPLORE_LOOKUP_CACHE:
+        lookup = {}
+        try:
+            with open("data/baseline/transaction_summary.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+                    lookup[key] = parse_optional_float(row.get("avg_trade_amount_1y"))
+        except Exception:
+            pass
+        _EXPLORE_LOOKUP_CACHE["price"] = lookup
+    return _EXPLORE_LOOKUP_CACHE["price"]
+
+
 def build_explore_results(filters, limit=10):
     selected_features = filters.get("features", [])
     gu_filter = clean_text(filters.get("gu", ""))
@@ -4512,6 +4573,16 @@ def build_explore_results(filters, limit=10):
     station_filter = clean_text(filters.get("station", "")).replace("역", "")
     query = clean_text(filters.get("q", ""))
     priorities = filters.get("priorities", [])
+
+    assigned_elem = clean_text(filters.get("assigned_elementary", ""))
+    school_mh = clean_text(filters.get("school", ""))
+    area_buckets = [b for b in (filters.get("area_buckets", []) or []) if b in _AREA_BUCKET_COL]
+    price_bucket = _PRICE_BUCKET_BY_KEY.get(clean_text(filters.get("price", "")))
+
+    # 중/고 선택 시 학교 좌표를 1회 확보(없으면 결과 없음)
+    school_coords = _midhigh_school_coords(school_mh) if school_mh else None
+    if school_mh and school_coords is None:
+        return []
 
     results = []
 
@@ -4558,6 +4629,44 @@ def build_explore_results(filters, limit=10):
 
         if failed:
             continue
+
+        # 대표배정초: 해당 학교가 이 단지의 대표배정초인 경우만
+        if assigned_elem:
+            if _assigned_elementary_lookup().get((name, gu, dong), "") != assigned_elem:
+                continue
+            matched.append(f"🏫 {assigned_elem} 배정")
+            score += 2
+
+        # 중/고: 선택한 학교가 반경 1,500m 내인 단지만
+        if school_coords:
+            try:
+                school_dist = get_distance_m(
+                    float(apartment.get("lat")), float(apartment.get("lng")),
+                    school_coords[0], school_coords[1],
+                )
+            except Exception:
+                continue
+            if school_dist > 1500:
+                continue
+            matched.append(f"🏫 {school_mh} {int(round(school_dist)):,}m")
+            score += 2
+
+        # 평수: 선택 전용면적 구간 중 하나라도 세대가 있는 단지(OR)
+        if area_buckets:
+            if not any(to_int(apartment.get(_AREA_BUCKET_COL[b]), 0) > 0 for b in area_buckets):
+                continue
+
+        # 가격: 최근1년 평균매매가 구간(거래 없는 단지는 제외)
+        if price_bucket:
+            price = _transaction_price_lookup().get((name, gu, dong))
+            if price is None:
+                continue
+            if price_bucket["min"] is not None and price < price_bucket["min"]:
+                continue
+            if price_bucket["max"] is not None and price >= price_bucket["max"]:
+                continue
+            matched.append(f"💰 {price_bucket['label']}")
+            score += 1
 
         # 생활 인프라 우선순위: 순차 AND 필터(서브타입 보유 = 반경 내 개수 >= 1) +
         # 선택순서 정렬키(개수 DESC, 최근접 거리 ASC).
@@ -4666,6 +4775,10 @@ def explore():
         "station": request.args.get("station", ""),
         "features": request.args.getlist("feature"),
         "priorities": parse_priorities(request.args.getlist("priority")),
+        "assigned_elementary": request.args.get("assigned_elementary", ""),
+        "school": request.args.get("school", ""),
+        "area_buckets": request.args.getlist("area"),
+        "price": request.args.get("price", ""),
     }
     gu_options = sorted({clean_text(item.get("gu", "")) for item in apartment_data if clean_text(item.get("gu", ""))})
     dong_options = sorted({
@@ -4707,6 +4820,8 @@ def explore():
         subway_line_options=get_subway_line_options(),
         subtype_search_options=subtype_search_options,
         selected_priorities=selected_priorities,
+        area_bucket_options=EXPLORE_AREA_BUCKETS,
+        price_bucket_options=EXPLORE_PRICE_BUCKETS,
     )
 
 
