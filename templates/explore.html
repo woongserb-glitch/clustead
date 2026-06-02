@@ -92,13 +92,21 @@
                     </div>
 
                     <label>
-                        <span>가격 (최근 1년 평균매매가)</span>
-                        <select name="price">
-                            <option value="">전체</option>
-                            {% for bucket in price_bucket_options %}
-                            <option value="{{ bucket.key }}" {% if filters.price == bucket.key %}selected{% endif %}>{{ bucket.label }}</option>
-                            {% endfor %}
-                        </select>
+                        <span>가격 (최근 1년 평균)</span>
+                        <div class="price-filter" data-price-filter>
+                            <select name="price_type" data-price-type>
+                                {% for opt in price_type_options %}
+                                <option value="{{ opt.key }}" {% if filters.price_type == opt.key %}selected{% endif %}>{{ opt.label }}</option>
+                                {% endfor %}
+                            </select>
+                            <select name="price" data-price-bucket>
+                                <option value="">전체</option>
+                                {% for bucket in current_price_buckets %}
+                                <option value="{{ bucket.key }}" {% if filters.price == bucket.key %}selected{% endif %}>{{ bucket.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <p class="filter-note">※ 거래 데이터가 없는 단지는 가격 조건 선택 시 제외됩니다.</p>
                     </label>
 
                     <div class="feature-choice-group">
@@ -125,6 +133,7 @@
                 <script>
                     window.livefitSubtypeOptions = {{ subtype_search_options | tojson | safe }};
                     window.livefitSelectedPriorities = {{ selected_priorities | tojson | safe }};
+                    window.livefitPriceBuckets = {{ price_buckets_by_type | tojson | safe }};
                 </script>
             </section>
 

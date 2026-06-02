@@ -722,6 +722,34 @@ function setupPrioritySearch() {
     addBtn.addEventListener("click", () => addRow());
 }
 
+function setupPriceTypeToggle() {
+    const wrap = document.querySelector("[data-price-filter]");
+    if (!wrap) {
+        return;
+    }
+    const typeSelect = wrap.querySelector("[data-price-type]");
+    const bucketSelect = wrap.querySelector("[data-price-bucket]");
+    const buckets = window.livefitPriceBuckets || {};
+    if (!typeSelect || !bucketSelect) {
+        return;
+    }
+    typeSelect.addEventListener("change", () => {
+        const list = buckets[typeSelect.value] || [];
+        bucketSelect.innerHTML = "";
+        const all = document.createElement("option");
+        all.value = "";
+        all.textContent = "전체";
+        bucketSelect.appendChild(all);
+        list.forEach((bucket) => {
+            const opt = document.createElement("option");
+            opt.value = bucket.key;
+            opt.textContent = bucket.label;
+            bucketSelect.appendChild(opt);
+        });
+        bucketSelect.value = "";
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     setupHomeLoadingOverlay();
     setupAutocomplete();
@@ -729,6 +757,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupDependentDongSelect();
     setupSubwayStationDependency();
     setupPrioritySearch();
+    setupPriceTypeToggle();
 
     const detailCards = document.querySelectorAll(".detail-card");
 

@@ -3532,6 +3532,18 @@ body:not(.home-page) #resultLoadingOverlay {
     margin: 4px 0 0;
 }
 
+.price-filter {
+    display: flex;
+    gap: 8px;
+}
+.price-filter select[data-price-type] {
+    flex: 0 0 90px;
+}
+.price-filter select[data-price-bucket] {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 /* Explore — 생활 인프라 우선순위 검색 */
 .priority-search-group {
     display: flex;

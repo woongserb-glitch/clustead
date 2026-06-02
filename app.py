@@ -4544,14 +4544,31 @@ EXPLORE_AREA_BUCKETS = [
 ]
 _AREA_BUCKET_COL = {b["key"]: b["column"] for b in EXPLORE_AREA_BUCKETS}
 
-EXPLORE_PRICE_BUCKETS = [
-    {"key": "u50000", "label": "5억 이하", "min": None, "max": 50000},
-    {"key": "50000_100000", "label": "5~10억", "min": 50000, "max": 100000},
-    {"key": "100000_150000", "label": "10~15억", "min": 100000, "max": 150000},
-    {"key": "150000_200000", "label": "15~20억", "min": 150000, "max": 200000},
-    {"key": "o200000", "label": "20억 이상", "min": 200000, "max": None},
+# 가격: 거래유형(매매/전세)별 금액 구간(만원). 평균값 기준이라 경계는 [min, max) 반열림.
+EXPLORE_TRADE_BUCKETS = [
+    {"key": "u100000", "label": "10억 이하", "min": None, "max": 100000},
+    {"key": "100000_150000", "label": "10억 초과 15억 이하", "min": 100000, "max": 150000},
+    {"key": "150000_200000", "label": "15억 초과 20억 이하", "min": 150000, "max": 200000},
+    {"key": "200000_300000", "label": "20억 초과 30억 이하", "min": 200000, "max": 300000},
+    {"key": "300000_350000", "label": "30억 초과 35억 이하", "min": 300000, "max": 350000},
+    {"key": "o350000", "label": "35억 초과", "min": 350000, "max": None},
 ]
-_PRICE_BUCKET_BY_KEY = {b["key"]: b for b in EXPLORE_PRICE_BUCKETS}
+EXPLORE_JEONSE_BUCKETS = [
+    {"key": "u30000", "label": "3억 미만", "min": None, "max": 30000},
+    {"key": "30000_50000", "label": "3억 이상 5억 미만", "min": 30000, "max": 50000},
+    {"key": "50000_70000", "label": "5억 이상 7억 미만", "min": 50000, "max": 70000},
+    {"key": "70000_100000", "label": "7억 이상 10억 미만", "min": 70000, "max": 100000},
+    {"key": "100000_150000", "label": "10억 이상 15억 미만", "min": 100000, "max": 150000},
+    {"key": "o150000", "label": "15억 이상", "min": 150000, "max": None},
+]
+EXPLORE_PRICE_TYPE_OPTIONS = [
+    {"key": "trade", "label": "매매", "column": "avg_trade_amount_1y", "buckets": EXPLORE_TRADE_BUCKETS},
+    {"key": "jeonse", "label": "전세", "column": "avg_rent_deposit_1y", "buckets": EXPLORE_JEONSE_BUCKETS},
+]
+_PRICE_TYPE_COL = {t["key"]: t["column"] for t in EXPLORE_PRICE_TYPE_OPTIONS}
+_PRICE_BUCKET_BY_TYPE = {
+    t["key"]: {b["key"]: b for b in t["buckets"]} for t in EXPLORE_PRICE_TYPE_OPTIONS
+}
 
 _EXPLORE_LOOKUP_CACHE = {}
 
@@ -4582,14 +4599,17 @@ def _midhigh_school_coords(school_name):
 
 
 def _transaction_price_lookup():
-    """{(name,gu,dong): avg_trade_amount_1y(만원, float)} from transaction_summary."""
+    """{(name,gu,dong): {"trade": 평균매매가, "jeonse": 평균전세보증금}} (만원, float|None)."""
     if "price" not in _EXPLORE_LOOKUP_CACHE:
         lookup = {}
         try:
             with open("data/baseline/transaction_summary.csv", encoding="utf-8-sig", newline="") as file:
                 for row in csv.DictReader(file):
                     key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
-                    lookup[key] = parse_optional_float(row.get("avg_trade_amount_1y"))
+                    lookup[key] = {
+                        "trade": parse_optional_float(row.get("avg_trade_amount_1y")),
+                        "jeonse": parse_optional_float(row.get("avg_rent_deposit_1y")),
+                    }
         except Exception:
             pass
         _EXPLORE_LOOKUP_CACHE["price"] = lookup
@@ -4608,7 +4628,10 @@ def build_explore_results(filters, limit=10):
     assigned_elem = clean_text(filters.get("assigned_elementary", ""))
     school_mh = clean_text(filters.get("school", ""))
     area_buckets = [b for b in (filters.get("area_buckets", []) or []) if b in _AREA_BUCKET_COL]
-    price_bucket = _PRICE_BUCKET_BY_KEY.get(clean_text(filters.get("price", "")))
+    price_type = clean_text(filters.get("price_type", "")) or "trade"
+    if price_type not in _PRICE_BUCKET_BY_TYPE:
+        price_type = "trade"
+    price_bucket = _PRICE_BUCKET_BY_TYPE[price_type].get(clean_text(filters.get("price", "")))
 
     # 중/고 선택 시 학교 좌표를 1회 확보(없으면 결과 없음)
     school_coords = _midhigh_school_coords(school_mh) if school_mh else None
@@ -4687,16 +4710,17 @@ def build_explore_results(filters, limit=10):
             if not any(to_int(apartment.get(_AREA_BUCKET_COL[b]), 0) > 0 for b in area_buckets):
                 continue
 
-        # 가격: 최근1년 평균매매가 구간(거래 없는 단지는 제외)
+        # 가격: 거래유형(매매/전세)별 최근1년 평균 구간(거래 없는 단지는 제외)
         if price_bucket:
-            price = _transaction_price_lookup().get((name, gu, dong))
+            price = (_transaction_price_lookup().get((name, gu, dong)) or {}).get(price_type)
             if price is None:
                 continue
             if price_bucket["min"] is not None and price < price_bucket["min"]:
                 continue
             if price_bucket["max"] is not None and price >= price_bucket["max"]:
                 continue
-            matched.append(f"💰 {price_bucket['label']}")
+            type_label = "전세" if price_type == "jeonse" else "매매"
+            matched.append(f"💰 {type_label} {price_bucket['label']}")
             score += 1
 
         # 생활 인프라 우선순위: 순차 AND 필터(서브타입 보유 = 반경 내 개수 >= 1) +
@@ -4809,6 +4833,7 @@ def explore():
         "assigned_elementary": request.args.get("assigned_elementary", ""),
         "school": request.args.get("school", ""),
         "area_buckets": request.args.getlist("area"),
+        "price_type": request.args.get("price_type", ""),
         "price": request.args.get("price", ""),
     }
     gu_options = sorted({clean_text(item.get("gu", "")) for item in apartment_data if clean_text(item.get("gu", ""))})
@@ -4820,6 +4845,16 @@ def explore():
     })
 
     results = build_explore_results(filters)
+
+    # 가격 거래유형 정규화(템플릿 선택 상태/구간 표시용)
+    price_type = clean_text(filters["price_type"]) or "trade"
+    if price_type not in _PRICE_BUCKET_BY_TYPE:
+        price_type = "trade"
+    filters["price_type"] = price_type
+    current_price_buckets = next(
+        t["buckets"] for t in EXPLORE_PRICE_TYPE_OPTIONS if t["key"] == price_type
+    )
+    price_buckets_by_type = {t["key"]: t["buckets"] for t in EXPLORE_PRICE_TYPE_OPTIONS}
 
     subtype_search_options = [
         {
@@ -4852,7 +4887,9 @@ def explore():
         subtype_search_options=subtype_search_options,
         selected_priorities=selected_priorities,
         area_bucket_options=EXPLORE_AREA_BUCKETS,
-        price_bucket_options=EXPLORE_PRICE_BUCKETS,
+        price_type_options=EXPLORE_PRICE_TYPE_OPTIONS,
+        current_price_buckets=current_price_buckets,
+        price_buckets_by_type=price_buckets_by_type,
     )
 
 
