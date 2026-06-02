@@ -1871,6 +1871,7 @@ body:not(.home-page) #resultLoadingOverlay {
 .subtype-chip {
     display: inline-flex;
     align-items: center;
+    cursor: pointer;
     height: 24px;
     padding: 0 8px;
     border-radius: 999px;
@@ -3489,6 +3490,7 @@ body:not(.home-page) #resultLoadingOverlay {
 .feature-choice {
     display: inline-flex;
     align-items: center;
+    cursor: pointer;
 }
 
 .feature-choice input {
@@ -3500,6 +3502,7 @@ body:not(.home-page) #resultLoadingOverlay {
 .feature-choice span {
     display: inline-flex;
     align-items: center;
+    cursor: pointer;
     min-height: 30px;
     padding: 0 10px;
     border-radius: 999px;

@@ -4484,16 +4484,6 @@ def get_baseline_rows_for_apartment(apartment_name):
 # 반경 내 개수 + 최근접 거리 baked 컬럼. 순차 AND 필터 + 선택순서 정렬에 사용.
 # Tier 1: 개수 + 서브타입별 최근접 둘 다 보유(정확 구현).
 SUBTYPE_SEARCH_CONFIG = {
-    "cafe": {
-        "label": "카페",
-        "icon": "☕",
-        "data": cafe_baseline_data,
-        "radius_label": "500m",
-        "subtypes": ["스타벅스", "투썸플레이스", "메가MGC", "컴포즈커피", "이디야",
-                     "빽다방", "할리스", "커피빈", "폴바셋", "엔제리너스"],
-        "count_col": lambda s: f"{s}_count_500m",
-        "nearest_col": lambda s: f"nearest_{s}_distance",
-    },
     "mart": {
         "label": "대형마트",
         "icon": "🛒",
@@ -4502,6 +4492,16 @@ SUBTYPE_SEARCH_CONFIG = {
         "subtypes": ["이마트", "홈플러스", "롯데마트", "트레이더스", "코스트코",
                      "GS더프레시", "하나로마트"],
         "count_col": lambda s: f"{s}_count_1500m",
+        "nearest_col": lambda s: f"nearest_{s}_distance",
+    },
+    "cafe": {
+        "label": "카페",
+        "icon": "☕",
+        "data": cafe_baseline_data,
+        "radius_label": "500m",
+        "subtypes": ["스타벅스", "투썸플레이스", "메가MGC", "컴포즈커피", "이디야",
+                     "빽다방", "할리스", "커피빈", "폴바셋", "엔제리너스"],
+        "count_col": lambda s: f"{s}_count_500m",
         "nearest_col": lambda s: f"nearest_{s}_distance",
     },
     "convenience": {
