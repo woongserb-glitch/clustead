@@ -25,7 +25,9 @@
       "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'refactor\\(P2\\): extract build_count_chips for count->chip loops *)",
       "Bash(python scripts/apply_missing_apartment_geocodes.py --apply)",
       "Bash(python scripts/apply_missing_apartment_geocodes.py)",
-      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'refactor: CCTV card uses baked baseline score/count, drops live percentile path *)"
+      "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'refactor: CCTV card uses baked baseline score/count, drops live percentile path *)",
+      "Bash(LIVEFIT_KAKAO_RESULT_MODE=off python -c ' *)",
+      "Read(//tmp/**)"
     ]
   }
 }

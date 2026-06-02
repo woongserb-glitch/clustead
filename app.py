@@ -2888,7 +2888,7 @@ def apply_medical_baseline_to_ui(category_summaries, preference_tags, domain_sum
     if medical_domain:
         medical_domain["categories"] = medical_summaries
         medical_domain["category_count"] = len(medical_summaries)
-        medical_domain["poi_count"] = medical_info.get("medical_count_1km", 0)
+        medical_domain["poi_count"] = medical_info.get("medical_count_500m", 0)
         medical_domain["max_score"] = max(
             medical_domain.get("max_score", 0),
             to_int(medical_info.get("medical_count_1km"), 0),
@@ -2900,7 +2900,7 @@ def apply_medical_baseline_to_ui(category_summaries, preference_tags, domain_sum
             "description": "병원, 종합병원, 응급실, 약국 접근성",
             "initial_load": True,
             "category_count": len(medical_summaries),
-            "poi_count": medical_info.get("medical_count_1km", 0),
+            "poi_count": medical_info.get("medical_count_500m", 0),
             "categories": medical_summaries,
             "max_score": to_int(medical_info.get("medical_count_1km"), 0),
         })
