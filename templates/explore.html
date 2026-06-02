@@ -64,6 +64,43 @@
                         </div>
                     </label>
 
+                    <label>
+                        <span>대표배정초</span>
+                        <div class="autocomplete-field">
+                            <input type="text" name="assigned_elementary" value="{{ filters.assigned_elementary }}" placeholder="배정 초등학교명 검색" autocomplete="off" data-autocomplete="assigned-elementary">
+                        </div>
+                        <p class="filter-note">※ 배정초는 대표 좌표 기준 통학구역이며, 대단지는 동별 배정학교가 달라질 수 있습니다.</p>
+                    </label>
+
+                    <label>
+                        <span>중·고등학교 (1.5km 내)</span>
+                        <div class="autocomplete-field">
+                            <input type="text" name="school" value="{{ filters.school }}" placeholder="중/고 학교명 검색" autocomplete="off" data-autocomplete="mid-high-school">
+                        </div>
+                    </label>
+
+                    <div class="feature-choice-group">
+                        <span>평수 (전용면적)</span>
+                        <div class="feature-choice-grid">
+                            {% for bucket in area_bucket_options %}
+                            <label class="feature-choice">
+                                <input type="checkbox" name="area" value="{{ bucket.key }}" {% if bucket.key in filters.area_buckets %}checked{% endif %}>
+                                <span>{{ bucket.label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <label>
+                        <span>가격 (최근 1년 평균매매가)</span>
+                        <select name="price">
+                            <option value="">전체</option>
+                            {% for bucket in price_bucket_options %}
+                            <option value="{{ bucket.key }}" {% if filters.price == bucket.key %}selected{% endif %}>{{ bucket.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
                     <div class="feature-choice-group">
                         <span>생활 요소</span>
                         <div class="feature-choice-grid">

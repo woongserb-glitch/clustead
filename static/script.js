@@ -177,6 +177,14 @@ function autocompleteEndpoint(input, query) {
         return `/api/search/apartments?${params.toString()}`;
     }
 
+    if (type === "assigned-elementary") {
+        return `/api/search/assigned-elementary?${params.toString()}`;
+    }
+
+    if (type === "mid-high-school") {
+        return `/api/search/schools?${params.toString()}`;
+    }
+
     if (type === "subway-stations") {
         const lineSource = input.dataset.lineSource;
         const lineElement = lineSource ? document.querySelector(lineSource) : null;

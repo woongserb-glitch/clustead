@@ -3525,6 +3525,13 @@ body:not(.home-page) #resultLoadingOverlay {
     cursor: pointer;
 }
 
+.filter-note {
+    font-size: 11px;
+    line-height: 1.4;
+    color: #9aa1ad;
+    margin: 4px 0 0;
+}
+
 /* Explore — 생활 인프라 우선순위 검색 */
 .priority-search-group {
     display: flex;

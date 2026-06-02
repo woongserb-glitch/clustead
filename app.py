@@ -4403,6 +4403,37 @@ def api_search_subway_stations():
     return api_options_subway_stations()
 
 
+@app.route("/api/search/assigned-elementary")
+def api_search_assigned_elementary():
+    query = normalize_search_text(request.args.get("q", ""))
+    names = sorted({name for name in _assigned_elementary_lookup().values() if name})
+    if query:
+        starts = [n for n in names if normalize_search_text(n).startswith(query)]
+        contains = [n for n in names if query in normalize_search_text(n) and n not in starts]
+        names = starts + contains
+    return jsonify({"items": [{"value": n, "label": n} for n in names[:30]]})
+
+
+@app.route("/api/search/schools")
+def api_search_schools():
+    query = normalize_search_text(request.args.get("q", ""))
+    level_label = {"middle": "중학교", "high": "고등학교"}
+    items = []
+    seen = set()
+    for row in school_data:
+        if row.get("subtype") not in ("middle", "high"):
+            continue
+        name = clean_text(row.get("name", ""))
+        if not name or name in seen:
+            continue
+        if query and query not in normalize_search_text(name):
+            continue
+        seen.add(name)
+        items.append({"value": name, "label": name, "meta": level_label.get(row.get("subtype"), "")})
+    items.sort(key=lambda x: (not normalize_search_text(x["value"]).startswith(query), x["value"]))
+    return jsonify({"items": items[:30]})
+
+
 def get_baseline_rows_for_apartment(apartment_name):
     def find_row(rows):
         return next(
