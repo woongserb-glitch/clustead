@@ -4426,6 +4426,84 @@ def get_baseline_rows_for_apartment(apartment_name):
     }
 
 
+# Explore 생활 인프라 우선순위 검색 — 카테고리별 서브타입(브랜드/유형)의
+# 반경 내 개수 + 최근접 거리 baked 컬럼. 순차 AND 필터 + 선택순서 정렬에 사용.
+# Tier 1: 개수 + 서브타입별 최근접 둘 다 보유(정확 구현).
+SUBTYPE_SEARCH_CONFIG = {
+    "cafe": {
+        "label": "카페",
+        "icon": "☕",
+        "data": cafe_baseline_data,
+        "radius_label": "500m",
+        "subtypes": ["스타벅스", "투썸플레이스", "메가MGC", "컴포즈커피", "이디야",
+                     "빽다방", "할리스", "커피빈", "폴바셋", "엔제리너스"],
+        "count_col": lambda s: f"{s}_count_500m",
+        "nearest_col": lambda s: f"nearest_{s}_distance",
+    },
+    "mart": {
+        "label": "대형마트",
+        "icon": "🛒",
+        "data": mart_baseline_data,
+        "radius_label": "1.5km",
+        "subtypes": ["이마트", "홈플러스", "롯데마트", "트레이더스", "코스트코",
+                     "GS더프레시", "하나로마트"],
+        "count_col": lambda s: f"{s}_count_1500m",
+        "nearest_col": lambda s: f"nearest_{s}_distance",
+    },
+    "convenience": {
+        "label": "편의점",
+        "icon": "🏪",
+        "data": convenience_baseline_data,
+        "radius_label": "500m",
+        "subtypes": ["CU", "GS25", "세븐일레븐", "이마트24"],
+        "count_col": lambda s: f"{s}_count_500m",
+        "nearest_col": lambda s: f"nearest_{s}_distance",
+    },
+}
+
+_SUBTYPE_LOOKUP_CACHE = {}
+
+
+def _subtype_lookup(category):
+    """Composite-key {(name,gu,dong): row} map for a subtype-search category,
+    built once per process (baselines are loaded in place)."""
+    if category not in _SUBTYPE_LOOKUP_CACHE:
+        cfg = SUBTYPE_SEARCH_CONFIG.get(category)
+        lookup = {}
+        for row in (cfg["data"] if cfg else []):
+            key = (
+                clean_text(row.get("name", "")),
+                clean_text(row.get("gu", "")),
+                clean_text(row.get("dong", "")),
+            )
+            lookup[key] = row
+        _SUBTYPE_LOOKUP_CACHE[category] = lookup
+    return _SUBTYPE_LOOKUP_CACHE[category]
+
+
+def parse_priorities(raw_list):
+    """Parse ordered 'category:subtype' priority params. Dedupes identical
+    (category, subtype) pairs (same subtype twice is rejected); same category
+    with different subtypes is allowed. Invalid entries are dropped."""
+    priorities = []
+    seen = set()
+    for raw in raw_list or []:
+        text = clean_text(raw)
+        if ":" not in text:
+            continue
+        category, subtype = text.split(":", 1)
+        category = category.strip()
+        subtype = subtype.strip()
+        cfg = SUBTYPE_SEARCH_CONFIG.get(category)
+        if not cfg or subtype not in cfg["subtypes"]:
+            continue
+        if subtype in seen:        # same subtype must not repeat
+            continue
+        seen.add(subtype)
+        priorities.append((category, subtype))
+    return priorities
+
+
 def build_explore_results(filters, limit=10):
     selected_features = filters.get("features", [])
     gu_filter = clean_text(filters.get("gu", ""))
@@ -4433,6 +4511,7 @@ def build_explore_results(filters, limit=10):
     line_filter = clean_text(filters.get("line", ""))
     station_filter = clean_text(filters.get("station", "")).replace("역", "")
     query = clean_text(filters.get("q", ""))
+    priorities = filters.get("priorities", [])
 
     results = []
 
@@ -4480,6 +4559,27 @@ def build_explore_results(filters, limit=10):
         if failed:
             continue
 
+        # 생활 인프라 우선순위: 순차 AND 필터(서브타입 보유 = 반경 내 개수 >= 1) +
+        # 선택순서 정렬키(개수 DESC, 최근접 거리 ASC).
+        sort_key = None
+        if priorities:
+            sort_parts = []
+            priority_ok = True
+            for category, subtype in priorities:
+                cfg = SUBTYPE_SEARCH_CONFIG[category]
+                row = _subtype_lookup(category).get((name, gu, dong)) or {}
+                count = to_int(row.get(cfg["count_col"](subtype)), 0)
+                if count < 1:                    # AND: 해당 서브타입 미보유 → 제외
+                    priority_ok = False
+                    break
+                nearest = parse_optional_float(row.get(cfg["nearest_col"](subtype)))
+                sort_parts.append(-count)
+                sort_parts.append(nearest if nearest is not None else float("inf"))
+                matched.append(f"{cfg['icon']} {subtype} {count}곳")
+            if not priority_ok:
+                continue
+            sort_key = tuple(sort_parts)
+
         subway_distance = insight_to_number(subway.get("subway_distance"))
         if subway_distance is not None and subway_distance <= 800:
             score += 1
@@ -4493,11 +4593,16 @@ def build_explore_results(filters, limit=10):
             "gu": gu,
             "dong": dong,
             "score": score,
+            "sort_key": sort_key,
             "matched_features": matched[:5] or ["생활 균형형"],
             "url": make_result_url(name, get_preferences(), gu, dong),
         })
 
-    results.sort(key=lambda item: (-item["score"], item["gu"], item["dong"], item["name"]))
+    if priorities:
+        # 선택 순서가 곧 정렬 우선순위 (개수 DESC, 최근접 ASC 의 순차 적용)
+        results.sort(key=lambda item: (item["sort_key"], item["gu"], item["dong"], item["name"]))
+    else:
+        results.sort(key=lambda item: (-item["score"], item["gu"], item["dong"], item["name"]))
     return results[:limit]
 
 
@@ -4560,6 +4665,7 @@ def explore():
         "line": request.args.get("line", ""),
         "station": request.args.get("station", ""),
         "features": request.args.getlist("feature"),
+        "priorities": parse_priorities(request.args.getlist("priority")),
     }
     gu_options = sorted({clean_text(item.get("gu", "")) for item in apartment_data if clean_text(item.get("gu", ""))})
     dong_options = sorted({
@@ -4571,6 +4677,26 @@ def explore():
 
     results = build_explore_results(filters)
 
+    subtype_search_options = [
+        {
+            "key": category,
+            "label": cfg["label"],
+            "icon": cfg["icon"],
+            "radius_label": cfg["radius_label"],
+            "subtypes": cfg["subtypes"],
+        }
+        for category, cfg in SUBTYPE_SEARCH_CONFIG.items()
+    ]
+    selected_priorities = [
+        {
+            "category": category,
+            "subtype": subtype,
+            "label": SUBTYPE_SEARCH_CONFIG[category]["label"],
+            "icon": SUBTYPE_SEARCH_CONFIG[category]["icon"],
+        }
+        for category, subtype in filters["priorities"]
+    ]
+
     return render_template(
         "explore.html",
         feature_options=FEATURE_OPTIONS,
@@ -4579,6 +4705,8 @@ def explore():
         gu_options=gu_options,
         dong_options=dong_options,
         subway_line_options=get_subway_line_options(),
+        subtype_search_options=subtype_search_options,
+        selected_priorities=selected_priorities,
     )
 
 
