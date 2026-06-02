@@ -65,6 +65,23 @@
                     </label>
 
                     <label>
+                        <span>🚌 버스 노선유형</span>
+                        <select name="bus_type" data-bus-type-source>
+                            <option value="">전체</option>
+                            {% for t in bus_type_options %}
+                            <option value="{{ t }}" {% if filters.bus_type == t %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>버스 번호</span>
+                        <div class="autocomplete-field">
+                            <input type="text" name="bus_route" value="{{ filters.bus_route }}" placeholder="유형 선택 후 번호 검색 (예: 간선 472)" autocomplete="off" data-autocomplete="bus-routes" data-bus-type-source="[data-bus-type-source]">
+                        </div>
+                    </label>
+
+                    <label>
                         <span>대표배정초</span>
                         <div class="autocomplete-field">
                             <input type="text" name="assigned_elementary" value="{{ filters.assigned_elementary }}" placeholder="배정 초등학교명 검색" autocomplete="off" data-autocomplete="assigned-elementary">

@@ -197,6 +197,16 @@ function autocompleteEndpoint(input, query) {
         return `/api/search/subway-stations?${params.toString()}`;
     }
 
+    if (type === "bus-routes") {
+        const typeSource = input.dataset.busTypeSource;
+        const typeElement = typeSource ? document.querySelector(typeSource) : null;
+        const busType = typeElement?.value || "";
+        if (busType) {
+            params.set("type", busType);
+        }
+        return `/api/search/bus-routes?${params.toString()}`;
+    }
+
     return "";
 }
 

@@ -4434,6 +4434,29 @@ def api_search_schools():
     return jsonify({"items": items[:30]})
 
 
+@app.route("/api/search/bus-routes")
+def api_search_bus_routes():
+    query = normalize_search_text(request.args.get("q", ""))
+    bus_type = clean_text(request.args.get("type", ""))
+    by_type = _bus_routes_by_type()
+    if bus_type and bus_type in by_type:
+        routes = list(by_type[bus_type])
+    else:
+        seen = set()
+        routes = []
+        for key in by_type:
+            for route in by_type[key]:
+                if route not in seen:
+                    seen.add(route)
+                    routes.append(route)
+        routes.sort()
+    if query:
+        starts = [r for r in routes if normalize_search_text(r).startswith(query)]
+        contains = [r for r in routes if query in normalize_search_text(r) and r not in starts]
+        routes = starts + contains
+    return jsonify({"items": [{"value": r, "label": r} for r in routes[:30]]})
+
+
 def get_baseline_rows_for_apartment(apartment_name):
     def find_row(rows):
         return next(
@@ -4583,12 +4606,10 @@ EXPLORE_RANGE_FILTERS = [
      "options": [{"key": "300", "label": "300m 이내", "value": 300},
                  {"key": "500", "label": "500m 이내", "value": 500},
                  {"key": "1000", "label": "1km 이내", "value": 1000}]},
-    {"param": "bus", "label": "버스", "note": "500m 내 버스 노선 수", "icon": "🚌",
-     "file": "bus_baseline.csv", "column": "bus_route_count", "mode": "min", "suffix": "개",
-     "options": [{"key": "10", "label": "10개 이상", "value": 10},
-                 {"key": "20", "label": "20개 이상", "value": 20},
-                 {"key": "30", "label": "30개 이상", "value": 30}]},
 ]
+
+# 버스: 노선유형(간선/지선/마을/심야/공항/기타)별 번호 검색 — 지하철 노선/역과 동일 컨셉.
+EXPLORE_BUS_TYPES = ["간선", "지선", "마을", "심야", "공항", "기타"]
 
 _EXPLORE_LOOKUP_CACHE = {}
 
@@ -4658,6 +4679,53 @@ def _baseline_metric_lookup(cache_key, filename, column):
     return _EXPLORE_LOOKUP_CACHE[cache_key]
 
 
+def _bus_route_lookup():
+    """{(name,gu,dong): {subtype: set(노선번호)}} — 500m 내 버스, bus_items_json 파싱(캐시).
+    label 형식 '정류장 · 노선1, 노선2'에서 마지막 '·' 뒤를 노선 목록으로 사용."""
+    if "bus_routes" not in _EXPLORE_LOOKUP_CACHE:
+        limit = sys.maxsize
+        while True:
+            try:
+                csv.field_size_limit(limit)
+                break
+            except OverflowError:
+                limit = int(limit / 10)
+        lookup = {}
+        try:
+            with open("data/baseline/bus_baseline.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+                    raw = row.get("bus_items_json", "")
+                    try:
+                        items = json.loads(raw) if raw else []
+                    except Exception:
+                        items = []
+                    by_type = lookup.setdefault(key, {})
+                    for item in items:
+                        subtype = clean_text(item.get("subtype", ""))
+                        label = item.get("label", "") or ""
+                        routes_part = label.rsplit("·", 1)[-1] if "·" in label else ""
+                        for route in routes_part.split(","):
+                            route = clean_text(route)
+                            if subtype and route:
+                                by_type.setdefault(subtype, set()).add(route)
+        except Exception:
+            pass
+        _EXPLORE_LOOKUP_CACHE["bus_routes"] = lookup
+    return _EXPLORE_LOOKUP_CACHE["bus_routes"]
+
+
+def _bus_routes_by_type():
+    """{subtype: sorted([노선번호…])} — 자동완성용 서울 전체 집계(캐시)."""
+    if "bus_routes_by_type" not in _EXPLORE_LOOKUP_CACHE:
+        agg = {}
+        for by_type in _bus_route_lookup().values():
+            for subtype, routes in by_type.items():
+                agg.setdefault(subtype, set()).update(routes)
+        _EXPLORE_LOOKUP_CACHE["bus_routes_by_type"] = {k: sorted(v) for k, v in agg.items()}
+    return _EXPLORE_LOOKUP_CACHE["bus_routes_by_type"]
+
+
 def build_explore_results(filters, limit=10):
     selected_features = filters.get("features", [])
     gu_filter = clean_text(filters.get("gu", ""))
@@ -4674,13 +4742,19 @@ def build_explore_results(filters, limit=10):
         price_type = "trade"
     price_bucket = _PRICE_BUCKET_BY_TYPE[price_type].get(clean_text(filters.get("price", "")))
 
-    # 학원/공원/버스 임계값 선택 파싱
+    # 학원/공원 임계값 선택 파싱
     range_selections = []
     for cfg in EXPLORE_RANGE_FILTERS:
         raw = clean_text(filters.get(cfg["param"], ""))
         opt = next((o for o in cfg["options"] if o["key"] == raw), None)
         if opt:
             range_selections.append((cfg, opt))
+
+    # 버스 노선유형/번호
+    bus_type = clean_text(filters.get("bus_type", ""))
+    if bus_type not in EXPLORE_BUS_TYPES:
+        bus_type = ""
+    bus_route = clean_text(filters.get("bus_route", ""))
 
     # 중/고 선택 시 학교 좌표를 1회 확보(없으면 결과 없음)
     school_coords = _midhigh_school_coords(school_mh) if school_mh else None
@@ -4788,6 +4862,25 @@ def build_explore_results(filters, limit=10):
                 score += 1
             if not range_ok:
                 continue
+
+        # 버스: 노선유형/번호 — 500m 내 해당 노선(유형 지정 시 그 유형) 보유 단지만
+        if bus_route or bus_type:
+            by_type = _bus_route_lookup().get((name, gu, dong), {})
+            if bus_route:
+                if bus_type:
+                    has_route = bus_route in by_type.get(bus_type, set())
+                else:
+                    has_route = any(bus_route in routes for routes in by_type.values())
+                if not has_route:
+                    continue
+                prefix = f"{bus_type} " if bus_type else ""
+                matched.append(f"🚌 {prefix}{bus_route}")
+                score += 2
+            else:  # 유형만 선택 → 해당 유형 노선이 하나라도 있는 단지
+                if not by_type.get(bus_type):
+                    continue
+                matched.append(f"🚌 {bus_type}버스")
+                score += 1
 
         # 생활 인프라 우선순위: 순차 AND 필터(서브타입 보유 = 반경 내 개수 >= 1) +
         # 선택순서 정렬키(개수 DESC, 최근접 거리 ASC).
@@ -4902,7 +4995,8 @@ def explore():
         "price": request.args.get("price", ""),
         "academy": request.args.get("academy", ""),
         "park": request.args.get("park", ""),
-        "bus": request.args.get("bus", ""),
+        "bus_type": request.args.get("bus_type", ""),
+        "bus_route": request.args.get("bus_route", ""),
     }
     gu_options = sorted({clean_text(item.get("gu", "")) for item in apartment_data if clean_text(item.get("gu", ""))})
     dong_options = sorted({
@@ -4959,6 +5053,7 @@ def explore():
         current_price_buckets=current_price_buckets,
         price_buckets_by_type=price_buckets_by_type,
         range_filter_options=EXPLORE_RANGE_FILTERS,
+        bus_type_options=EXPLORE_BUS_TYPES,
     )
 
 
