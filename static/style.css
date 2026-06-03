@@ -2595,7 +2595,7 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .complex-info-subway {
-    flex: 1 1 320px;
+    flex: 0 1 auto;
     max-width: 100%;
 }
 
@@ -2688,7 +2688,7 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .complex-info-item.complex-info-subway {
-    flex: 1 1 320px;
+    flex: 0 1 auto;
     max-width: 100%;
 }
 
