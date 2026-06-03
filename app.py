@@ -4967,8 +4967,9 @@ def build_explore_results(filters, limit=10):
         if dong_filter and dong_filter != dong:
             continue
 
-        rows = get_baseline_rows_for_apartment(name)
-        subway = rows.get("subway") or {}
+        # Explore는 subway/medical만 사용 — 전체 카테고리(mart/convenience/cafe 선형스캔)
+        # 를 만드는 get_baseline_rows_for_apartment 대신 인덱스(O(1)) 직접 조회.
+        subway = get_indexed_baseline_row(subway_baseline_index, name, gu, dong) or {}
         matched = []
         score = 0
 
@@ -5114,7 +5115,7 @@ def build_explore_results(filters, limit=10):
         if subway_distance is not None and subway_distance <= 800:
             score += 1
 
-        medical = rows.get("medical") or {}
+        medical = get_indexed_baseline_row(medical_baseline_index, name, gu, dong) or {}
         if insight_to_number(medical.get("nearest_emergency_distance")) is not None:
             score += 1
 
