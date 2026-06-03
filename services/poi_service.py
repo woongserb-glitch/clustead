@@ -80,11 +80,27 @@ CATEGORY_META = {
         "radius": 500,
         "percentile": None,
     },
-    "mart": {
+    "large_mart": {
         "label": "🛒 대형마트",
-        "description": "일상 장보기 가능한 대형마트 접근성을 기준으로 계산합니다.",
-        "empty": "반경 내 확인된 대형마트가 아직 없습니다.",
-        "radius": 1500,
+        "description": "이마트·홈플러스·롯데마트 등 대형마트(반경 3km) 접근성입니다.",
+        "empty": "반경 3km 내 확인된 대형마트가 아직 없습니다.",
+        "radius": 3000,
+        "percentile": 28,
+        "frequency_weight": 0.45,
+    },
+    "super_mart": {
+        "label": "🏪 슈퍼마켓",
+        "description": "도보권(반경 500m) 슈퍼마켓(에브리데이·익스프레스·슈퍼/프레시·노브랜드 등) 접근성입니다.",
+        "empty": "도보권 500m 내 확인된 슈퍼마켓이 아직 없습니다.",
+        "radius": 500,
+        "percentile": 28,
+        "frequency_weight": 0.45,
+    },
+    "warehouse_mart": {
+        "label": "📦 창고형마트",
+        "description": "코스트코·트레이더스 등 창고형마트(반경 5km) 접근성입니다.",
+        "empty": "반경 5km 내 확인된 창고형마트가 아직 없습니다.",
+        "radius": 5000,
         "percentile": 28,
         "frequency_weight": 0.45,
     },
@@ -245,7 +261,9 @@ CATEGORY_TO_DOMAIN = {
     "hospital": "medical",
     "pharmacy": "medical",
 
-    "mart": "convenience",
+    "large_mart": "convenience",
+    "super_mart": "convenience",
+    "warehouse_mart": "convenience",
     "convenience": "convenience",
     "ev-charger": "convenience",
 
@@ -866,10 +884,10 @@ def get_category_summaries(apartment, preference_keys):
                 if baked_score is not None:
                     score = round(baked_score)
 
-        # Mart uses the baked B-policy metric:
-        # mart_access_score_raw = mart_total + mart_brand_diversity.
-        # The visible item list stays in sync with mart_items_json.
-        if key == "mart":
+        # 마트 3개 카테고리(대형/슈퍼/창고형)는 mart_baseline.csv의 그룹 컬럼을 사용.
+        # 그룹별 반경/지표가 달라 {group}_count_{R}m / {group}_items_json /
+        # {group}_count_{R}m_seoul_percentile|_score를 읽는다.
+        if key in MART_CATEGORY_GROUPS:
             mart_row = get_indexed_baseline_row(
                 mart_baseline_index,
                 apartment.get("name"),
@@ -877,25 +895,21 @@ def get_category_summaries(apartment, preference_keys):
                 apartment.get("dong"),
             )
             if mart_row is not None:
-                related_pois = _parse_baked_items(
-                    mart_row,
-                    "mart_items_json"
-                )
-                subtype_chips = get_subtype_chips(key, related_pois)
+                radius = MART_CATEGORY_GROUPS[key]["radius"]
+                count_col = f"{key}_count_{radius}m"
+                related_pois = _parse_baked_items(mart_row, f"{key}_items_json")
+                # baked items의 subtype을 마트 규칙으로 재분류해 칩 스타일을 맞춘다.
+                subtype_chips = get_subtype_chips("mart", related_pois)
                 nearest_poi = related_pois[0] if related_pois else None
 
-                baked_count = _to_num(mart_row.get("mart_count_1500m"))
+                baked_count = _to_num(mart_row.get(count_col))
                 if baked_count is not None:
                     count = int(baked_count)
 
-                seoul_percentile = _to_num(
-                    mart_row.get("mart_access_score_raw_seoul_percentile")
-                )
+                seoul_percentile = _to_num(mart_row.get(f"{count_col}_seoul_percentile"))
                 gu_percentile = None
 
-                baked_score = _to_num(
-                    mart_row.get("mart_access_score_raw_seoul_score")
-                )
+                baked_score = _to_num(mart_row.get(f"{count_col}_seoul_score"))
                 if baked_score is not None:
                     score = round(baked_score)
 

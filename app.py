@@ -139,7 +139,9 @@ PREFERENCE_KEYS = [
     "subway",
     "bus",
     "bike",
-    "mart",
+    "large_mart",
+    "super_mart",
+    "warehouse_mart",
     "convenience",
     "ev-charger",
     "cafe",
@@ -5387,17 +5389,20 @@ def result():
         PREFERENCE_KEYS
     )
 
+    _mart_group_keys = {"large_mart", "super_mart", "warehouse_mart"}
     baked_poi_summaries = [
         summary for summary in category_summaries
-        if summary.get("key") in {"cafe", "convenience", "mart"}
+        if summary.get("key") in ({"cafe", "convenience"} | _mart_group_keys)
     ]
     if baked_poi_summaries:
-        baked_categories = {
-            summary.get("key") for summary in baked_poi_summaries
-        }
+        # 마트 그룹 카드의 라이브 POI 카테고리는 "mart"이므로 함께 제거한다.
+        drop_categories = set()
+        for summary in baked_poi_summaries:
+            skey = summary.get("key")
+            drop_categories.add("mart" if skey in _mart_group_keys else skey)
         pois = [
             poi for poi in pois
-            if poi.get("category") not in baked_categories
+            if poi.get("category") not in drop_categories
         ]
         for summary in baked_poi_summaries:
             pois = pois + (summary.get("pois") or [])
