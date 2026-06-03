@@ -240,6 +240,9 @@ NEAREST_ICON_BY_CATEGORY = {
     "bus-baseline": "🚌",
     "bike": "🚲",
     "mart": "🛒",
+    "large_mart": "🛒",
+    "super_mart": "🏪",
+    "warehouse_mart": "📦",
     "convenience": "🏪",
     "cafe": "☕",
     "ev-charger": "⚡",
@@ -253,7 +256,7 @@ NEAREST_ICON_BY_CATEGORY = {
     "academy": "✏️",
     "school-environment": "🏫",
     "fire-station": "🚒",
-    "cctv": "🛡️",
+    "cctv": "🛡",
     "shopping": "🛍️",
     "commercial": "🏙️",
     "nightlife": "🍺",
@@ -862,9 +865,10 @@ def build_score_based_insight(apartment, category_summaries, fallback):
     for summary in top_summaries:
         score = summary_strength_score(summary) or 0
         suffix = "우수" if score >= 60 else "상대 강점"
+        label = summary.get("label", "")
         features.append({
             "icon": NEAREST_ICON_BY_CATEGORY.get(summary.get("key"), "•"),
-            "label": f"{compact_label(summary.get('label'))} {suffix}",
+            "label": f"{compact_label(label)} {suffix}",
             "reason": summary.get("description", ""),
             "tone": "good",
         })
