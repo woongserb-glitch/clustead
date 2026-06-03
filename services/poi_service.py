@@ -427,7 +427,14 @@ SUBTYPE_RULES = {
         {
             "name": "GS더프레시",
             "display": "GS더프레시",
-            "keywords": ["GS더프레시", "GS THE FRESH", "지에스더프레시"],
+            "keywords": [
+                "GS더프레시",
+                "GS더 프레시",
+                "GS 더프레시",
+                "GS THE FRESH",
+                "지에스더프레시",
+                "지에스더 프레시",
+            ],
             "priority": 7,
             "style": "brand-gsfresh",
         },
