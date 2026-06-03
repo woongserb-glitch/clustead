@@ -190,6 +190,67 @@ def search_category(category, lat, lng):
     return pois
 
 
+def _fetch_keyword(query, lat, lng, radius, category_group_code=None, label_category="mart"):
+    """Kakao 키워드 검색. 브랜드명 + (선택)category_group_code 필터로 특정 브랜드를
+    넓은 반경에서 정확히 수집(카테고리 검색의 45-cap 회피)."""
+    rest_key = os.getenv("KAKAO_REST_API_KEY", "")
+    if not rest_key:
+        return False, []
+
+    url = "https://dapi.kakao.com/v2/local/search/keyword.json"
+    headers = {"Authorization": f"KakaoAK {rest_key}"}
+    all_pois = []
+
+    for page in range(1, 4):
+        params = {
+            "query": query,
+            "x": lng,
+            "y": lat,
+            "radius": radius,
+            "sort": "distance",
+            "size": 15,
+            "page": page,
+        }
+        if category_group_code:
+            params["category_group_code"] = category_group_code
+
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=5)
+            data = response.json()
+            documents = data.get("documents", [])
+            if not documents:
+                break
+            for item in documents:
+                all_pois.append({
+                    "category": label_category,
+                    "label": build_label(label_category, item.get("place_name", "")),
+                    "lat": float(item["y"]),
+                    "lng": float(item["x"]),
+                    "distance": int(item.get("distance", 0)),
+                    "address": item.get("road_address_name") or item.get("address_name", ""),
+                })
+            if data.get("meta", {}).get("is_end", True):
+                break
+        except Exception as e:
+            print("Kakao Keyword API Error:", query, e)
+            return False, []
+
+    return True, all_pois
+
+
+def search_keyword(query, lat, lng, radius, category_group_code=None, label_category="mart"):
+    key = _cache_key(f"kw_{query}_{radius}_{category_group_code or ''}", lat, lng)
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+
+    ok, pois = _fetch_keyword(query, lat, lng, radius, category_group_code, label_category)
+    if ok:
+        _cache_set(key, pois)
+
+    return pois
+
+
 def build_label(category, name):
     icon = CATEGORY_CONFIG.get(category, {}).get("icon", "📍")
     return f"{icon} {name}"

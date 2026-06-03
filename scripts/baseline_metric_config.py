@@ -95,18 +95,33 @@ BASELINE_METRIC_CONFIG = {
         json_columns=["convenience_items_json"],
         radius_rules=[("convenience_count_300m", "convenience_count_500m")],
     ),
-    "mart": metric_config(
+    # 마트 3개 카테고리(같은 mart_baseline.csv를 공유, 그룹별 반경/지표가 다름).
+    "large_mart": metric_config(
         label="대형마트",
         file="mart_baseline.csv",
-        required_columns=["name", "gu", "dong", "lat", "lng", "mart_access_score_raw"],
-        primary_metric="mart_access_score_raw",
+        required_columns=["name", "gu", "dong", "lat", "lng", "large_mart_count_3000m"],
+        primary_metric="large_mart_count_3000m",
         direction=HIGHER_BETTER,
-        display_metric_label="1km 내 대형마트 수",
-        json_columns=["mart_items_json"],
-        radius_rules=[
-            ("mart_count_500m", "mart_count_1000m"),
-            ("mart_count_1000m", "mart_count_1500m"),
-        ],
+        display_metric_label="3km 내 대형마트(이마트·홈플러스·롯데마트) 수",
+        json_columns=["large_mart_items_json"],
+    ),
+    "super_mart": metric_config(
+        label="슈퍼마켓",
+        file="mart_baseline.csv",
+        required_columns=["name", "gu", "dong", "lat", "lng", "super_mart_count_500m"],
+        primary_metric="super_mart_count_500m",
+        direction=HIGHER_BETTER,
+        display_metric_label="도보권 500m 내 슈퍼마켓 수",
+        json_columns=["super_mart_items_json"],
+    ),
+    "warehouse_mart": metric_config(
+        label="창고형마트",
+        file="mart_baseline.csv",
+        required_columns=["name", "gu", "dong", "lat", "lng", "warehouse_mart_count_5000m"],
+        primary_metric="warehouse_mart_count_5000m",
+        direction=HIGHER_BETTER,
+        display_metric_label="5km 내 창고형마트(코스트코·트레이더스) 수",
+        json_columns=["warehouse_mart_items_json"],
     ),
     "cafe": metric_config(
         label="카페",
