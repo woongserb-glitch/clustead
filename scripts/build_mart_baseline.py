@@ -1,6 +1,10 @@
 import csv
 import json
 import time
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.preload_service import (
     load_apartment_data,
