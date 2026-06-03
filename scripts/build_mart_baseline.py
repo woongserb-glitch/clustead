@@ -13,12 +13,13 @@ from services.preload_service import (
 
 from services.kakao_local_service import (
     search_category,
-    search_keyword,
 )
 
 from services.baseline_builder_service import (
     build_result_card_items,
 )
+
+from services.geo_service import get_distance_m
 
 from services.poi_service import MART_CATEGORY_GROUPS
 
@@ -27,25 +28,48 @@ print("[BUILD] apartment preload")
 load_apartment_data()
 
 output_path = "data/baseline/mart_baseline.csv"
+STORE_LIST_PATH = "data/mart/large_warehouse_stores.csv"
 
-# 대형/창고형은 넓은 반경(3km/5km)이라 카테고리 검색(45-cap)으로는 멀리 있는 매장이
-# 누락된다 → 브랜드 키워드 검색(MT1 필터로 이마트24 등 오염 제거)으로 수집한다.
-# 슈퍼마켓은 도보권 500m라 기존 카테고리 검색(1.5km 캐시) 결과를 그대로 거른다.
-LARGE_KEYWORDS = ["이마트", "홈플러스", "롯데마트"]
-WAREHOUSE_KEYWORDS = ["코스트코", "트레이더스"]
+# 대형/창고형은 서울 전체 70여 개뿐인 고정 점포 → 점포 리스트(build_mart_store_list.py
+# 로 생성, API 0콜)와 단지 좌표의 거리만 계산한다(API 0콜). 슈퍼마켓은 점포가 많고
+# 도보권 500m라 기존 MT1 카테고리 검색(1.5km 캐시)을 그대로 거른다.
 
 
-def dedupe(places):
-    seen = set()
-    result = []
-    for place in places:
-        key = (round(float(place["lat"]), 6), round(float(place["lng"]), 6),
-               place.get("label", ""))
-        if key in seen:
-            continue
-        seen.add(key)
-        result.append(place)
-    return result
+def load_store_list():
+    """{group_key: [{name, brand, lat, lng}...]} — 대형/창고형 점포."""
+    brand_to_group = {}
+    for gkey in ("large_mart", "warehouse_mart"):
+        for brand in MART_CATEGORY_GROUPS[gkey]["brands"]:
+            brand_to_group[brand] = gkey
+    grouped = {"large_mart": [], "warehouse_mart": []}
+    with open(STORE_LIST_PATH, encoding="utf-8-sig", newline="") as file:
+        for store in csv.DictReader(file):
+            gkey = brand_to_group.get(store.get("brand"))
+            if not gkey:
+                continue
+            grouped[gkey].append({
+                "name": store["name"],
+                "brand": store["brand"],
+                "lat": float(store["lat"]),
+                "lng": float(store["lng"]),
+            })
+    return grouped
+
+
+def store_places(stores, lat, lng):
+    """점포 리스트를 단지 기준 거리(distance) 포함 place dict로 변환(API 0콜)."""
+    places = []
+    for store in stores:
+        distance = get_distance_m(lat, lng, store["lat"], store["lng"])
+        places.append({
+            "category": "mart",
+            "label": f"🛒 {store['name']}",
+            "name": store["name"],
+            "lat": store["lat"],
+            "lng": store["lng"],
+            "distance": int(round(distance)),
+        })
+    return places
 
 
 def compute_group(group, places, lat, lng):
@@ -79,6 +103,10 @@ def build_header():
     return header
 
 
+store_list = load_store_list()
+print(f"[BUILD] 점포 리스트 로드: 대형 {len(store_list['large_mart'])} / "
+      f"창고형 {len(store_list['warehouse_mart'])}")
+
 with open(output_path, "w", newline="", encoding="utf-8-sig") as file:
     writer = csv.writer(file)
     writer.writerow(build_header())
@@ -90,23 +118,12 @@ with open(output_path, "w", newline="", encoding="utf-8-sig") as file:
             lat = apartment["lat"]
             lng = apartment["lng"]
 
-            # 그룹별 장소 수집
-            super_places = search_category("mart", lat, lng)
-
-            large_places = []
-            for keyword in LARGE_KEYWORDS:
-                large_places += search_keyword(keyword, lat, lng, 3000, "MT1")
-            large_places = dedupe(large_places)
-
-            warehouse_places = []
-            for keyword in WAREHOUSE_KEYWORDS:
-                warehouse_places += search_keyword(keyword, lat, lng, 5000, "MT1")
-            warehouse_places = dedupe(warehouse_places)
-
+            # 슈퍼: MT1 카테고리 검색(1.5km 캐시)을 500m로 거름. 대형/창고형: 점포
+            # 리스트와 거리계산(API 0콜).
             group_places = {
-                "large_mart": large_places,
-                "super_mart": super_places,
-                "warehouse_mart": warehouse_places,
+                "large_mart": store_places(store_list["large_mart"], lat, lng),
+                "super_mart": search_category("mart", lat, lng),
+                "warehouse_mart": store_places(store_list["warehouse_mart"], lat, lng),
             }
 
             row = [apartment["name"], apartment["gu"], apartment["dong"], lat, lng]
@@ -126,12 +143,11 @@ with open(output_path, "w", newline="", encoding="utf-8-sig") as file:
 
             writer.writerow(row)
 
-            print(
-                f"[{index+1}/{total}] {apartment['name']} → "
-                + " / ".join(f"{k} {v}" for k, v in log_counts.items())
-            )
-
-            time.sleep(0.15)
+            if (index + 1) % 500 == 0:
+                print(
+                    f"[{index+1}/{total}] {apartment['name']} → "
+                    + " / ".join(f"{k} {v}" for k, v in log_counts.items())
+                )
 
         except Exception as e:
             print(f"[ERROR] {apartment.get('name')} : {e}")
