@@ -2239,17 +2239,21 @@ body:not(.home-page) #resultLoadingOverlay {
 .brand-angelinus { background: #eef3e3 !important; color: #586c1c !important; }
 .brand-etc { background: #f3f4f6 !important; color: #777 !important; }
 .brand-emart { background: #fff3e8 !important; color: #e85d04 !important; }
+.brand-emarteveryday { background: #fff7ed !important; color: #b45309 !important; }
 .brand-homeplus { background: #ffe8ef !important; color: #c1121f !important; }
+.brand-homeplusexpress { background: #fdf2f8 !important; color: #be185d !important; }
 .brand-lottemart { background: #ffe8e8 !important; color: #b00020 !important; }
+.brand-lottesuper { background: #fff1f2 !important; color: #be123c !important; }
 .brand-traders { background: #fff4cc !important; color: #7a5c00 !important; }
 .brand-costco { background: #e8f0ff !important; color: #1f4e9e !important; }
+.brand-nobrand { background: #f8fafc !important; color: #334155 !important; }
 .brand-pharmacy { background: #e9f8ef !important; color: #2f8f6b !important; }
 .brand-cu { background: #efe8ff !important; color: #5b2ca0 !important; }
 .brand-gs25 { background: #e8f7ff !important; color: #0077a8 !important; }
-.brand-hanaro { background: #e8f7ff !important; color: #0077a8 !important; }
+.brand-hanaro { background: #ecfdf5 !important; color: #047857 !important; }
 .brand-seven { background: #fff0e6 !important; color: #d35400 !important; }
 .brand-emart24 { background: #fff4cc !important; color: #6f5800 !important; }
-.brand-gsfresh { background: #e8f7ef !important; color: #1b7f4c !important; }
+.brand-gsfresh { background: #ecfeff !important; color: #0e7490 !important; }
 .brand-lotte { background: #ffe8e8 !important; color: #b00020 !important; }
 .brand-wstore { background: #f0e8ff !important; color: #5b2ca0 !important; }
 
