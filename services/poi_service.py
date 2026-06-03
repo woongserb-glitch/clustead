@@ -358,57 +358,90 @@ SUBTYPE_RULES = {
     "subway": [
         {"name": "지하철역", "keywords": ["역"]},
     ],
+    # 순서 중요: extract_subtype_stats는 첫 키워드 매칭에서 break하므로
+    # 구체 브랜드(트레이더스·에브리데이·익스프레스·슈퍼프레시)를 일반(이마트·홈플러스·
+    # 롯데마트)보다 먼저 둔다. 카테고리 그룹(대형/슈퍼/창고형)은 MART_CATEGORY_GROUPS 참조.
     "mart": [
-        {
-            "name": "이마트",
-            "display": "이마트",
-            "keywords": ["이마트", "emart", "E-MART"],
-            "priority": 2,
-            "style": "brand-emart",
-        },
-        {
-            "name": "홈플러스",
-            "display": "홈플러스",
-            "keywords": ["홈플러스", "Homeplus"],
-            "priority": 5,
-            "style": "brand-homeplus",
-        },
-        {
-            "name": "롯데마트",
-            "display": "롯데마트",
-            "keywords": ["롯데마트", "롯데슈퍼", "롯데프레시", "롯데슈퍼프레시", "롯데쇼핑"],
-            "priority": 4,
-            "style": "brand-lottemart",
-        },
+        # 창고형마트
         {
             "name": "트레이더스",
             "display": "트레이더스",
             "keywords": ["트레이더스", "이마트트레이더스"],
-            "priority": 3,
+            "priority": 1,
             "style": "brand-traders",
         },
         {
             "name": "코스트코",
             "display": "코스트코",
             "keywords": ["코스트코", "Costco"],
-            "priority": 1,
+            "priority": 2,
             "style": "brand-costco",
+        },
+        # 슈퍼마켓(SSM) — 일반 브랜드보다 먼저
+        {
+            "name": "이마트에브리데이",
+            "display": "이마트에브리데이",
+            "keywords": ["이마트에브리데이", "에브리데이"],
+            "priority": 3,
+            "style": "brand-emarteveryday",
+        },
+        {
+            "name": "홈플러스익스프레스",
+            "display": "홈플러스익스프레스",
+            "keywords": ["홈플러스익스프레스", "홈플러스 익스프레스", "익스프레스"],
+            "priority": 4,
+            "style": "brand-homeplusexpress",
+        },
+        {
+            "name": "롯데슈퍼프레시",
+            "display": "롯데슈퍼/프레시",
+            "keywords": ["롯데슈퍼프레시", "롯데슈퍼", "롯데프레시"],
+            "priority": 5,
+            "style": "brand-lottesuper",
+        },
+        {
+            "name": "노브랜드",
+            "display": "노브랜드",
+            "keywords": ["노브랜드", "no brand", "nobrand"],
+            "priority": 6,
+            "style": "brand-nobrand",
         },
         {
             "name": "GS더프레시",
             "display": "GS더프레시",
             "keywords": ["GS더프레시", "GS THE FRESH", "지에스더프레시"],
-            "priority": 6,
+            "priority": 7,
             "style": "brand-gsfresh",
         },
         {
             "name": "하나로마트",
             "display": "하나로마트",
-            "keywords": ["하나로마트"],
-            "priority": 7,
+            "keywords": ["하나로마트", "하나로클럽"],
+            "priority": 8,
             "style": "brand-hanaro",
         },
-
+        # 대형마트(하이퍼마켓) — 일반 브랜드, 위 구체 브랜드 이후
+        {
+            "name": "이마트",
+            "display": "이마트",
+            "keywords": ["이마트", "emart", "E-MART"],
+            "priority": 9,
+            "style": "brand-emart",
+        },
+        {
+            "name": "홈플러스",
+            "display": "홈플러스",
+            "keywords": ["홈플러스", "Homeplus"],
+            "priority": 10,
+            "style": "brand-homeplus",
+        },
+        {
+            "name": "롯데마트",
+            "display": "롯데마트",
+            "keywords": ["롯데마트"],
+            "priority": 11,
+            "style": "brand-lottemart",
+        },
     ],
     "pharmacy": [
         {
@@ -510,6 +543,41 @@ SUBTYPE_RULES = {
         },
         ],
 }
+
+# 마트 카테고리 그룹: 업태별로 평가 반경이 다르다(대형 3km / 슈퍼 도보권 500m /
+# 창고형 5km). brands는 SUBTYPE_RULES["mart"]의 name과 일치해야 한다.
+MART_CATEGORY_GROUPS = {
+    "large_mart": {
+        "key": "large_mart",
+        "label": "대형마트",
+        "icon": "🛒",
+        "radius": 3000,
+        "brands": ["이마트", "홈플러스", "롯데마트"],
+    },
+    "super_mart": {
+        "key": "super_mart",
+        "label": "슈퍼마켓",
+        "icon": "🏪",
+        "radius": 500,
+        "brands": ["이마트에브리데이", "홈플러스익스프레스", "롯데슈퍼프레시",
+                   "노브랜드", "GS더프레시", "하나로마트"],
+    },
+    "warehouse_mart": {
+        "key": "warehouse_mart",
+        "label": "창고형마트",
+        "icon": "📦",
+        "radius": 5000,
+        "brands": ["코스트코", "트레이더스"],
+    },
+}
+
+# 브랜드 → 카테고리 그룹 역참조
+MART_BRAND_TO_GROUP = {
+    brand: group["key"]
+    for group in MART_CATEGORY_GROUPS.values()
+    for brand in group["brands"]
+}
+
 
 def get_subtype_chips(category, pois):
     rules = SUBTYPE_RULES.get(category, [])
