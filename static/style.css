@@ -2595,8 +2595,8 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .complex-info-subway {
-    flex: 0 1 210px;
-    max-width: 210px;
+    flex: 1 1 320px;
+    max-width: 100%;
 }
 
 .subway-text {
@@ -2685,6 +2685,11 @@ body:not(.home-page) #resultLoadingOverlay {
 
     line-height: 1;
     box-sizing: border-box;
+}
+
+.complex-info-item.complex-info-subway {
+    flex: 1 1 320px;
+    max-width: 100%;
 }
 
 .complex-area-summary {
