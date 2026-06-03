@@ -4557,7 +4557,7 @@ SUBTYPE_SEARCH_CONFIG = {
         "label": "슈퍼마켓",
         "icon": "🏪",
         "data": mart_baseline_data,
-        "radius_label": "도보권 500m이내",
+        "radius_label": "반경 500m이내",
         "subtypes": ["이마트에브리데이", "홈플러스익스프레스", "롯데슈퍼프레시",
                      "노브랜드", "GS더프레시", "하나로마트"],
         "count_col": lambda s: f"{s}_count_500m",
