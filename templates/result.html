@@ -189,29 +189,45 @@
 
             <aside class="summary-panel">
                 <div class="summary-card main-score">
-                    <span>내 취향 반영 점수</span>
-                    <strong>{{ preference_score }}</strong>
-                    <small class="main-score-note">내가 정한 가중치로 합산한 서울 상대평가 점수</small>
+                    <span>아파트 대표점수</span>
+                    <strong>{{ representative_score }}</strong>
+                    <small class="main-score-note">전 카테고리 서울 상대평가를 종합한 점수</small>
                 </div>
 
-                <div class="top-list-card">
-                    <div class="top-list-title">내 기준 서울 Top 5</div>
+                {% if lifestyle_summary and lifestyle_summary.strengths %}
+                <div class="lifestyle-summary-card">
+                    <div class="lifestyle-summary-title">내 라이프스타일 요약</div>
+                    <p class="lifestyle-summary-note">선호 조건으로 찾은 이 단지의 강점입니다.</p>
+                    {% for strength in lifestyle_summary.strengths %}
+                    <div class="lifestyle-strength-row">
+                        <span>{{ strength.label }}</span>
+                        <b>상위 {{ 100 - strength.percentile }}%</b>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
 
-                    {% for item in top_apartments %}
+                <div class="top-list-card">
+                    <div class="top-list-title">{{ recommendations_title }}</div>
+                    {% if recommendations_note %}
+                    <p class="top-list-note">{{ recommendations_note }}</p>
+                    {% endif %}
+
+                    {% for item in recommendations %}
                     <a class="top-list-link" href="{{ item.url }}">
                         <div>
                             <strong>{{ loop.index }}. {{ item.name }}</strong>
-                            <span>{{ item.district }} {{ item.dong }}</span>
+                            <span>{{ item.district }} {{ item.dong }}{% if item.meta %} · {{ item.meta }}{% endif %}</span>
                         </div>
                         <b>{{ item.score }}</b>
                     </a>
                     {% endfor %}
 
-                    {% for i in range(5 - top_apartments|length) %}
+                    {% for i in range(5 - recommendations|length) %}
                     <div class="top-list-link top-list-empty">
                         <div>
-                            <strong>추가 샘플 준비중</strong>
-                            <span>서울시 비교 데이터 확장 예정</span>
+                            <strong>추천 준비중</strong>
+                            <span>비교 데이터 확장 예정</span>
                         </div>
                         <b>-</b>
                     </div>

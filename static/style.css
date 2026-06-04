@@ -821,6 +821,48 @@ body:not(.home-page) #resultLoadingOverlay {
     font-weight: 600;
 }
 
+.lifestyle-summary-card {
+    background: #fff;
+    border: 1px solid #edf0f5;
+    border-radius: 18px;
+    padding: 16px;
+}
+
+.lifestyle-summary-title {
+    font-size: 12px;
+    color: #7b8190;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.lifestyle-summary-note {
+    font-size: 11px;
+    color: #9aa1ad;
+    margin: 0 0 10px;
+}
+
+.lifestyle-strength-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    padding: 6px 0;
+    border-top: 1px solid #f1f3f7;
+}
+.lifestyle-strength-row:first-of-type {
+    border-top: 0;
+}
+.lifestyle-strength-row b {
+    color: #1d4ed8;
+    font-weight: 800;
+}
+
+.top-list-note {
+    font-size: 11px;
+    color: #9aa1ad;
+    margin: -2px 0 10px;
+}
+
 .top-list-card {
     flex: 1;
     display: flex;

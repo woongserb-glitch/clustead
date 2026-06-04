@@ -2,6 +2,7 @@ import json
 import csv
 import sys
 import re
+import math
 
 from services.ranking_service import (
     get_ranked_apartments,
@@ -4081,7 +4082,7 @@ def get_preferences():
     return preferences
 
 
-def make_result_url(apartment_name, preferences, gu="", dong=""):
+def make_result_url(apartment_name, preferences, gu="", dong="", src="home"):
     # Always carry gu/dong so links resolve the exact complex, not the first
     # name match. Names collide across Seoul (e.g. 신동아아파트 x3).
     params = {"apartment": apartment_name}
@@ -4090,6 +4091,8 @@ def make_result_url(apartment_name, preferences, gu="", dong=""):
         params["gu"] = gu
     if dong:
         params["dong"] = dong
+    if src:
+        params["src"] = src  # 진입경로(home/explore)별 우측 패널 분기
 
     for key in PREFERENCE_KEYS:
         params[key] = preferences.get(key, 3)
@@ -4144,6 +4147,116 @@ def get_top_apartments(preferences, limit=5):
         )
 
     return ranked
+
+
+def compute_representative_score(category_scores):
+    """전 카테고리 서울점수의 평균 = 아파트 대표점수(0~100). 점수 컬럼은 이미 방향
+    보정돼 있어(유흥 등 lower_better 포함) 단순 평균이 종합 생활점수로 의미를 가진다."""
+    values = [v for v in (category_scores or {}).values() if isinstance(v, (int, float))]
+    if not values:
+        return 0
+    return round(sum(values) / len(values))
+
+
+def _cosine_similarity(vec_a, vec_b):
+    shared = set(vec_a) & set(vec_b)
+    if not shared:
+        return -1.0
+    dot = sum(vec_a[k] * vec_b[k] for k in shared)
+    norm_a = math.sqrt(sum(v * v for v in vec_a.values()))
+    norm_b = math.sqrt(sum(v * v for v in vec_b.values()))
+    if norm_a == 0 or norm_b == 0:
+        return -1.0
+    return dot / (norm_a * norm_b)
+
+
+def get_similar_apartments(apartment_key, category_scores, limit=5):
+    """카테고리 점수 벡터 코사인 유사도 + 평균매매가 근접으로 비슷한 단지 추천."""
+    index = build_apartment_index()
+    price_lookup = _transaction_price_lookup()
+    base_vec = category_scores or {}
+    if not base_vec:
+        return []
+    base_price = (price_lookup.get(apartment_key) or {}).get("trade")
+
+    scored = []
+    for key, entry in index.items():
+        if key == apartment_key:
+            continue
+        sim = _cosine_similarity(base_vec, entry.get("category_scores") or {})
+        if sim < 0:
+            continue
+        price_factor = 1.0
+        cand_price = (price_lookup.get(key) or {}).get("trade")
+        if base_price and cand_price:
+            price_factor = min(base_price, cand_price) / max(base_price, cand_price)
+        combined = sim * (0.7 + 0.3 * price_factor)  # 유사도 70% + 가격근접 30%
+        scored.append((combined, key, entry, cand_price))
+
+    scored.sort(key=lambda item: -item[0])
+    results = []
+    for combined, key, entry, cand_price in scored[:limit]:
+        results.append({
+            "name": entry["name"],
+            "district": entry["district"],
+            "dong": entry["dong"],
+            "score": compute_representative_score(entry.get("category_scores") or {}),
+            "meta": format_manwon(cand_price) if cand_price else "",
+            "url": make_result_url(entry["name"], {}, entry["district"], entry["dong"], src="home"),
+        })
+    return results
+
+
+def get_nearby_apartments(apartment, limit=5):
+    """좌표 기준 최근접 단지 추천(자기 제외)."""
+    try:
+        alat = float(apartment["lat"])
+        alng = float(apartment["lng"])
+    except Exception:
+        return []
+    self_key = (
+        clean_text(apartment.get("name", "")),
+        clean_text(apartment.get("district", "")),
+        clean_text(apartment.get("dong", "")),
+    )
+    index = build_apartment_index()
+    candidates = []
+    for ap in apartment_data:
+        key = (clean_text(ap.get("name", "")), clean_text(ap.get("gu", "")), clean_text(ap.get("dong", "")))
+        if key == self_key:
+            continue
+        try:
+            dist = get_distance_m(alat, alng, float(ap["lat"]), float(ap["lng"]))
+        except Exception:
+            continue
+        candidates.append((dist, ap, key))
+
+    candidates.sort(key=lambda item: item[0])
+    results = []
+    for dist, ap, key in candidates[:limit]:
+        entry = index.get(key) or {}
+        results.append({
+            "name": ap.get("name"),
+            "district": ap.get("gu"),
+            "dong": ap.get("dong"),
+            "score": compute_representative_score(entry.get("category_scores") or {}),
+            "meta": format_distance_m(dist),
+            "url": make_result_url(ap.get("name"), {}, ap.get("gu"), ap.get("dong"), src="explore"),
+        })
+    return results
+
+
+def build_lifestyle_summary(category_summaries):
+    """Explore 진입 보조블록 — 단지의 강점 도메인(서울 백분위 상위) 요약."""
+    items = []
+    for summary in category_summaries:
+        pct = summary.get("seoul_percentile")
+        label = clean_text(summary.get("label", ""))
+        if pct is not None and label:
+            items.append((pct, label))
+    items.sort(key=lambda item: -(item[0] or 0))
+    strengths = [{"label": label, "percentile": round(pct)} for pct, label in items[:4]]
+    return {"strengths": strengths}
 
 
 def get_preference_tags(preferences, category_summaries, apartment):
@@ -5150,7 +5263,7 @@ def build_explore_results(filters, limit=10):
             "score": score,
             "sort_key": sort_key,
             "matched_features": matched[:5] or ["생활 균형형"],
-            "url": make_result_url(name, get_preferences(), gu, dong),
+            "url": make_result_url(name, get_preferences(), gu, dong, src="explore"),
         })
 
     def order_key(item):
@@ -5373,15 +5486,29 @@ def result():
     )
 
     ranking_apartment = apartment_index.get(apartment_key)
+    base_category_scores = ranking_apartment["category_scores"] if ranking_apartment else {}
 
     if ranking_apartment:
         preference_score = calculate_weighted_score(
-            ranking_apartment["category_scores"],
+            base_category_scores,
             preferences
         )
     else:
         preference_score = 0
-    
+
+    # 진입경로(home/explore)별 우측 패널 분기
+    entry_src = "explore" if request.args.get("src") == "explore" else "home"
+    representative_score = compute_representative_score(base_category_scores)
+
+    if entry_src == "explore":
+        recommendations = get_nearby_apartments(apartment)
+        recommendations_title = "인근 아파트 단지"
+        recommendations_note = "이 단지와 가까운 순으로 추천합니다."
+    else:
+        recommendations = get_similar_apartments(apartment_key, base_category_scores)
+        recommendations_title = "생활 인프라가 비슷한 단지"
+        recommendations_note = "카테고리 점수 유사도 + 가격대 근접 기준입니다."
+
     top_apartments = get_top_apartments(preferences)
     apartment_with_real_pois = {
         **apartment,
@@ -5659,6 +5786,10 @@ def result():
         print(f"[TRANSACTION] result integration failed: {exc}")
         transaction_summary = empty_transaction_summary("integration_failed")
 
+    lifestyle_summary = (
+        build_lifestyle_summary(category_summaries) if entry_src == "explore" else None
+    )
+
     return render_template(
         "result.html",
         apartment=apartment,
@@ -5666,6 +5797,12 @@ def result():
         preferences=preferences,
         preference_score=preference_score,
         top_apartments=top_apartments,
+        entry_src=entry_src,
+        representative_score=representative_score,
+        recommendations=recommendations,
+        recommendations_title=recommendations_title,
+        recommendations_note=recommendations_note,
+        lifestyle_summary=lifestyle_summary,
         preference_tags=preference_tags,
         category_summaries=category_summaries,
         pois=pois,
