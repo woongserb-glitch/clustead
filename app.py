@@ -2356,8 +2356,8 @@ def build_bike_category_summary(bike_info):
     return {
         "key": "bike",
         "label": "🚲 따릉이",
-        "domain": "transport",
-        "domain_label": "🚇 교통",
+        "domain": "convenience",
+        "domain_label": "🛒 생활편의",
         "score": f"{count}곳",
         "score_class": "score-normal",
         "score": percentile_score_value(seoul_percentile),
