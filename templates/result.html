@@ -211,7 +211,7 @@
 
                     {% for item in recommendations %}
                     <a class="top-list-link" href="{{ item.url }}">
-                        <strong>{{ loop.index }}. {{ item.name }}</strong>
+                        <strong>{{ loop.index }}. {{ item.name }}{% if item.name_suffix %} {{ item.name_suffix }}{% endif %}</strong>
                         <span>{{ item.district }} {{ item.dong }}{% if item.meta %} · {{ item.meta }}{% endif %}</span>
                     </a>
                     {% endfor %}

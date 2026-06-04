@@ -4251,23 +4251,25 @@ def get_similar_apartments(apartment_key, category_scores, limit=5):
         scored.append((combined, key, entry, cand_price))
 
     scored.sort(key=lambda item: -item[0])
-    rep_area_lookup = _representative_area_lookup()
     results = []
     for combined, key, entry, cand_price in scored[:limit]:
-        rep = rep_area_lookup.get(key)
-        if rep and rep[1]:
-            meta = f"전용 {rep[0]} · 최근 {format_manwon(rep[1])}"
-        else:
-            meta = "최근 거래정보 없음"
         results.append({
             "name": entry["name"],
             "district": entry["district"],
             "dong": entry["dong"],
-            "score": compute_representative_score(entry.get("category_scores") or {}),
-            "meta": meta,
+            "name_suffix": "",
+            "meta": _rep_area_meta(key),
             "url": make_result_url(entry["name"], {}, entry["district"], entry["dong"], src="home"),
         })
     return results
+
+
+def _rep_area_meta(apartment_key):
+    """추천 카드 보조줄 — '전용 {대표평형} · 최근 {최근매매가}' 또는 거래없음."""
+    rep = _representative_area_lookup().get(apartment_key)
+    if rep and rep[1]:
+        return f"전용 {rep[0]} · 최근 {format_manwon(rep[1])}"
+    return "최근 거래정보 없음"
 
 
 def get_nearby_apartments(apartment, limit=5):
@@ -4297,13 +4299,12 @@ def get_nearby_apartments(apartment, limit=5):
     candidates.sort(key=lambda item: item[0])
     results = []
     for dist, ap, key in candidates[:limit]:
-        entry = index.get(key) or {}
         results.append({
             "name": ap.get("name"),
             "district": ap.get("gu"),
             "dong": ap.get("dong"),
-            "score": compute_representative_score(entry.get("category_scores") or {}),
-            "meta": format_distance_m(dist),
+            "name_suffix": f"({format_distance_m(dist)})",
+            "meta": _rep_area_meta(key),
             "url": make_result_url(ap.get("name"), {}, ap.get("gu"), ap.get("dong"), src="explore"),
         })
     return results
