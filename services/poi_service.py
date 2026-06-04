@@ -256,7 +256,7 @@ DOMAIN_META = {
 CATEGORY_TO_DOMAIN = {
     "subway": "transport",
     "bus": "transport",
-    "bike": "transport",
+    "bike": "convenience",
 
     "hospital": "medical",
     "pharmacy": "medical",

@@ -4172,9 +4172,9 @@ DOMAIN_ORDER = [
 
 # 카테고리 상세 카드 표시 순서 — 생활인프라/아파트 가치판단 중요도 순.
 CATEGORY_DISPLAY_ORDER = [
-    "subway", "bus-baseline", "bus", "bike",                          # 교통
+    "subway", "bus-baseline", "bus",                                 # 교통
     "school-environment", "school-zone", "academy",                  # 교육
-    "large_mart", "super_mart", "warehouse_mart", "convenience", "ev-charger",  # 생활편의
+    "large_mart", "super_mart", "warehouse_mart", "convenience", "ev-charger", "bike",  # 생활편의
     "hospital", "general-hospital", "emergency-room", "pharmacy",    # 의료
     "cctv", "fire-station", "fire",                                  # 안전
     "cafe", "park", "hangang",                                       # 휴식
