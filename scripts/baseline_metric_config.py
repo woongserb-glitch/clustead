@@ -154,18 +154,6 @@ BASELINE_METRIC_CONFIG = {
             ("pharmacy_count_500m", "pharmacy_count_1km"),
         ],
     ),
-    "lifestyle_food": metric_config(
-        label="생활편의 식음료",
-        file="lifestyle_food_baseline.csv",
-        required_columns=["name", "gu", "dong", "lat", "lng", "lifestyle_food_count_500m"],
-        primary_metric="lifestyle_food_count_500m",
-        direction=HIGHER_BETTER,
-        display_metric_label="500m 내 식음료 편의시설 수",
-        json_columns=["lifestyle_food_items_json"],
-        radius_rules=[("lifestyle_food_count_500m", "lifestyle_food_count_1km")],
-        percentile_enabled=False,
-        ranking_enabled=False,
-    ),
     "academy": metric_config(
         label="학원",
         file="academy_baseline.csv",

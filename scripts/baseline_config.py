@@ -41,12 +41,6 @@ BASELINE_JOBS = {
         "source": "kakao_api",
         "description": "편의점 생활권 density baseline",
     },
-    "lifestyle_food": {
-        "builder": "scripts.build_lifestyle_food_baseline",
-        "output": "data/baseline/lifestyle_food_baseline.csv",
-        "source": "local_csv",
-        "description": "서울시 일반음식점 인허가 기반 생활 음식점 baseline",
-    },
     "commercial": {
         "builder": "scripts.build_commercial_baseline",
         "output": "data/baseline/commercial_baseline.csv",

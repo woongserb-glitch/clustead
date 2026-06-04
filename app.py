@@ -82,7 +82,6 @@ from services.preload_service import fire_station_baseline_data, fire_station_ba
 from services.preload_service import shopping_baseline_data, shopping_baseline_index, load_shopping_baseline_data
 from services.preload_service import ev_charger_baseline_data, ev_charger_baseline_index, load_ev_charger_baseline_data
 from services.preload_service import medical_baseline_data, medical_baseline_index, load_medical_baseline_data
-from services.preload_service import lifestyle_food_baseline_data, lifestyle_food_baseline_index, load_lifestyle_food_baseline_data
 from services.preload_service import get_indexed_baseline_row
 from scripts.baseline_metric_config import (
     BASELINE_METRIC_CONFIG,
@@ -125,7 +124,6 @@ load_fire_station_baseline_data()
 load_shopping_baseline_data()
 load_ev_charger_baseline_data()
 load_medical_baseline_data()
-load_lifestyle_food_baseline_data()
 build_apartment_index()
 
 

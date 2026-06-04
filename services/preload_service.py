@@ -35,7 +35,6 @@ fire_station_baseline_data = []
 shopping_baseline_data = []
 ev_charger_baseline_data = []
 medical_baseline_data = []
-lifestyle_food_baseline_data = []
 subway_baseline_index = {}
 
 # Baseline row indexes for fast result-page lookup.
@@ -55,7 +54,6 @@ fire_station_baseline_index = {}
 shopping_baseline_index = {}
 ev_charger_baseline_index = {}
 medical_baseline_index = {}
-lifestyle_food_baseline_index = {}
 
 
 BASELINE_VERSION = "v3.0"
@@ -1358,31 +1356,6 @@ def load_medical_baseline_data():
             rebuild_baseline_index(medical_baseline_index, medical_baseline_data)
 
             print(f"[BASELINE] MEDICAL {len(medical_baseline_data)} rows loaded")
-            return
-
-        except Exception as e:
-            print(enc, e)
-
-
-def load_lifestyle_food_baseline_data():
-    global lifestyle_food_baseline_data, lifestyle_food_baseline_index
-
-    csv_path = "data/baseline/lifestyle_food_baseline.csv"
-    encodings = ["utf-8-sig", "cp949"]
-
-    if not os.path.exists(csv_path):
-        print(f"[BASELINE] LIFESTYLE FOOD file not found: {csv_path}")
-        return
-
-    for enc in encodings:
-        try:
-            df = pd.read_csv(csv_path, encoding=enc)
-
-            lifestyle_food_baseline_data.clear()
-            lifestyle_food_baseline_data.extend(df.to_dict("records"))
-            rebuild_baseline_index(lifestyle_food_baseline_index, lifestyle_food_baseline_data)
-
-            print(f"[BASELINE] LIFESTYLE FOOD {len(lifestyle_food_baseline_data)} rows loaded")
             return
 
         except Exception as e:
