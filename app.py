@@ -5630,14 +5630,10 @@ def result():
     domain_profile = compute_domain_profile(base_category_scores)
     representative_score = domain_profile["representative"]
 
-    if entry_src == "explore":
-        recommendations = get_nearby_apartments(apartment)
-        recommendations_title = "인근 아파트 단지"
-        recommendations_note = "이 단지와 가까운 순으로 추천합니다."
-    else:
-        recommendations = get_similar_apartments(apartment_key, base_category_scores)
-        recommendations_title = "유사 추천 단지"
-        recommendations_note = "점수나 가격 유사도에 따른 추천단지입니다."
+    # 진입경로(home/explore) 무관하게 인근 아파트 단지로 통일.
+    recommendations = get_nearby_apartments(apartment)
+    recommendations_title = "인근 아파트 단지"
+    recommendations_note = "이 단지와 가까운 순으로 추천합니다."
 
     top_apartments = get_top_apartments(preferences)
     apartment_with_real_pois = {
