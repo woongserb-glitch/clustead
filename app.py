@@ -4135,23 +4135,6 @@ def normalize_summary_sources(category_summaries, domain_summaries):
             summary["source"] = normalize_source_label(summary.get("source", ""))
 
 
-def get_top_apartments(preferences, limit=5):
-    ranked = get_ranked_apartments(
-        preferences,
-        limit
-    )
-
-    for item in ranked:
-        item["url"] = make_result_url(
-            item["name"],
-            preferences,
-            item.get("district", ""),
-            item.get("dong", ""),
-        )
-
-    return ranked
-
-
 # 도메인 중요도 가중치(큐레이션) — 교통·교육·생활편의를 높게, 문화·상권을 낮게.
 DOMAIN_WEIGHTS = {
     "transport": 1.5,
@@ -4239,60 +4222,6 @@ def compute_domain_profile(category_scores):
     return {"representative": representative, "domains": domains}
 
 
-def compute_representative_score(category_scores):
-    """도메인 가중 종합 대표점수(0~100)."""
-    return compute_domain_profile(category_scores)["representative"]
-
-
-def _cosine_similarity(vec_a, vec_b):
-    shared = set(vec_a) & set(vec_b)
-    if not shared:
-        return -1.0
-    dot = sum(vec_a[k] * vec_b[k] for k in shared)
-    norm_a = math.sqrt(sum(v * v for v in vec_a.values()))
-    norm_b = math.sqrt(sum(v * v for v in vec_b.values()))
-    if norm_a == 0 or norm_b == 0:
-        return -1.0
-    return dot / (norm_a * norm_b)
-
-
-def get_similar_apartments(apartment_key, category_scores, limit=5):
-    """카테고리 점수 벡터 코사인 유사도 + 평균매매가 근접으로 비슷한 단지 추천."""
-    index = build_apartment_index()
-    price_lookup = _transaction_price_lookup()
-    base_vec = category_scores or {}
-    if not base_vec:
-        return []
-    base_price = (price_lookup.get(apartment_key) or {}).get("trade")
-
-    scored = []
-    for key, entry in index.items():
-        if key == apartment_key:
-            continue
-        sim = _cosine_similarity(base_vec, entry.get("category_scores") or {})
-        if sim < 0:
-            continue
-        price_factor = 1.0
-        cand_price = (price_lookup.get(key) or {}).get("trade")
-        if base_price and cand_price:
-            price_factor = min(base_price, cand_price) / max(base_price, cand_price)
-        combined = sim * (0.7 + 0.3 * price_factor)  # 유사도 70% + 가격근접 30%
-        scored.append((combined, key, entry, cand_price))
-
-    scored.sort(key=lambda item: -item[0])
-    results = []
-    for combined, key, entry, cand_price in scored[:limit]:
-        results.append({
-            "name": entry["name"],
-            "district": entry["district"],
-            "dong": entry["dong"],
-            "name_suffix": "",
-            "meta": _rep_area_meta(key),
-            "url": make_result_url(entry["name"], {}, entry["district"], entry["dong"], src="home"),
-        })
-    return results
-
-
 def _rep_area_meta(apartment_key):
     """추천 카드 보조줄 — '전용 {대표평형} · 최근 {최근매매가}' 또는 거래없음."""
     rep = _representative_area_lookup().get(apartment_key)
@@ -4337,19 +4266,6 @@ def get_nearby_apartments(apartment, limit=5):
             "url": make_result_url(ap.get("name"), {}, ap.get("gu"), ap.get("dong"), src="explore"),
         })
     return results
-
-
-def build_lifestyle_summary(category_summaries):
-    """Explore 진입 보조블록 — 단지의 강점 도메인(서울 백분위 상위) 요약."""
-    items = []
-    for summary in category_summaries:
-        pct = summary.get("seoul_percentile")
-        label = clean_text(summary.get("label", ""))
-        if pct is not None and label:
-            items.append((pct, label))
-    items.sort(key=lambda item: -(item[0] or 0))
-    strengths = [{"label": label, "percentile": round(pct)} for pct, label in items[:4]]
-    return {"strengths": strengths}
 
 
 def get_preference_tags(preferences, category_summaries, apartment):
@@ -5007,9 +4923,6 @@ _PRICE_BUCKET_BY_TYPE = {
     t["key"]: {b["key"]: b for b in t["buckets"]} for t in EXPLORE_PRICE_TYPE_OPTIONS
 }
 
-# (공원은 우선순위 카테고리로 이동) — 단일지표 임계 필터 슬롯(현재 없음).
-EXPLORE_RANGE_FILTERS = []
-
 # 버스: 노선유형(간선/지선/마을/심야/공항/기타)별 번호 검색 — 지하철 노선/역과 동일 컨셉.
 EXPLORE_BUS_TYPES = ["간선", "지선", "마을", "심야", "공항", "기타"]
 
@@ -5202,14 +5115,6 @@ def build_explore_results(filters, limit=10):
         price_type = "trade"
     price_bucket = _PRICE_BUCKET_BY_TYPE[price_type].get(clean_text(filters.get("price", "")))
 
-    # 공원 임계값 선택 파싱
-    range_selections = []
-    for cfg in EXPLORE_RANGE_FILTERS:
-        raw = clean_text(filters.get(cfg["param"], ""))
-        opt = next((o for o in cfg["options"] if o["key"] == raw), None)
-        if opt:
-            range_selections.append((cfg, opt))
-
     # 버스 노선유형/번호
     bus_type = clean_text(filters.get("bus_type", ""))
     if bus_type not in EXPLORE_BUS_TYPES:
@@ -5303,24 +5208,6 @@ def build_explore_results(filters, limit=10):
             score += 1
 
         # 공원: 반경 내 공원 유무(park_distance ≤ 반경) AND 필터(데이터 없으면 제외)
-        if range_selections:
-            range_ok = True
-            for cfg, opt in range_selections:
-                val = _baseline_metric_lookup(cfg["param"], cfg["file"], cfg["column"]).get((name, gu, dong))
-                if val is None:
-                    range_ok = False
-                    break
-                if cfg["mode"] == "min" and val < opt["value"]:
-                    range_ok = False
-                    break
-                if cfg["mode"] == "max" and val > opt["value"]:
-                    range_ok = False
-                    break
-                matched.append(f"{cfg['icon']} {cfg['label']} {int(round(val))}{cfg['suffix']}")
-                score += 1
-            if not range_ok:
-                continue
-
         # 버스: 노선유형/번호 — 500m 내 해당 노선(유형 지정 시 그 유형) 보유 단지만
         if bus_route or bus_type:
             by_type = _bus_route_lookup().get((name, gu, dong), {})
@@ -5535,7 +5422,6 @@ def explore():
         price_type_options=EXPLORE_PRICE_TYPE_OPTIONS,
         current_price_buckets=current_price_buckets,
         price_buckets_by_type=price_buckets_by_type,
-        range_filter_options=EXPLORE_RANGE_FILTERS,
         bus_type_options=EXPLORE_BUS_TYPES,
     )
 
@@ -5617,25 +5503,14 @@ def result():
     ranking_apartment = apartment_index.get(apartment_key)
     base_category_scores = ranking_apartment["category_scores"] if ranking_apartment else {}
 
-    if ranking_apartment:
-        preference_score = calculate_weighted_score(
-            base_category_scores,
-            preferences
-        )
-    else:
-        preference_score = 0
-
-    # 진입경로(home/explore)별 우측 패널 분기
+    # 진입경로(home/explore) — 현재 추천은 경로 무관 인근 단지로 통일.
     entry_src = "explore" if request.args.get("src") == "explore" else "home"
     domain_profile = compute_domain_profile(base_category_scores)
-    representative_score = domain_profile["representative"]
 
-    # 진입경로(home/explore) 무관하게 인근 아파트 단지로 통일.
     recommendations = get_nearby_apartments(apartment)
     recommendations_title = "인근 아파트 단지"
     recommendations_note = "이 단지와 가까운 순으로 추천합니다."
 
-    top_apartments = get_top_apartments(preferences)
     apartment_with_real_pois = {
         **apartment,
         "pois": pois,
@@ -5912,10 +5787,6 @@ def result():
         print(f"[TRANSACTION] result integration failed: {exc}")
         transaction_summary = empty_transaction_summary("integration_failed")
 
-    lifestyle_summary = (
-        build_lifestyle_summary(category_summaries) if entry_src == "explore" else None
-    )
-
     # 카테고리 상세 카드를 가치판단 중요도 순으로 정렬(지하철·버스·교육·학원 …).
     category_summaries = sort_category_summaries(category_summaries)
 
@@ -5924,15 +5795,11 @@ def result():
         apartment=apartment,
         scores=scores,
         preferences=preferences,
-        preference_score=preference_score,
-        top_apartments=top_apartments,
         entry_src=entry_src,
-        representative_score=representative_score,
         domain_profile=domain_profile,
         recommendations=recommendations,
         recommendations_title=recommendations_title,
         recommendations_note=recommendations_note,
-        lifestyle_summary=lifestyle_summary,
         preference_tags=preference_tags,
         category_summaries=category_summaries,
         pois=pois,
