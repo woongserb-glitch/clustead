@@ -211,21 +211,15 @@
 
                     {% for item in recommendations %}
                     <a class="top-list-link" href="{{ item.url }}">
-                        <div>
-                            <strong>{{ loop.index }}. {{ item.name }}</strong>
-                            <span>{{ item.district }} {{ item.dong }}{% if item.meta %} · {{ item.meta }}{% endif %}</span>
-                        </div>
-                        <b>{{ item.score }}</b>
+                        <strong>{{ loop.index }}. {{ item.name }}</strong>
+                        <span>{{ item.district }} {{ item.dong }}{% if item.meta %} · {{ item.meta }}{% endif %}</span>
                     </a>
                     {% endfor %}
 
                     {% for i in range(5 - recommendations|length) %}
                     <div class="top-list-link top-list-empty">
-                        <div>
-                            <strong>추천 준비중</strong>
-                            <span>비교 데이터 확장 예정</span>
-                        </div>
-                        <b>-</b>
+                        <strong>추천 준비중</strong>
+                        <span>비교 데이터 확장 예정</span>
                     </div>
                     {% endfor %}
                 </div>

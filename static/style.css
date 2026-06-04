@@ -944,12 +944,8 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .top-list-link {
-    flex: 1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 0;
+    display: block;
+    padding: 6px 0;
     border-top: 1px solid #edf0f5;
     text-decoration: none;
     color: inherit;
@@ -962,13 +958,19 @@ body:not(.home-page) #resultLoadingOverlay {
 .top-list-link strong {
     display: block;
     font-size: 13px;
-    margin-bottom: 4px;
+    margin-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .top-list-link span {
     display: block;
     font-size: 11px;
     color: #8a909c;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .top-list-link b {
