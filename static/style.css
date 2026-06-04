@@ -2692,6 +2692,19 @@ body:not(.home-page) #resultLoadingOverlay {
     max-width: 100%;
 }
 
+@media (min-width: 901px) {
+    .complex-info-grid {
+        display: grid;
+        grid-template-columns: repeat(5, max-content) minmax(0, max-content);
+        align-items: center;
+        gap: 6px;
+    }
+
+    .complex-info-item.complex-info-subway {
+        min-width: 0;
+    }
+}
+
 .complex-area-summary {
     margin-top: 10px;
     padding-top: 10px;
