@@ -5506,8 +5506,8 @@ def result():
         recommendations_note = "이 단지와 가까운 순으로 추천합니다."
     else:
         recommendations = get_similar_apartments(apartment_key, base_category_scores)
-        recommendations_title = "생활 인프라가 비슷한 단지"
-        recommendations_note = "카테고리 점수 유사도 + 가격대 근접 기준입니다."
+        recommendations_title = "유사 추천 단지"
+        recommendations_note = "점수 및 가격대 유사도에 따른 추천단지입니다."
 
     top_apartments = get_top_apartments(preferences)
     apartment_with_real_pois = {
