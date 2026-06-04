@@ -5293,56 +5293,6 @@ def build_explore_results(filters, limit=10):
     return results[:limit]
 
 
-def top_rows_from_baseline(rows, metric, reverse=False, limit=10, label=None):
-    items = []
-
-    for row in rows:
-        value = insight_to_number(row.get(metric))
-        if value is None:
-            continue
-        items.append({
-            "name": row.get("name", ""),
-            "gu": row.get("gu", ""),
-            "dong": row.get("dong", ""),
-            "value": value,
-            "value_label": label(value) if label else format_debug_value(value, metric),
-            "url": make_result_url(row.get("name", ""), get_preferences(), row.get("gu", ""), row.get("dong", "")),
-        })
-
-    items.sort(key=lambda item: item["value"], reverse=reverse)
-    return items[:limit]
-
-
-def build_lifestyle_ranking_sections():
-    return [
-        {
-            "title": "의료안심형 TOP 10",
-            "description": "1km 내 의료 접근성이 높은 단지",
-            "items": top_rows_from_baseline(medical_baseline_data, "medical_count_1km", reverse=True, limit=10, label=lambda v: f"{int(v):,}곳"),
-        },
-        {
-            "title": "환승역 접근 TOP 10",
-            "description": "1km 내 환승역 접근성이 좋은 단지",
-            "items": top_rows_from_baseline(subway_baseline_data, "nearest_transfer_distance", reverse=False, limit=10),
-        },
-        {
-            "title": "응급실 접근 TOP 10",
-            "description": "가까운 응급실까지의 거리가 짧은 단지",
-            "items": top_rows_from_baseline(medical_baseline_data, "nearest_emergency_distance", reverse=False, limit=10),
-        },
-        {
-            "title": "한강라이프형 TOP 10",
-            "description": "가까운 한강공원 접근성이 좋은 단지",
-            "items": top_rows_from_baseline(hangang_baseline_data, "nearest_hangang_distance", reverse=False, limit=10),
-        },
-        {
-            "title": "유흥 적은 주거형 TOP 10",
-            "description": "500m 내 유흥시설 수가 적은 단지",
-            "items": top_rows_from_baseline(nightlife_baseline_data, "nightlife_count_500m", reverse=False, limit=10, label=lambda v: f"{int(v):,}곳"),
-        },
-    ]
-
-
 @app.route("/explore")
 def explore():
     priority_args = request.args.getlist("priority")
@@ -5421,14 +5371,6 @@ def explore():
         current_price_buckets=current_price_buckets,
         price_buckets_by_type=price_buckets_by_type,
         bus_type_options=EXPLORE_BUS_TYPES,
-    )
-
-
-@app.route("/ranking")
-def ranking():
-    return render_template(
-        "ranking.html",
-        ranking_sections=build_lifestyle_ranking_sections(),
     )
 
 

@@ -3368,11 +3368,10 @@ body:not(.home-page) #resultLoadingOverlay {
     vertical-align: baseline;
 }
 
-/* v4 feature-first insight/explore/ranking */
+/* v4 feature-first insight/explore */
 .insight-panel,
 .tool-filter-card,
-.tool-results-card,
-.ranking-section-card {
+.tool-results-card {
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid #e6edf5;
     border-radius: 18px;
@@ -3577,8 +3576,7 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .tool-filter-card,
-.tool-results-card,
-.ranking-section-card {
+.tool-results-card {
     padding: 18px;
 }
 
@@ -3855,14 +3853,12 @@ body:not(.home-page) #resultLoadingOverlay {
     cursor: pointer;
 }
 
-.explore-result-list,
-.ranking-list {
+.explore-result-list {
     display: grid;
     gap: 8px;
 }
 
-.explore-result-row,
-.ranking-row {
+.explore-result-row {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -3874,8 +3870,7 @@ body:not(.home-page) #resultLoadingOverlay {
     text-decoration: none;
 }
 
-.explore-rank,
-.ranking-rank {
+.explore-rank {
     width: 28px;
     height: 28px;
     display: inline-flex;
@@ -3887,21 +3882,18 @@ body:not(.home-page) #resultLoadingOverlay {
     font-weight: 900;
 }
 
-.explore-result-main,
-.ranking-row > div {
+.explore-result-main {
     flex: 1 1 auto;
     min-width: 0;
 }
 
-.explore-result-main strong,
-.ranking-row strong {
+.explore-result-main strong {
     display: block;
     color: #111827;
     font-size: 14px;
 }
 
-.explore-result-main span,
-.ranking-row small {
+.explore-result-main span {
     display: block;
     margin-top: 2px;
     color: #64748b;
@@ -3928,19 +3920,11 @@ body:not(.home-page) #resultLoadingOverlay {
     font-weight: 700;
 }
 
-.explore-score,
-.ranking-row b {
+.explore-score {
     flex: 0 0 auto;
     color: #2563eb;
     font-size: 12px;
     font-weight: 900;
-}
-
-.ranking-board {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    margin-bottom: 32px;
 }
 
 .empty-state {
@@ -3954,7 +3938,6 @@ body:not(.home-page) #resultLoadingOverlay {
 
 @media (max-width: 900px) {
     .tool-layout,
-    .ranking-board,
     .insight-key-grid,
     .insight-support-grid {
         grid-template-columns: 1fr;
