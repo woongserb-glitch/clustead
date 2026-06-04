@@ -307,7 +307,9 @@
                             <em class="domain-badge">{{ summary.domain_label }}</em>
                             <span>{{ summary.label }}</span>
                         </div>
+                        {% if summary.key != "school-environment" %}
                         <strong class="{{ summary.score_class }}">{{ summary.score }}</strong>
+                        {% endif %}
                     </div>
 
                     <p class="detail-description">
@@ -319,7 +321,7 @@
                     <div class="detail-meta">
                         <span>반경 {{ summary.radius|distance_m }}</span>
                         <span>근처 {{ summary.count|thousands }}곳</span>
-                        {% if summary.grade %}
+                        {% if summary.grade and summary.key != "school-environment" %}
                         <span class="grade-badge grade-{{ summary.grade|lower }}">{{ summary.grade }}등급</span>
                         {% endif %}
                         <span class="source-badge">{{ summary.source }}</span>
