@@ -773,7 +773,7 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .summary-panel {
-    height: 520px;
+    min-height: 520px;
     padding: 18px;
     display: flex;
     flex-direction: column;

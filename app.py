@@ -4201,7 +4201,7 @@ def get_similar_apartments(apartment_key, category_scores, limit=5):
             "district": entry["district"],
             "dong": entry["dong"],
             "score": compute_representative_score(entry.get("category_scores") or {}),
-            "meta": format_manwon(cand_price) if cand_price else "",
+            "meta": format_manwon(cand_price) if cand_price else "최근 거래정보 없음",
             "url": make_result_url(entry["name"], {}, entry["district"], entry["dong"], src="home"),
         })
     return results
@@ -5507,7 +5507,7 @@ def result():
     else:
         recommendations = get_similar_apartments(apartment_key, base_category_scores)
         recommendations_title = "유사 추천 단지"
-        recommendations_note = "점수 및 가격대 유사도에 따른 추천단지입니다."
+        recommendations_note = "점수나 가격 유사도에 따른 추천단지입니다."
 
     top_apartments = get_top_apartments(preferences)
     apartment_with_real_pois = {
