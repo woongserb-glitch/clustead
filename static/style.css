@@ -821,6 +821,48 @@ body:not(.home-page) #resultLoadingOverlay {
     font-weight: 600;
 }
 
+.domain-grade-card {
+    background: #fff;
+    border: 1px solid #edf0f5;
+    border-radius: 18px;
+    padding: 12px;
+}
+.domain-grade-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
+}
+.domain-grade-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #475569;
+    font-weight: 700;
+    min-width: 0;
+}
+.domain-grade-chip > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.domain-grade {
+    flex: 0 0 auto;
+    margin-left: 6px;
+    min-width: 20px;
+    text-align: center;
+    border-radius: 6px;
+    padding: 1px 6px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #fff;
+}
+.grade-S { background: #7c3aed; }
+.grade-A { background: #2563eb; }
+.grade-B { background: #16a34a; }
+.grade-C { background: #d97706; }
+.grade-D { background: #94a3b8; }
+
 .lifestyle-summary-card {
     background: #fff;
     border: 1px solid #edf0f5;

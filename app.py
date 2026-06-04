@@ -26,6 +26,8 @@ from services.poi_service import (
     get_domain_summaries,
     get_preference_labels,
     get_sample_pois,
+    CATEGORY_TO_DOMAIN,
+    DOMAIN_META,
 )
 from services.kakao_local_service import get_real_pois
 from services.preload_service import load_cctv_data
@@ -4149,13 +4151,68 @@ def get_top_apartments(preferences, limit=5):
     return ranked
 
 
+# 도메인 중요도 가중치(큐레이션) — 교통·교육·생활편의를 높게, 문화·상권을 낮게.
+DOMAIN_WEIGHTS = {
+    "transport": 1.5,
+    "education": 1.5,
+    "convenience": 1.3,
+    "medical": 1.1,
+    "safety": 1.0,
+    "rest": 0.9,
+    "culture": 0.7,
+    "activity": 0.7,
+}
+
+
+def _score_to_grade(score):
+    if score >= 80:
+        return "S"
+    if score >= 65:
+        return "A"
+    if score >= 50:
+        return "B"
+    if score >= 35:
+        return "C"
+    return "D"
+
+
+def compute_domain_profile(category_scores):
+    """카테고리 서울점수를 도메인별로 묶어 평균·등급을 내고, 큐레이션 가중치로 종합
+    대표점수를 산출한다. (점수는 이미 방향 보정됨 — 유흥 등 lower_better 포함)"""
+    domain_values = {}
+    for category, score in (category_scores or {}).items():
+        if not isinstance(score, (int, float)):
+            continue
+        domain = CATEGORY_TO_DOMAIN.get(category)
+        if not domain:
+            continue
+        domain_values.setdefault(domain, []).append(score)
+
+    domains = []
+    weighted_sum = 0.0
+    weight_total = 0.0
+    for domain_key, meta in DOMAIN_META.items():
+        values = domain_values.get(domain_key)
+        if not values:
+            continue
+        domain_score = round(sum(values) / len(values))
+        weight = DOMAIN_WEIGHTS.get(domain_key, 1.0)
+        weighted_sum += domain_score * weight
+        weight_total += weight
+        domains.append({
+            "key": domain_key,
+            "label": meta["label"],
+            "score": domain_score,
+            "grade": _score_to_grade(domain_score),
+        })
+
+    representative = round(weighted_sum / weight_total) if weight_total else 0
+    return {"representative": representative, "domains": domains}
+
+
 def compute_representative_score(category_scores):
-    """전 카테고리 서울점수의 평균 = 아파트 대표점수(0~100). 점수 컬럼은 이미 방향
-    보정돼 있어(유흥 등 lower_better 포함) 단순 평균이 종합 생활점수로 의미를 가진다."""
-    values = [v for v in (category_scores or {}).values() if isinstance(v, (int, float))]
-    if not values:
-        return 0
-    return round(sum(values) / len(values))
+    """도메인 가중 종합 대표점수(0~100)."""
+    return compute_domain_profile(category_scores)["representative"]
 
 
 def _cosine_similarity(vec_a, vec_b):
@@ -5498,7 +5555,8 @@ def result():
 
     # 진입경로(home/explore)별 우측 패널 분기
     entry_src = "explore" if request.args.get("src") == "explore" else "home"
-    representative_score = compute_representative_score(base_category_scores)
+    domain_profile = compute_domain_profile(base_category_scores)
+    representative_score = domain_profile["representative"]
 
     if entry_src == "explore":
         recommendations = get_nearby_apartments(apartment)
@@ -5799,6 +5857,7 @@ def result():
         top_apartments=top_apartments,
         entry_src=entry_src,
         representative_score=representative_score,
+        domain_profile=domain_profile,
         recommendations=recommendations,
         recommendations_title=recommendations_title,
         recommendations_note=recommendations_note,

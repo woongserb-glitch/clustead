@@ -191,8 +191,21 @@
                 <div class="summary-card main-score">
                     <span>아파트 대표점수</span>
                     <strong>{{ representative_score }}</strong>
-                    <small class="main-score-note">전 카테고리 서울 상대평가를 종합한 점수</small>
+                    <small class="main-score-note">도메인 중요도 가중으로 종합한 서울 상대평가 점수</small>
                 </div>
+
+                {% if domain_profile and domain_profile.domains %}
+                <div class="domain-grade-card">
+                    <div class="domain-grade-grid">
+                        {% for d in domain_profile.domains %}
+                        <div class="domain-grade-chip">
+                            <span>{{ d.label }}</span>
+                            <b class="domain-grade grade-{{ d.grade }}">{{ d.grade }}</b>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
 
                 {% if lifestyle_summary and lifestyle_summary.strengths %}
                 <div class="lifestyle-summary-card">
