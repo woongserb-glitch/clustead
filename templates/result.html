@@ -188,14 +188,10 @@
             </div>
 
             <aside class="summary-panel">
-                <div class="summary-card main-score">
-                    <span>아파트 대표점수</span>
-                    <strong>{{ representative_score }}</strong>
-                    <small class="main-score-note">도메인 중요도 가중으로 종합한 서울 상대평가 점수</small>
-                </div>
-
                 {% if domain_profile and domain_profile.domains %}
-                <div class="domain-grade-card">
+                <div class="infra-summary-card">
+                    <div class="infra-summary-title">아파트 인프라 요약</div>
+                    <p class="infra-summary-note">도메인별 서울 상대평가 등급(S~D)입니다.</p>
                     <div class="domain-grade-grid">
                         {% for d in domain_profile.domains %}
                         <div class="domain-grade-chip">
@@ -204,19 +200,6 @@
                         </div>
                         {% endfor %}
                     </div>
-                </div>
-                {% endif %}
-
-                {% if lifestyle_summary and lifestyle_summary.strengths %}
-                <div class="lifestyle-summary-card">
-                    <div class="lifestyle-summary-title">내 라이프스타일 요약</div>
-                    <p class="lifestyle-summary-note">선호 조건으로 찾은 이 단지의 강점입니다.</p>
-                    {% for strength in lifestyle_summary.strengths %}
-                    <div class="lifestyle-strength-row">
-                        <span>{{ strength.label }}</span>
-                        <b>상위 {{ 100 - strength.percentile }}%</b>
-                    </div>
-                    {% endfor %}
                 </div>
                 {% endif %}
 

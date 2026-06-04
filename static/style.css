@@ -773,8 +773,7 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .summary-panel {
-    min-height: 520px;
-    padding: 18px;
+    height: 520px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -819,6 +818,25 @@ body:not(.home-page) #resultLoadingOverlay {
     line-height: 1.4;
     color: #9aa1ad;
     font-weight: 600;
+}
+
+.infra-summary-card {
+    flex: 0 0 auto;
+    background: #fff;
+    border: 1px solid #edf0f5;
+    border-radius: 18px;
+    padding: 14px 16px;
+}
+.infra-summary-title {
+    font-size: 13px;
+    color: #1f2937;
+    font-weight: 800;
+    margin-bottom: 2px;
+}
+.infra-summary-note {
+    font-size: 11px;
+    color: #9aa1ad;
+    margin: 0 0 10px;
 }
 
 .domain-grade-card {
@@ -914,6 +932,7 @@ body:not(.home-page) #resultLoadingOverlay {
     border-radius: 18px;
     padding: 16px;
     min-height: 0;
+    overflow-y: auto;
 }
 
 .top-list-title {
