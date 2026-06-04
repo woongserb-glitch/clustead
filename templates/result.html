@@ -312,7 +312,7 @@
                         <span>반경 {{ summary.radius|distance_m }}</span>
                         <span>근처 {{ summary.count|thousands }}곳</span>
                         {% if summary.grade %}
-                        <span class="grade-badge grade-{{ summary.grade|lower }}">{{ summary.grade }} · {{ summary.grade_text }}</span>
+                        <span class="grade-badge grade-{{ summary.grade|lower }}">{{ summary.grade }}등급</span>
                         {% endif %}
                         <span class="source-badge">{{ summary.source }}</span>
                     </div>
