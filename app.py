@@ -4163,6 +4163,33 @@ DOMAIN_WEIGHTS = {
     "activity": 0.7,
 }
 
+# 인프라 요약(도메인 등급) 표시 순서 — 아파트 가치판단 중요도 순.
+DOMAIN_ORDER = [
+    "transport", "education", "convenience", "medical",
+    "safety", "rest", "culture", "activity",
+]
+
+# 카테고리 상세 카드 표시 순서 — 생활인프라/아파트 가치판단 중요도 순.
+CATEGORY_DISPLAY_ORDER = [
+    "subway", "bus-baseline", "bus", "bike",                          # 교통
+    "school-environment", "school-zone", "academy",                  # 교육
+    "large_mart", "super_mart", "warehouse_mart", "convenience", "ev-charger",  # 생활편의
+    "hospital", "general-hospital", "emergency-room", "pharmacy",    # 의료
+    "cctv", "fire-station", "fire",                                  # 안전
+    "cafe", "park", "hangang",                                       # 휴식
+    "culture",                                                      # 문화
+    "commercial", "shopping", "nightlife",                          # 상권
+]
+_CATEGORY_ORDER_INDEX = {key: i for i, key in enumerate(CATEGORY_DISPLAY_ORDER)}
+
+
+def sort_category_summaries(summaries):
+    """카테고리 상세 카드를 중요도 순으로 정렬(미정의 키는 뒤로, 안정 정렬)."""
+    return sorted(
+        summaries,
+        key=lambda s: _CATEGORY_ORDER_INDEX.get(s.get("key"), len(CATEGORY_DISPLAY_ORDER)),
+    )
+
 
 def _score_to_grade(score):
     if score >= 80:
@@ -4191,9 +4218,10 @@ def compute_domain_profile(category_scores):
     domains = []
     weighted_sum = 0.0
     weight_total = 0.0
-    for domain_key, meta in DOMAIN_META.items():
+    for domain_key in DOMAIN_ORDER:
+        meta = DOMAIN_META.get(domain_key)
         values = domain_values.get(domain_key)
-        if not values:
+        if not meta or not values:
             continue
         domain_score = round(sum(values) / len(values))
         weight = DOMAIN_WEIGHTS.get(domain_key, 1.0)
@@ -5890,6 +5918,9 @@ def result():
     lifestyle_summary = (
         build_lifestyle_summary(category_summaries) if entry_src == "explore" else None
     )
+
+    # 카테고리 상세 카드를 가치판단 중요도 순으로 정렬(지하철·버스·교육·학원 …).
+    category_summaries = sort_category_summaries(category_summaries)
 
     return render_template(
         "result.html",
