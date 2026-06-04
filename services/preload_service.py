@@ -537,13 +537,13 @@ def load_convenience_baseline_data():
 
                 reader = csv.DictReader(file)
 
-                print(
+                preload_log(
                     f"[BASELINE] "
                     f"CONVENIENCE CSV 인코딩: "
                     f"{encoding}"
                 )
 
-                print(
+                preload_log(
                     f"[BASELINE] "
                     f"CONVENIENCE 컬럼명: "
                     f"{reader.fieldnames}"
@@ -637,13 +637,13 @@ def load_mart_baseline_data():
 
                 reader = csv.DictReader(file)
 
-                print(
+                preload_log(
                     f"[BASELINE] "
                     f"MART CSV 인코딩: "
                     f"{encoding}"
                 )
 
-                print(
+                preload_log(
                     f"[BASELINE] "
                     f"MART 컬럼명: "
                     f"{reader.fieldnames}"
@@ -737,13 +737,13 @@ def load_cafe_baseline_data():
 
                 reader = csv.DictReader(file)
 
-                print(
+                preload_log(
                     f"[BASELINE] "
                     f"CAFE CSV 인코딩: "
                     f"{encoding}"
                 )
 
-                print(
+                preload_log(
                     f"[BASELINE] "
                     f"CAFE 컬럼명: "
                     f"{reader.fieldnames}"
@@ -838,11 +838,11 @@ def load_school_zone_baseline_data():
             with open(path, encoding=encoding, newline="") as file:
                 reader = csv.DictReader(file)
 
-                print(
+                preload_log(
                     f"[BASELINE] SCHOOL ZONE CSV 인코딩: {encoding}"
                 )
 
-                print(
+                preload_log(
                     f"[BASELINE] SCHOOL ZONE 컬럼명: {reader.fieldnames}"
                 )
 
