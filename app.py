@@ -4251,14 +4251,20 @@ def get_similar_apartments(apartment_key, category_scores, limit=5):
         scored.append((combined, key, entry, cand_price))
 
     scored.sort(key=lambda item: -item[0])
+    rep_area_lookup = _representative_area_lookup()
     results = []
     for combined, key, entry, cand_price in scored[:limit]:
+        rep = rep_area_lookup.get(key)
+        if rep and rep[1]:
+            meta = f"전용 {rep[0]} · 최근 {format_manwon(rep[1])}"
+        else:
+            meta = "최근 거래정보 없음"
         results.append({
             "name": entry["name"],
             "district": entry["district"],
             "dong": entry["dong"],
             "score": compute_representative_score(entry.get("category_scores") or {}),
-            "meta": format_manwon(cand_price) if cand_price else "최근 거래정보 없음",
+            "meta": meta,
             "url": make_result_url(entry["name"], {}, entry["district"], entry["dong"], src="home"),
         })
     return results
@@ -5021,6 +5027,42 @@ def _transaction_price_lookup():
             pass
         _EXPLORE_LOOKUP_CACHE["price"] = lookup
     return _EXPLORE_LOOKUP_CACHE["price"]
+
+
+def _representative_area_lookup():
+    """{(name,gu,dong): (대표평형 라벨, 그 평형 최근 거래가 만원float)} — 거래 최다 평형 기준."""
+    if "rep_area" not in _EXPLORE_LOOKUP_CACHE:
+        limit = sys.maxsize
+        while True:
+            try:
+                csv.field_size_limit(limit)
+                break
+            except OverflowError:
+                limit = int(limit / 10)
+        lookup = {}
+        try:
+            with open("data/baseline/transaction_summary.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+                    raw = row.get("transaction_area_summary_json", "")
+                    try:
+                        items = json.loads(raw) if raw else []
+                    except Exception:
+                        items = []
+                    best = None  # (sale_count, area_label, latest_sale)
+                    for item in items:
+                        sale_count = to_int(item.get("sale_count"), 0)
+                        latest_sale = parse_optional_float(item.get("latest_sale"))
+                        if sale_count <= 0 or latest_sale is None:
+                            continue
+                        if best is None or sale_count > best[0]:
+                            best = (sale_count, clean_text(item.get("area_label", "")), latest_sale)
+                    if best:
+                        lookup[key] = (best[1], best[2])
+        except Exception:
+            pass
+        _EXPLORE_LOOKUP_CACHE["rep_area"] = lookup
+    return _EXPLORE_LOOKUP_CACHE["rep_area"]
 
 
 def _baseline_metric_lookup(cache_key, filename, column):
