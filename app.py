@@ -982,7 +982,8 @@ def format_debug_value(value, metric=""):
     number = parse_optional_float(value)
 
     if number is None:
-        return ""
+        # 숫자가 아니면(학교명 등 텍스트) 원문 그대로 표시
+        return clean_text(value)
 
     if "distance" in str(metric).lower():
         return format_distance_m(number)

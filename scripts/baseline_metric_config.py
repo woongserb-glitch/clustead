@@ -282,8 +282,6 @@ BASELINE_METRIC_CONFIG = {
         debug_columns=[
             "assigned_elementary_school",
             "assigned_elementary_distance_m",
-            "elementary_access_score",
-            "elementary_access_score_seoul_percentile",
         ],
     ),
     "transaction_summary": metric_config(
