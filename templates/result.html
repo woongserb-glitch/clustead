@@ -293,7 +293,9 @@
 
             <div class="detail-grid">
                 {% for summary in category_summaries %}
-                <div class="detail-card" data-category="{{ summary.key }}">
+                {# 마트 3그룹은 지도 오버레이가 공통 'mart' 카테고리로 저장되므로
+                   칩↔지도 연동용 data-category를 'mart'로 맞춘다(브랜드 subtype으로 필터). #}
+                <div class="detail-card" data-category="{% if summary.key in ['large_mart', 'super_mart', 'warehouse_mart'] %}mart{% else %}{{ summary.key }}{% endif %}">
                     <div class="detail-top">
                         <div>
                             <em class="domain-badge">{{ summary.domain_label }}</em>
