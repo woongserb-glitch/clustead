@@ -209,8 +209,11 @@
         }
 
         .table-wrap {
-            overflow-x: visible;
+            overflow-x: auto;
             overflow-y: visible;
+        }
+        table th, table td {
+            white-space: nowrap;
         }
 
         table {
@@ -399,11 +402,11 @@
                     <th>아파트명</th>
                     <th>구</th>
                     <th>동</th>
-                    <th>{{ primary_metric }}</th>
-                    <th>{{ selected_config.primary_percentile_column }}</th>
-                    <th>{{ selected_config.primary_score_column }}</th>
+                    <th title="{{ primary_metric }}">raw 값</th>
+                    <th title="{{ selected_config.primary_percentile_column }}">seoul_percentile</th>
+                    <th title="{{ selected_config.primary_score_column }}">seoul_score</th>
                     {% for column in selected_config.debug_columns %}
-                    <th>{{ column }}</th>
+                    <th title="{{ column }}">{{ column }}</th>
                     {% endfor %}
                 </tr>
                 </thead>
