@@ -4223,8 +4223,10 @@ body:not(.home-page) #resultLoadingOverlay {
 .compare-section-title-row {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
     flex-wrap: wrap;
+    width: 100%;
 }
 
 .compare-section-title-row h2 {
@@ -4382,6 +4384,10 @@ body:not(.home-page) #resultLoadingOverlay {
     border: 1px solid #e8eef5;
     border-radius: 16px;
     background: #ffffff;
+}
+
+.compare-category-card .section-head > div {
+    width: 100%;
 }
 
 .compare-category-head,
