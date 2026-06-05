@@ -3936,6 +3936,78 @@ body:not(.home-page) #resultLoadingOverlay {
     text-align: center;
 }
 
+.explore-scenario-list {
+    display: grid;
+    gap: 16px;
+}
+
+.explore-scenario-card {
+    border: 1px solid #e8eef5;
+    border-radius: 16px;
+    padding: 14px;
+    background: #fbfdff;
+}
+
+.explore-scenario-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: inherit;
+}
+
+.explore-scenario-icon {
+    flex: 0 0 auto;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.explore-scenario-meta {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.explore-scenario-meta strong {
+    display: block;
+    color: #111827;
+    font-size: 15px;
+}
+
+.explore-scenario-meta span {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.explore-scenario-more {
+    flex: 0 0 auto;
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.explore-scenario-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 10px 0 12px;
+}
+
+.explore-scenario-chips em {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: #eef4ff;
+    color: #2849a8;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 700;
+}
+
 @media (max-width: 900px) {
     .tool-layout,
     .insight-key-grid,

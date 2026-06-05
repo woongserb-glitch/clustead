@@ -55,7 +55,7 @@
                         <label>
                             <span>대표배정초</span>
                             <div class="autocomplete-field">
-                                <input type="text" name="assigned_elementary" value="{{ filters.assigned_elementary }}" placeholder="배정 초등학교명 검색" autocomplete="off" data-autocomplete="assigned-elementary">
+                                <input type="text" name="assigned_elementary" value="{{ filters.assigned_elementary }}" placeholder="배정 초등학교명 검색" autocomplete="off" data-autocomplete="assigned-elementary" data-require-known="true">
                             </div>
                             <p class="filter-note">※ 배정초는 대표 좌표 기준 통학구역이며, 대단지는 동별 배정학교가 달라질 수 있습니다.</p>
                         </label>
@@ -63,7 +63,7 @@
                         <label>
                             <span>중·고등학교 (1.5km 내)</span>
                             <div class="autocomplete-field">
-                                <input type="text" name="school" value="{{ filters.school }}" placeholder="중/고 학교명 검색" autocomplete="off" data-autocomplete="mid-high-school">
+                                <input type="text" name="school" value="{{ filters.school }}" placeholder="중/고 학교명 검색" autocomplete="off" data-autocomplete="mid-high-school" data-require-known="true">
                             </div>
                         </label>
                     </div>
@@ -116,7 +116,7 @@
                         <label>
                             <span>지하철역</span>
                             <div class="autocomplete-field">
-                                <input type="text" name="station" value="{{ filters.station }}" placeholder="노선 선택 후 역 검색" autocomplete="off" data-autocomplete="subway-stations" data-line-source="[data-subway-line-source]">
+                                <input type="text" name="station" value="{{ filters.station }}" placeholder="역명 검색 (예: 종합운동장)" autocomplete="off" data-autocomplete="subway-stations" data-require-known="true" data-line-source="[data-subway-line-source]">
                             </div>
                         </label>
                     </div>
@@ -136,7 +136,7 @@
                         <label>
                             <span>버스 번호</span>
                             <div class="autocomplete-field">
-                                <input type="text" name="bus_route" value="{{ filters.bus_route }}" placeholder="유형 선택 후 번호 검색 (예: 간선 472)" autocomplete="off" data-autocomplete="bus-routes" data-bus-type-source="[data-bus-type-source]">
+                                <input type="text" name="bus_route" value="{{ filters.bus_route }}" placeholder="번호 검색 (예: 472)" autocomplete="off" data-autocomplete="bus-routes" data-require-known="true" data-bus-type-source="[data-bus-type-source]">
                             </div>
                         </label>
                     </div>
@@ -170,6 +170,7 @@
             </section>
 
             <section class="tool-results-card">
+                {% if has_active_filters %}
                 <div class="section-head">
                     <div>
                         <h2>추천 결과</h2>
@@ -198,6 +199,51 @@
                     </div>
                     {% endfor %}
                 </div>
+                {% else %}
+                <div class="section-head">
+                    <div>
+                        <h2>이런 조건은 어때요?</h2>
+                        <p>원하는 조건으로 서울시 아파트를 찾아보세요.<br>학교, 학원, 지하철, 버스, 병원, 대형마트 등 조건을 조합해 찾을 수 있습니다.</p>
+                    </div>
+                </div>
+
+                <div class="explore-scenario-list">
+                    {% for s in scenarios %}
+                    <div class="explore-scenario-card">
+                        <a class="explore-scenario-head" href="{{ s.explore_url }}">
+                            <span class="explore-scenario-icon">{{ s.icon }}</span>
+                            <div class="explore-scenario-meta">
+                                <strong>{{ s.title }}</strong>
+                                <span>{{ s.desc }}</span>
+                            </div>
+                            <span class="explore-scenario-more">전체보기 →</span>
+                        </a>
+                        <div class="explore-scenario-chips">
+                            {% for chip in s.chips %}
+                            <em>{{ chip }}</em>
+                            {% endfor %}
+                        </div>
+                        <div class="explore-result-list">
+                            {% for item in s.results %}
+                            <a class="explore-result-row" href="{{ item.url }}">
+                                <div class="explore-rank">{{ loop.index }}</div>
+                                <div class="explore-result-main">
+                                    <strong>{{ item.name }}</strong>
+                                    <span>{{ item.gu }} {{ item.dong }}</span>
+                                    <div class="explore-feature-strip">
+                                        {% for feature in item.matched_features %}
+                                        <em>{{ feature }}</em>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <span class="explore-score">상세보기</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </section>
         </main>
     </div>

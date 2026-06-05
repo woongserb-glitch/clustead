@@ -5097,6 +5097,24 @@ def _bus_routes_by_type():
     return _EXPLORE_LOOKUP_CACHE["bus_routes_by_type"]
 
 
+def _apartment_station_names(subway_row):
+    """단지의 지하철 역명 집합(정규화, '역' 접미사 제거). 역명 전체 일치 비교용."""
+    names = set()
+    nearest = clean_text(subway_row.get("nearest_subway_name", "")).replace("역", "")
+    if nearest:
+        names.add(normalize_search_text(nearest))
+    raw = subway_row.get("subway_items_json", "")
+    try:
+        items = json.loads(raw) if raw else []
+    except Exception:
+        items = []
+    for item in items:
+        nm = clean_text(item.get("name", "")).replace("역", "")
+        if nm:
+            names.add(normalize_search_text(nm))
+    return names
+
+
 def build_explore_results(filters, limit=10):
     no_nightlife = bool(filters.get("no_nightlife"))
     gu_filter = clean_text(filters.get("gu", ""))
@@ -5150,8 +5168,8 @@ def build_explore_results(filters, limit=10):
             score += 3
 
         if station_filter:
-            station_text = str(subway.get("nearest_subway_name", "")) + " " + str(subway.get("subway_items_json", ""))
-            if station_filter not in station_text:
+            # 역명 전체 일치만 인정(부분 문자열 "종" 등은 제외). 단지의 실제 역명 집합과 대조.
+            if normalize_search_text(station_filter) not in _apartment_station_names(subway):
                 continue
             matched.append(f"{station_filter}역 접근")
             score += 3
@@ -5293,6 +5311,58 @@ def build_explore_results(filters, limit=10):
     return results[:limit]
 
 
+# Explore 첫 진입(필터 없음) 시 우측 패널에 노출할 추천 조합 시나리오.
+# 각 시나리오는 기존 build_explore_results 필터 조합을 그대로 재사용한다.
+EXPLORE_SCENARIOS = [
+    {
+        "icon": "📚",
+        "title": "교육 인프라 좋은 곳",
+        "desc": "영어·수학·입시 학원이 밀집한 단지",
+        "priorities": [("academy", "영어"), ("academy", "수학"), ("academy", "입시/보습")],
+    },
+    {
+        "icon": "🏥",
+        "title": "의료 접근성 우수",
+        "desc": "응급실·소아과가 가까운 단지",
+        "priorities": [("medical", "응급실"), ("medical", "소아과")],
+    },
+    {
+        "icon": "🛒",
+        "title": "생활 편의 풍부",
+        "desc": "대형마트·편의점이 가까운 단지",
+        "priorities": [("large_mart", "이마트"), ("convenience", "GS25")],
+    },
+]
+
+
+def _explore_has_active_filters(filters):
+    """사용자가 조건을 하나라도 걸었는지. 첫 진입(전부 빈 값) 판별용."""
+    if filters.get("priorities") or filters.get("area_buckets"):
+        return True
+    text_keys = ("gu", "dong", "line", "station", "no_nightlife",
+                 "assigned_elementary", "school", "price", "bus_type", "bus_route")
+    return any(clean_text(filters.get(k, "")) for k in text_keys)
+
+
+def build_explore_scenarios(limit=3):
+    """추천 조합별로 상위 단지 미니 랭킹 + /explore 전체결과 링크를 구성."""
+    scenarios = []
+    for spec in EXPLORE_SCENARIOS:
+        priorities = spec["priorities"]
+        results = build_explore_results({"priorities": priorities}, limit=limit)
+        if not results:
+            continue
+        scenarios.append({
+            "icon": spec["icon"],
+            "title": spec["title"],
+            "desc": spec["desc"],
+            "chips": [f"{SUBTYPE_SEARCH_CONFIG[cat]['icon']} {sub}" for cat, sub in priorities],
+            "explore_url": "/explore?" + urlencode([("priority", f"{cat}:{sub}") for cat, sub in priorities]),
+            "results": results,
+        })
+    return scenarios
+
+
 @app.route("/explore")
 def explore():
     priority_args = request.args.getlist("priority")
@@ -5324,7 +5394,9 @@ def explore():
         and (not filters["gu"] or clean_text(item.get("gu", "")) == filters["gu"])
     })
 
-    results = build_explore_results(filters)
+    has_active_filters = _explore_has_active_filters(filters)
+    results = build_explore_results(filters) if has_active_filters else []
+    scenarios = [] if has_active_filters else build_explore_scenarios()
 
     # 가격 거래유형 정규화(템플릿 선택 상태/구간 표시용)
     price_type = clean_text(filters["price_type"]) or "trade"
@@ -5361,6 +5433,8 @@ def explore():
         "explore.html",
         filters=filters,
         results=results,
+        has_active_filters=has_active_filters,
+        scenarios=scenarios,
         gu_options=gu_options,
         dong_options=dong_options,
         subway_line_options=get_subway_line_options(),

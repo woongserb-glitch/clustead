@@ -71,16 +71,25 @@ function setupExploreLoading() {
     if (!form) {
         return;
     }
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
         if (!hasExploreSearchCriteria(form)) {
-            event.preventDefault();
             hidePageLoading();
             setExploreSubmitFeedback(form, true);
             form.querySelector("#exploreSubmitFeedback")?.scrollIntoView({ block: "nearest" });
             return;
         }
-        setExploreSubmitFeedback(form, false);
         showPageLoading();
+        // 자유 입력 차단(지하철역·버스번호 등): 후보와 정확히 일치하는 값만 탐색 허용.
+        const requireKnown = form.querySelectorAll('[data-autocomplete][data-require-known="true"]');
+        for (const input of requireKnown) {
+            if (!(await ensureKnownAutocomplete(input))) {
+                hidePageLoading();
+                return;
+            }
+        }
+        setExploreSubmitFeedback(form, false);
+        form.submit();
     });
 }
 
@@ -404,6 +413,45 @@ function setupAutocomplete() {
             closeAllAutocomplete();
         }
     });
+}
+
+function flagAutocompleteInvalid(input, message) {
+    input.classList.add("autocomplete-invalid");
+    input.setCustomValidity(message || "목록에서 검색 가능한 항목을 선택해주세요.");
+    input.reportValidity();
+    window.setTimeout(() => {
+        input.setCustomValidity("");
+        input.classList.remove("autocomplete-invalid");
+    }, 1800);
+}
+
+// 자유 입력 차단: 자동완성에서 고른 값이거나, 후보와 정확히 일치하는 텍스트만 통과.
+// (예: 지하철역에 "종" 한 글자 입력 후 탐색 → 차단)
+async function ensureKnownAutocomplete(input) {
+    const value = input.value.trim();
+    if (!value) return true;                          // 선택형 조건: 비워두면 통과
+    if (input.dataset.selectedValue === value) return true;
+
+    const endpoint = autocompleteEndpoint(input, value);
+    if (!endpoint) return true;
+
+    try {
+        const response = await fetch(endpoint);
+        const payload = await response.json();
+        const exact = (payload.items || []).find(
+            (item) => item.value === value || item.label === value
+        );
+        if (exact) {
+            input.value = exact.value || exact.label;
+            input.dataset.selectedValue = input.value;
+            return true;
+        }
+    } catch (error) {
+        return true;                                  // 네트워크 오류 시 탐색을 막지 않음
+    }
+
+    flagAutocompleteInvalid(input);
+    return false;
 }
 
 async function ensureKnownApartment(form) {
