@@ -5379,13 +5379,13 @@ body:not(.home-page) #resultLoadingOverlay {
     }
 
     .home-page .home-hero-stage {
-        grid-template-columns: minmax(390px, 0.82fr) minmax(360px, 1fr);
-        min-height: 390px;
-        padding: 30px 0 22px;
+        grid-template-columns: minmax(590px, 0.96fr) minmax(430px, 1fr);
+        min-height: 440px;
+        padding: 30px 0 26px;
     }
 
     .home-page .home-hero-inner {
-        width: min(510px, 100%);
+        width: min(590px, 100%);
     }
 
     .home-page .home-badge {
@@ -5395,12 +5395,23 @@ body:not(.home-page) #resultLoadingOverlay {
 
     .home-page .home-hero h1 {
         margin-bottom: 14px;
-        font-size: clamp(36px, 3.8vw, 48px);
-        line-height: 1.16;
+        font-size: clamp(38px, 3.4vw, 51px);
+        line-height: 1.18;
+    }
+
+    .home-page .home-title-line {
+        display: block;
+        color: #0f172a;
+        white-space: nowrap;
+    }
+
+    .home-page .home-title-line strong {
+        color: #2563eb;
+        font-weight: inherit;
     }
 
     .home-page .home-hero p {
-        max-width: 450px;
+        max-width: 500px;
         font-size: 14px;
         line-height: 1.65;
     }
@@ -5410,7 +5421,7 @@ body:not(.home-page) #resultLoadingOverlay {
     }
 
     .home-page .home-search-row {
-        width: min(530px, 100%);
+        width: min(500px, 100%);
         margin-bottom: 14px;
         box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
     }
@@ -5426,13 +5437,13 @@ body:not(.home-page) #resultLoadingOverlay {
     }
 
     .home-page .home-visual {
-        min-height: 330px;
+        min-height: 360px;
     }
 
     .home-page .home-skyline {
-        right: -16px;
-        bottom: -8px;
-        width: min(610px, 50vw);
+        right: -8px;
+        bottom: -10px;
+        width: min(640px, 48vw);
     }
 
     .home-page .home-floating-card {
@@ -5442,28 +5453,28 @@ body:not(.home-page) #resultLoadingOverlay {
     }
 
     .home-page .home-floating-card.education {
-        top: 42px;
+        top: 74px;
         left: 28%;
     }
 
     .home-page .home-floating-card.transit {
-        top: 66px;
-        right: 5%;
+        top: 98px;
+        right: 4%;
     }
 
     .home-page .home-floating-card.medical {
-        top: 166px;
-        left: 11%;
+        top: 196px;
+        left: 6%;
     }
 
     .home-page .home-floating-card.convenience {
-        right: 1%;
-        bottom: 70px;
+        right: 0;
+        bottom: 78px;
     }
 
     .home-page .home-floating-card.price {
-        left: 23%;
-        bottom: 26px;
+        left: 20%;
+        bottom: 34px;
     }
 
     .home-page .home-entry-grid {
@@ -5515,6 +5526,11 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 @media (max-width: 760px) {
+    .home-page .home-title-line {
+        display: inline;
+        white-space: normal;
+    }
+
     .home-page .home-hero h1 {
         font-size: 32px;
     }
