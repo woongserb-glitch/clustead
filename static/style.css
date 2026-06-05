@@ -243,6 +243,33 @@ body:not(.home-page) #resultLoadingOverlay {
     text-underline-offset: 4px;
 }
 
+.home-action-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 0;
+    flex-wrap: wrap;
+}
+
+.home-action-links a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0 18px;
+    border-radius: 999px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.home-action-links a:hover {
+    background: #000000;
+}
+
 .home-city-illustration {
     width: min(680px, 80vw);
     margin: clamp(34px, 7vh, 62px) auto 0;
