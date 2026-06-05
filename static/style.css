@@ -206,6 +206,25 @@ body:not(.home-page) #resultLoadingOverlay {
     box-shadow: 0 14px 28px rgba(17, 24, 39, 0.16);
 }
 
+.home-row-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 104px;
+    height: 62px;
+    border-radius: 14px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 850;
+    text-decoration: none;
+    box-shadow: 0 14px 28px rgba(17, 24, 39, 0.12);
+}
+
+.home-row-action:hover {
+    background: #000000;
+}
+
 .home-quick-search {
     gap: 13px;
     margin-bottom: 0;
@@ -241,33 +260,6 @@ body:not(.home-page) #resultLoadingOverlay {
     color: #111827;
     text-decoration: underline;
     text-underline-offset: 4px;
-}
-
-.home-action-links {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 0;
-    flex-wrap: wrap;
-}
-
-.home-action-links a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 36px;
-    padding: 0 18px;
-    border-radius: 999px;
-    background: #111827;
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 850;
-    text-decoration: none;
-}
-
-.home-action-links a:hover {
-    background: #000000;
 }
 
 .home-city-illustration {
@@ -314,7 +306,7 @@ body:not(.home-page) #resultLoadingOverlay {
 
 .home-search-row {
     gap: 8px;
-    margin-bottom: 26px;
+    margin-bottom: 18px;
 }
 
 .home-search-row input {
@@ -323,6 +315,10 @@ body:not(.home-page) #resultLoadingOverlay {
 
 .home-search-row > button {
     width: 120px;
+}
+
+.home-row-action {
+    width: 104px;
 }
 
 .home-quick-search {
@@ -580,6 +576,33 @@ body:not(.home-page) #resultLoadingOverlay {
 .quick-search button:hover {
     border-color: #111;
     color: #111;
+}
+
+.home-search-row {
+    align-items: stretch;
+}
+
+.home-search-row .autocomplete-field {
+    max-width: 428px;
+}
+
+.home-search-row > button,
+.home-row-action {
+    flex: 0 0 auto;
+    width: 104px;
+    height: 52px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 850;
+}
+
+.home-search-row > button {
+    background: #111827;
+    box-shadow: 0 14px 28px rgba(17, 24, 39, 0.16);
+}
+
+.home-row-action {
+    box-shadow: 0 14px 28px rgba(17, 24, 39, 0.12);
 }
 
 .preference-panel,
@@ -2550,6 +2573,14 @@ body:not(.home-page) #resultLoadingOverlay {
     }
 
     .search-row > button {
+        width: 100%;
+    }
+
+    .home-search-row .autocomplete-field {
+        max-width: none;
+    }
+
+    .home-row-action {
         width: 100%;
     }
 
