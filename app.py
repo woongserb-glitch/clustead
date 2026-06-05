@@ -5344,8 +5344,16 @@ def _explore_has_active_filters(filters):
     return any(clean_text(filters.get(k, "")) for k in text_keys)
 
 
+_EXPLORE_SCENARIOS_CACHE = None
+
+
 def build_explore_scenarios(limit=3):
-    """추천 조합별로 상위 단지 미니 랭킹 + /explore 전체결과 링크를 구성."""
+    """추천 조합별로 상위 단지 미니 랭킹 + /explore 전체결과 링크를 구성.
+    첫 진입 시나리오는 요청과 무관하게 동일하므로 1회 계산 후 메모이즈한다."""
+    global _EXPLORE_SCENARIOS_CACHE
+    if _EXPLORE_SCENARIOS_CACHE is not None:
+        return _EXPLORE_SCENARIOS_CACHE
+
     scenarios = []
     for spec in EXPLORE_SCENARIOS:
         priorities = spec["priorities"]
@@ -5360,6 +5368,7 @@ def build_explore_scenarios(limit=3):
             "explore_url": "/explore?" + urlencode([("priority", f"{cat}:{sub}") for cat, sub in priorities]),
             "results": results,
         })
+    _EXPLORE_SCENARIOS_CACHE = scenarios
     return scenarios
 
 
@@ -6018,6 +6027,22 @@ def result_export_xlsx():
             "Content-Disposition": f"attachment; filename=LiveFit_report.xlsx; filename*=UTF-8''{fallback}",
         },
     )
+
+
+def _warm_explore_caches():
+    """기동 시 Explore 첫 진입에 필요한 무거운 lookup(학원·의료 등)을 미리 만들고
+    추천 시나리오를 메모이즈한다. 콜드 첫 요청의 ~3초 지연을 기동 시점으로 이동."""
+    import time
+    start = time.perf_counter()
+    try:
+        with app.test_request_context("/explore"):
+            build_explore_scenarios()
+        print(f"[WARMUP] explore scenarios {(time.perf_counter() - start) * 1000:.0f}ms 완료")
+    except Exception as exc:
+        print(f"[WARMUP] explore scenarios 실패: {exc}")
+
+
+_warm_explore_caches()
 
 
 if __name__ == "__main__":
