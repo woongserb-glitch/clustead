@@ -1,0 +1,202 @@
+{# 상세 점수 카드 공용 매크로 — result.html / compare.html 공유(드리프트 방지).
+   detail_card_head: 점수·설명·메타·최근접·서브타입칩
+   poi_list_items: 카테고리별 POI <li> 목록(스크롤 박스 안에 넣어 사용) #}
+
+{% macro detail_card_head(summary) -%}
+<div class="detail-top">
+    <div>
+        <em class="domain-badge">{{ summary.domain_label }}</em>
+        <span>{{ summary.label }}</span>
+    </div>
+    {% if summary.key != "school-environment" %}
+    <strong class="{{ summary.score_class }}">{{ summary.score }}</strong>
+    {% endif %}
+</div>
+
+<p class="detail-description">
+    {%- for line in summary.description | description_lines -%}
+    <span class="description-sentence">{{ line }}</span>{% if not loop.last %} {% endif %}
+    {%- endfor -%}
+</p>
+
+<div class="detail-meta">
+    <span>반경 {{ summary.radius|distance_m }}</span>
+    <span>근처 {{ summary.count|thousands }}곳</span>
+    {% if summary.grade and summary.key != "school-environment" %}
+    <span class="grade-badge grade-{{ summary.grade|lower }}">{{ summary.grade }}등급</span>
+    {% endif %}
+    <span class="source-badge">{{ summary.source }}</span>
+</div>
+
+{% if summary.nearest_poi %}
+<div class="nearest-poi">
+    최근접:
+    {% if summary.nearest_icon %}
+    <span class="nearest-poi-icon">{{ summary.nearest_icon }}</span>
+    {% endif %}
+    <strong>{{ summary.nearest_poi.label | nearest_display_label(summary.key) }}</strong>
+    · {{ summary.nearest_poi.distance|distance_m }}
+</div>
+{% endif %}
+
+{% if summary.subtype_chips %}
+<div class="subtype-chips">
+    {% for chip in summary.subtype_chips %}
+    <button class="subtype-chip {{ chip.style }}" data-subtype="{{ chip.name }}" title="{{ chip.name }}">
+        {{ chip.display }} {{ chip.count }}
+        {% if chip.nearest_distance %}
+        <small>{{ chip.nearest_distance|distance_m }}</small>
+        {% endif %}
+    </button>
+    {% endfor %}
+</div>
+{% endif %}
+{%- endmacro %}
+
+
+{% macro poi_list_items(summary) -%}
+{% if summary.pois %}
+{% for poi in summary.pois %}
+<li
+    data-subtype="{{ poi.subtype }}"
+    {% if poi.subtypes %}
+    data-subtypes='{{ poi.subtypes | tojson | safe }}'
+    {% endif %}
+    {% if summary.key == "shopping" and poi.subtype not in ["백화점", "쇼핑몰", "전문점"] %}
+    style="display:none;"
+    {% endif %}
+>
+    <div class="poi-list-row">
+        <span class="poi-list-name">
+            {% if summary.key == "subway" %}
+            <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                {{ poi.label | poi_list_display_label(summary.key) }}
+            </span>
+
+            {% if poi.is_transfer %}
+            <span class="subway-transfer-meta">환승역</span>
+            {% endif %}
+
+            {% elif summary.key == "bus-baseline" and poi.subtype %}
+            <span class="bus-route-badge bus-chip-{{ poi.subtype }}">
+                {{ poi.subtype }}
+            </span>
+            {{ poi.label | poi_list_display_label(summary.key) }}
+
+            {% elif summary.key == "fire-station" and poi.subtype %}
+            <span class="bus-route-badge fire-chip-{{ poi.subtype }}">
+                {{ poi.subtype }}
+            </span>
+            {{ poi.label | poi_list_display_label(summary.key) }}
+
+            {% elif summary.key == "commercial" and poi.subtype %}
+            <span class="bus-route-badge commercial-chip-{{ poi.subtype }}">
+                {{ poi.subtype }}
+            </span>
+            {{ poi.label | poi_list_display_label(summary.key) }}
+
+            {% elif summary.key == "shopping" %}
+            {% if poi.subtype in ["백화점", "쇼핑몰", "전문점"] %}
+            <span class="bus-route-badge shopping-chip-{{ poi.subtype }}">
+                {{ poi.subtype }}
+            </span>
+            {% endif %}
+
+            {{ poi.label | poi_list_display_label(summary.key) }}
+
+            {% elif summary.key == "academy" and poi.subtype %}
+            <span class="bus-route-badge academy-chip-{{ poi.subtype }}">
+                {{ poi.subtype }}
+            </span>
+            {{ poi.label | poi_list_display_label(summary.key) }}
+
+            {% elif summary.key == "school-environment" and poi.subtype %}
+            <span class="bus-route-badge school-chip-{{ poi.subtype }}">
+                {{ poi.subtype }}
+            </span>
+            {{ poi.label | poi_list_display_label(summary.key) }}
+
+            {% elif summary.key == "culture" and poi.subtype %}
+            <span class="bus-route-badge culture-chip-{{ poi.subtype }}">
+                {{ poi.subtype }}
+            </span>
+            <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                {{ poi.label | poi_list_display_label(summary.key) }}
+            </span>
+
+            {% elif summary.key == "pharmacy" %}
+            <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                {{ poi.label | poi_list_display_label(summary.key) }}
+            </span>
+            {% set pharmacy_order = ["야간", "주말", "휴일"] %}
+            {% set pharmacy_meta = namespace(tags=[]) %}
+            {% for tag in pharmacy_order %}
+                {% if poi.subtypes and tag in poi.subtypes %}
+                    {% set pharmacy_meta.tags = pharmacy_meta.tags + [tag] %}
+                {% endif %}
+            {% endfor %}
+            {% if pharmacy_meta.tags %}
+            <span class="pharmacy-operating-summary">
+                <span class="pharmacy-operating-bracket">[</span>{% for tag in pharmacy_meta.tags %}<span class="pharmacy-operating-tag pharmacy-operating-{{ tag }}">{{ tag }}</span>{% if not loop.last %}<span class="pharmacy-operating-separator"> · </span>{% endif %}{% endfor %}<span class="pharmacy-operating-bracket">]</span>
+            </span>
+            {% endif %}
+
+            {% elif summary.key == "general-hospital" %}
+            <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                {{ poi.label | poi_list_display_label(summary.key) }}
+            </span>
+
+            {% elif summary.key == "emergency-room" %}
+            <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                {{ poi.label | poi_list_display_label(summary.key) }}
+            </span>
+
+            {% elif summary.is_medical_public_summary and poi.subtype %}
+            <span class="bus-route-badge medical-chip-{{ poi.subtype }}">
+                {{ poi.subtype }}
+            </span>
+            <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                {{ poi.label | poi_list_display_label(summary.key) }}
+            </span>
+
+            {% elif summary.key == "hangang" %}
+            <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                {{ poi.label | poi_list_display_label(summary.key) }}
+            </span>
+
+            {% if poi.facility_tags %}
+            <span class="hangang-facility-tags">
+                {{ poi.facility_tags }}
+            </span>
+            {% endif %}
+
+            {% elif summary.key == "ev-charger" %}
+            <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                {{ poi.label | poi_list_display_label(summary.key) }}
+            </span>
+            {% if poi.charger_summary %}
+            <span class="ev-charger-summary">
+                <span class="ev-charger-bracket">[</span><span class="ev-charger-fast-text">급속 {{ poi.charger_fast_count }}</span><span class="ev-charger-separator"> · </span><span class="ev-charger-slow-text">완속 {{ poi.charger_slow_count }}</span><span class="ev-charger-bracket">]</span>
+            </span>
+            {% endif %}
+
+            {% elif summary.key == "cctv" %}
+            <span class="poi-label-text" title="{{ poi.label | poi_list_display_label(summary.key) }}">
+                {{ poi.label | poi_list_display_label(summary.key) }}
+            </span>
+
+            {% else %}
+            {{ poi.label | poi_list_display_label(summary.key) }}
+            {% endif %}
+        </span>
+
+        {% if poi.distance %}
+        <small class="poi-list-distance">{{ poi.distance|distance_m }}</small>
+        {% endif %}
+    </div>
+</li>
+{% endfor %}
+{% else %}
+<li>{{ summary.empty }}</li>
+{% endif %}
+{%- endmacro %}

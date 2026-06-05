@@ -2498,6 +2498,11 @@ body:not(.home-page) #resultLoadingOverlay {
         height: 56px;
     }
 
+    .compare-search-slot input[type="text"],
+    .compare-search-grid .compare-submit {
+        height: 56px;
+    }
+
     .home-note {
         margin-top: 20px;
         text-align: left;
@@ -4101,8 +4106,8 @@ body:not(.home-page) #resultLoadingOverlay {
 
 .compare-search-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 120px;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 124px;
+    align-items: end;
     gap: 12px;
 }
 
@@ -4118,6 +4123,7 @@ body:not(.home-page) #resultLoadingOverlay {
     width: 100%;
 }
 
+/* 홈 검색 입력의 실제 렌더값과 동일(.search-row input이 .home-search-row를 덮어 52px). */
 .compare-search-slot input[type="text"] {
     width: 100%;
     height: 52px;
@@ -4135,13 +4141,20 @@ body:not(.home-page) #resultLoadingOverlay {
     border-color: #111827;
 }
 
+/* 홈 검색 버튼과 동일한 높이감. */
+.compare-search-grid .compare-submit {
+    height: 62px;
+    border-radius: 14px;
+    font-size: 15px;
+}
+
 .compare-vs {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 38px;
     height: 38px;
-    margin-top: 22px;
+    margin-bottom: 12px;
     border-radius: 999px;
     background: #111827;
     color: #ffffff;
@@ -4261,6 +4274,7 @@ body:not(.home-page) #resultLoadingOverlay {
     color: #64748b;
     font-size: 11px;
     line-height: 1.35;
+    font-weight: 400;
 }
 
 .compare-area-mix {
@@ -4283,23 +4297,61 @@ body:not(.home-page) #resultLoadingOverlay {
 
 .compare-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 12px 0;   /* 열 사이 간격 → 가로 구분선이 열별로 끊김 */
     font-size: 13px;
 }
 
 .compare-table th,
 .compare-table td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #eef2f7;
+    padding: 11px 6px;
     text-align: center;
     vertical-align: middle;
+}
+
+/* 각 항목 행을 가로 구분선으로 분리하되, 열별로 끊어 3개 열이 구분되게.
+   항목 열(th) 포함, 맨 위/맨 아래 줄도 표시. */
+.compare-table tbody th,
+.compare-table tbody td {
+    border-bottom: 1px solid #e3e8f0;
+}
+
+/* 값 셀(단지 A/B 데이터)은 볼드. 날짜 등 보조 텍스트(small)는 제외. */
+.compare-table tbody td {
+    font-weight: 700;
+    color: #111827;
+}
+
+.compare-table tbody tr:first-child th,
+.compare-table tbody tr:first-child td {
+    border-top: 1px solid #e3e8f0;
 }
 
 .compare-table thead th {
     color: #334155;
     font-size: 12px;
     font-weight: 900;
-    background: #f8fafc;
+    background: transparent;
+}
+
+/* 기본 정보 헤더의 단지 A/B를 카테고리 헤더(.compare-category-head)와 동일한 박스로. */
+.compare-info-head th {
+    padding: 0 0 6px;
+    background: transparent;
+    border-bottom: 0;
+    vertical-align: bottom;
+}
+
+.compare-info-head th span {
+    display: block;
+    padding: 12px 14px;
+    border: 1px solid #e8eef5;
+    border-radius: 12px;
+    background: #f5f7fa;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
 }
 
 .compare-table .compare-row-label {
@@ -4414,7 +4466,7 @@ body:not(.home-page) #resultLoadingOverlay {
     padding: 12px 14px;
     border: 1px solid #e8eef5;
     border-radius: 12px;
-    background: rgba(248, 250, 252, 0.96);
+    background: #f5f7fa;
     text-align: center;
 }
 
