@@ -5312,25 +5312,46 @@ def build_explore_results(filters, limit=10):
 
 
 # Explore 첫 진입(필터 없음) 시 우측 패널에 노출할 추천 조합 시나리오.
+# 조건을 한 단계씩 누적해 "여러 조건을 조합하며 탐색을 고도화"하는 흐름을 시연한다.
 # 각 시나리오는 기존 build_explore_results 필터 조합을 그대로 재사용한다.
+_SCENARIO_ACADEMY = [("academy", "영어"), ("academy", "수학"), ("academy", "입시/보습")]
+
 EXPLORE_SCENARIOS = [
     {
+        "step": "STEP 1",
         "icon": "📚",
-        "title": "교육 인프라 좋은 곳",
-        "desc": "영어·수학·입시 학원이 밀집한 단지",
-        "priorities": [("academy", "영어"), ("academy", "수학"), ("academy", "입시/보습")],
+        "title": "한 가지 조건으로 시작",
+        "desc": "먼저 학원이 밀집한 단지부터 추려봅니다.",
+        "chips": ["📚 영어", "📚 수학", "📚 입시/보습"],
+        "filters": {"priorities": _SCENARIO_ACADEMY},
     },
     {
-        "icon": "🏥",
-        "title": "의료 접근성 우수",
-        "desc": "응급실·소아과가 가까운 단지",
-        "priorities": [("medical", "응급실"), ("medical", "소아과")],
+        "step": "STEP 2",
+        "icon": "📍",
+        "title": "지역·주거환경 더하기",
+        "desc": "노원구 + 조용한 주거(유흥시설 없음)로 좁힙니다.",
+        "chips": ["📍 노원구", "🍺 유흥시설 없음", "📚 영어·수학·입시"],
+        "filters": {
+            "gu": "노원구",
+            "no_nightlife": "1",
+            "priorities": _SCENARIO_ACADEMY,
+        },
     },
     {
-        "icon": "🛒",
-        "title": "생활 편의 풍부",
-        "desc": "대형마트·편의점이 가까운 단지",
-        "priorities": [("large_mart", "이마트"), ("convenience", "GS25")],
+        "step": "STEP 3",
+        "icon": "💰",
+        "title": "예산·평형까지 맞추기",
+        "desc": "전용면적과 매매가까지 더해 정밀하게 탐색합니다.",
+        "chips": ["📍 노원구", "🍺 유흥시설 없음", "📚 영어·수학·입시",
+                  "📐 전용 60~85㎡", "💰 매매 10억 이하"],
+        "filters": {
+            "gu": "노원구",
+            "no_nightlife": "1",
+            "priorities": _SCENARIO_ACADEMY,
+            "area_buckets": ["60_85"],
+            "price_type": "trade",
+            "price": "u100000",
+        },
     },
 ]
 
@@ -5347,6 +5368,22 @@ def _explore_has_active_filters(filters):
 _EXPLORE_SCENARIOS_CACHE = None
 
 
+def _scenario_query(filters):
+    """시나리오 필터 묶음 → /explore 쿼리 파라미터(클릭 시 동일 조건 재현)."""
+    params = []
+    for key in ("gu", "dong", "line", "station", "assigned_elementary",
+                "school", "bus_type", "bus_route", "price_type", "price",
+                "no_nightlife"):
+        value = filters.get(key)
+        if value:
+            params.append((key, value))
+    for cat, sub in filters.get("priorities", []):
+        params.append(("priority", f"{cat}:{sub}"))
+    for bucket in filters.get("area_buckets", []):
+        params.append(("area", bucket))
+    return params
+
+
 def build_explore_scenarios(limit=3):
     """추천 조합별로 상위 단지 미니 랭킹 + /explore 전체결과 링크를 구성.
     첫 진입 시나리오는 요청과 무관하게 동일하므로 1회 계산 후 메모이즈한다."""
@@ -5356,16 +5393,17 @@ def build_explore_scenarios(limit=3):
 
     scenarios = []
     for spec in EXPLORE_SCENARIOS:
-        priorities = spec["priorities"]
-        results = build_explore_results({"priorities": priorities}, limit=limit)
+        filters = spec["filters"]
+        results = build_explore_results(filters, limit=limit)
         if not results:
             continue
         scenarios.append({
+            "step": spec.get("step", ""),
             "icon": spec["icon"],
             "title": spec["title"],
             "desc": spec["desc"],
-            "chips": [f"{SUBTYPE_SEARCH_CONFIG[cat]['icon']} {sub}" for cat, sub in priorities],
-            "explore_url": "/explore?" + urlencode([("priority", f"{cat}:{sub}") for cat, sub in priorities]),
+            "chips": spec["chips"],
+            "explore_url": "/explore?" + urlencode(_scenario_query(filters)),
             "results": results,
         })
     _EXPLORE_SCENARIOS_CACHE = scenarios

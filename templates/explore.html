@@ -204,8 +204,8 @@
                 {% else %}
                 <div class="section-head">
                     <div>
-                        <h2>이런 조건은 어때요?</h2>
-                        <p>원하는 조건으로 서울시 아파트를 찾아보세요.<br>학교, 학원, 지하철, 버스, 병원, 대형마트 등 조건을 조합해 찾을 수 있습니다.</p>
+                        <h2>조건을 더할수록 정밀해집니다</h2>
+                        <p>원하는 조건으로 서울시 아파트를 찾아보세요.<br>학원·지역·주거환경·예산 등 조건을 하나씩 더하며 탐색을 좁혀가는 예시입니다.</p>
                     </div>
                 </div>
 
@@ -215,6 +215,7 @@
                         <a class="explore-scenario-head" href="{{ s.explore_url }}">
                             <span class="explore-scenario-icon">{{ s.icon }}</span>
                             <div class="explore-scenario-meta">
+                                {% if s.step %}<span class="explore-scenario-step">{{ s.step }}</span>{% endif %}
                                 <strong>{{ s.title }}</strong>
                                 <span>{{ s.desc }}</span>
                             </div>

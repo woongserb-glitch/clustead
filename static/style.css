@@ -4001,6 +4001,18 @@ body:not(.home-page) #resultLoadingOverlay {
     min-width: 0;
 }
 
+.explore-scenario-step {
+    display: inline-block;
+    margin-bottom: 3px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+}
+
 .explore-scenario-meta strong {
     display: block;
     color: #111827;
