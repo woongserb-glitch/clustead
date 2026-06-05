@@ -4234,6 +4234,22 @@ body:not(.home-page) #resultLoadingOverlay {
     color: #111827;
 }
 
+.compare-transaction-value {
+    display: grid;
+    gap: 3px;
+}
+
+.compare-transaction-value strong {
+    color: #111827;
+    font-size: 13px;
+}
+
+.compare-transaction-value small {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
 .compare-table {
     width: 100%;
     border-collapse: collapse;
@@ -4331,6 +4347,74 @@ body:not(.home-page) #resultLoadingOverlay {
     text-decoration: none;
 }
 
+.compare-category-card {
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px solid #e8eef5;
+    border-radius: 16px;
+    background: #ffffff;
+}
+
+.compare-category-head,
+.compare-card-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.compare-category-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(248, 250, 252, 0.96);
+    color: #111827;
+    font-size: 13px;
+}
+
+.compare-category-head strong:last-child {
+    text-align: right;
+}
+
+.compare-card-pairs {
+    display: grid;
+    gap: 12px;
+}
+
+.compare-card-pair {
+    align-items: stretch;
+}
+
+.compare-detail-card.detail-card {
+    max-height: none;
+    min-height: 0;
+    border-radius: 16px;
+}
+
+.compare-detail-card.compare-card-win {
+    border-color: #93c5fd;
+    background: #f8fbff;
+}
+
+.compare-poi-details {
+    margin-top: 8px;
+}
+
+.compare-poi-details summary {
+    cursor: pointer;
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+    list-style-position: inside;
+}
+
+.compare-poi-details .poi-list-scroll {
+    margin-top: 8px;
+    max-height: 190px;
+}
+
 .compare-empty {
     padding: 40px 22px;
     text-align: center;
@@ -4420,5 +4504,14 @@ body:not(.home-page) #resultLoadingOverlay {
 
     .compare-submit {
         margin-top: 0;
+    }
+
+    .compare-category-head,
+    .compare-card-pair {
+        grid-template-columns: 1fr;
+    }
+
+    .compare-category-head strong:last-child {
+        text-align: left;
     }
 }

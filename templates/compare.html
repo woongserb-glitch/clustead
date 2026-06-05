@@ -9,6 +9,85 @@
 </head>
 
 <body>
+    {% macro compare_detail_card(summary, winner) -%}
+    <div class="detail-card compare-detail-card {% if winner %}compare-card-win{% endif %}"
+        data-category="{% if summary.key in ['large_mart', 'super_mart', 'warehouse_mart'] %}mart{% else %}{{ summary.key }}{% endif %}">
+        <div class="detail-top">
+            <div>
+                <em class="domain-badge">{{ summary.domain_label }}</em>
+                <span>{{ summary.label }}</span>
+            </div>
+            {% if summary.key != "school-environment" %}
+            <strong class="{{ summary.score_class }}">{{ summary.score }}</strong>
+            {% endif %}
+        </div>
+
+        <p class="detail-description">
+            {%- for line in summary.description | description_lines -%}
+            <span class="description-sentence">{{ line }}</span>{% if not loop.last %} {% endif %}
+            {%- endfor -%}
+        </p>
+
+        <div class="detail-meta">
+            <span>반경 {{ summary.radius|distance_m }}</span>
+            <span>근처 {{ summary.count|thousands }}곳</span>
+            {% if summary.grade and summary.key != "school-environment" %}
+            <span class="grade-badge grade-{{ summary.grade|lower }}">{{ summary.grade }}등급</span>
+            {% endif %}
+            <span class="source-badge">{{ summary.source }}</span>
+        </div>
+
+        {% if summary.nearest_poi %}
+        <div class="nearest-poi">
+            최근접
+            {% if summary.nearest_icon %}
+            <span class="nearest-poi-icon">{{ summary.nearest_icon }}</span>
+            {% endif %}
+            <strong>{{ summary.nearest_poi.label | nearest_display_label(summary.key) }}</strong>
+            · {{ summary.nearest_poi.distance|distance_m }}
+        </div>
+        {% endif %}
+
+        {% if summary.subtype_chips %}
+        <div class="subtype-chips">
+            {% for chip in summary.subtype_chips %}
+            <button class="subtype-chip {{ chip.style }}" data-subtype="{{ chip.name }}" title="{{ chip.name }}">
+                {{ chip.display }} {{ chip.count }}
+                {% if chip.nearest_distance %}
+                <small>{{ chip.nearest_distance|distance_m }}</small>
+                {% endif %}
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <details class="compare-poi-details">
+            <summary>상세 목록 보기</summary>
+            <ul class="poi-list-scroll">
+                {% if summary.pois %}
+                {% for poi in summary.pois %}
+                <li>
+                    <div class="poi-list-row">
+                        <span class="poi-list-name">
+                            {% if poi.subtype %}
+                            <span class="bus-route-badge">{{ poi.subtype }}</span>
+                            {% endif %}
+                            {{ poi.label | poi_list_display_label(summary.key) }}
+                        </span>
+                        {% if poi.distance %}
+                        <small class="poi-list-distance">{{ poi.distance|distance_m }}</small>
+                        {% endif %}
+                    </div>
+                </li>
+                {% endfor %}
+                {% else %}
+                <li>{{ summary.empty }}</li>
+                {% endif %}
+            </ul>
+        </details>
+    </div>
+    {%- endmacro %}
+
     <div class="page">
         <header class="tool-hero">
             <a class="back-link" href="/">← 홈으로</a>
@@ -85,12 +164,12 @@
                 <tbody>
                     {% set info_rows = [
                         ('🏢 세대수', ctx_a.complex_info.households, ctx_b.complex_info.households),
+                        ('📐 전용면적 구성', ctx_a.complex_info.area_mix, ctx_b.complex_info.area_mix),
                         ('📅 준공', ctx_a.complex_info.approval_year, ctx_b.complex_info.approval_year),
+                        ('🏗 건설사', ctx_a.complex_info.builder, ctx_b.complex_info.builder),
                         ('🚗 주차', ctx_a.complex_info.parking, ctx_b.complex_info.parking),
                         ('🏫 배정초', ctx_a.complex_info.school, ctx_b.complex_info.school),
-                        ('🚇 최근접 지하철', ctx_a.complex_info.nearest_subway, ctx_b.complex_info.nearest_subway),
-                        ('💰 최근 매매가', ctx_a.transaction_summary.batch_metrics_display.latest_trade_amount, ctx_b.transaction_summary.batch_metrics_display.latest_trade_amount),
-                        ('💰 최근 전세보증금', ctx_a.transaction_summary.batch_metrics_display.latest_rent_deposit, ctx_b.transaction_summary.batch_metrics_display.latest_rent_deposit)
+                        ('🚇 최근접 지하철', ctx_a.complex_info.nearest_subway, ctx_b.complex_info.nearest_subway)
                     ] %}
                     {% for label, va, vb in info_rows %}
                     <tr>
@@ -99,57 +178,72 @@
                         <td>{{ vb or '-' }}</td>
                     </tr>
                     {% endfor %}
+                    {% set trade_a = transaction_lines.a.trade %}
+                    {% set trade_b = transaction_lines.b.trade %}
+                    <tr>
+                        <th class="compare-row-label">💰 최근 매매가</th>
+                        <td>
+                            <div class="compare-transaction-value">
+                                <strong>{{ trade_a.amount or '-' }}</strong>
+                                {% if trade_a.date or trade_a.detail %}
+                                <small>{{ trade_a.date }}{% if trade_a.detail %} · {{ trade_a.detail }}{% endif %}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="compare-transaction-value">
+                                <strong>{{ trade_b.amount or '-' }}</strong>
+                                {% if trade_b.date or trade_b.detail %}
+                                <small>{{ trade_b.date }}{% if trade_b.detail %} · {{ trade_b.detail }}{% endif %}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% set rent_a = transaction_lines.a.rent %}
+                    {% set rent_b = transaction_lines.b.rent %}
+                    <tr>
+                        <th class="compare-row-label">💰 최근 전세보증금</th>
+                        <td>
+                            <div class="compare-transaction-value">
+                                <strong>{{ rent_a.amount or '-' }}</strong>
+                                {% if rent_a.date or rent_a.detail %}
+                                <small>{{ rent_a.date }}{% if rent_a.detail %} · {{ rent_a.detail }}{% endif %}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="compare-transaction-value">
+                                <strong>{{ rent_b.amount or '-' }}</strong>
+                                {% if rent_b.date or rent_b.detail %}
+                                <small>{{ rent_b.date }}{% if rent_b.detail %} · {{ rent_b.detail }}{% endif %}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </section>
 
-        <section class="compare-table-card">
-            <h2>카테고리별 점수 비교</h2>
-            <table class="compare-table compare-score-table">
-                <thead>
-                    <tr>
-                        <th>카테고리</th>
-                        <th>{{ apt_a.name }}</th>
-                        <th>{{ apt_b.name }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in comparison.rows %}
-                    <tr>
-                        <th class="compare-row-label">{{ row.label }}</th>
-                        <td class="{% if row.winner == 'a' %}compare-win{% endif %}">
-                            {% if row.hide %}
-                            <span class="compare-na">점수 미제공</span>
-                            {% else %}
-                            <span class="compare-score-val">{{ row.a.score }}<small>점</small></span>
-                            {% if row.a.grade %}<span class="grade-badge grade-{{ row.a.grade|lower }}">{{ row.a.grade }}</span>{% endif %}
-                            {% endif %}
-                            <div class="compare-pct">
-                                {% if row.a.seoul %}<span>{{ row.a.seoul }}</span>{% endif %}
-                                {% if row.a.gu %}<span class="compare-pct-gu">{{ row.a.gu }}<sup>※</sup></span>{% endif %}
-                            </div>
-                        </td>
-                        <td class="{% if row.winner == 'b' %}compare-win{% endif %}">
-                            {% if row.hide %}
-                            <span class="compare-na">점수 미제공</span>
-                            {% else %}
-                            <span class="compare-score-val">{{ row.b.score }}<small>점</small></span>
-                            {% if row.b.grade %}<span class="grade-badge grade-{{ row.b.grade|lower }}">{{ row.b.grade }}</span>{% endif %}
-                            {% endif %}
-                            <div class="compare-pct">
-                                {% if row.b.seoul %}<span>{{ row.b.seoul }}</span>{% endif %}
-                                {% if row.b.gu %}<span class="compare-pct-gu">{{ row.b.gu }}<sup>※</sup></span>{% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <p class="filter-note">※ 구 백분위는 단지마다 기준(자기 구)이 달라 직접 비교가 어렵습니다. 교차지역 비교는 점수·등급·서울 백분위를 기준으로 보세요.</p>
-            <div class="compare-detail-links">
-                <a href="{{ url_for('result', apartment=apt_a.name, gu=apt_a.district, dong=apt_a.dong) }}">{{ apt_a.name }} 상세 →</a>
-                <a href="{{ url_for('result', apartment=apt_b.name, gu=apt_b.district, dong=apt_b.dong) }}">{{ apt_b.name }} 상세 →</a>
+        <section class="compare-category-card">
+            <div class="section-head">
+                <div>
+                    <h2>카테고리별 점수 비교</h2>
+                    <p>result 페이지의 상세 점수 카드를 좌우로 배치해 같은 카테고리끼리 비교합니다.</p>
+                </div>
             </div>
+            <div class="compare-category-head">
+                <strong>{{ apt_a.name }}</strong>
+                <strong>{{ apt_b.name }}</strong>
+            </div>
+            <div class="compare-card-pairs">
+                {% for row in comparison.rows %}
+                <div class="compare-card-pair">
+                    {{ compare_detail_card(row.summary_a, row.winner == 'a') }}
+                    {{ compare_detail_card(row.summary_b, row.winner == 'b') }}
+                </div>
+                {% endfor %}
+            </div>
+            <p class="filter-note">※ 구 백분위는 단지마다 기준(자기 구)이 달라 직접 비교가 어렵습니다. 교차지역 비교는 점수·등급·서울 백분위를 기준으로 보세요.</p>
         </section>
         {% else %}
         <section class="compare-presets">

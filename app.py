@@ -6160,9 +6160,39 @@ def build_comparison(ctx_a, ctx_b):
             "hide": hide,
             "a": side(sa, a_score),
             "b": side(sb, b_score),
+            "summary_a": sa,
+            "summary_b": sb,
             "winner": winner,
         })
     return {"rows": rows, "win_a": win_a, "win_b": win_b}
+
+
+def latest_compare_transaction_line(transaction_summary, filter_type, amount_key, date_key):
+    display = (transaction_summary or {}).get("batch_metrics_display") or {}
+    amount = display.get(amount_key) or ""
+    date = display.get(date_key) or ""
+    latest = None
+    for rows in ((transaction_summary or {}).get("transactions_by_area") or {}).values():
+        for item in rows:
+            if item.get("filter_type") == filter_type:
+                if latest is None or str(item.get("date") or "") > str(latest.get("date") or ""):
+                    latest = item
+
+    detail_parts = []
+    if latest:
+        date = latest.get("date") or date
+        if latest.get("apt_name"):
+            detail_parts.append(latest.get("apt_name"))
+        if latest.get("area_label"):
+            detail_parts.append(latest.get("area_label"))
+        if latest.get("floor"):
+            detail_parts.append(latest.get("floor"))
+
+    return {
+        "amount": amount,
+        "date": date,
+        "detail": " · ".join(part for part in detail_parts if part),
+    }
 
 
 @app.route("/compare")
@@ -6174,6 +6204,30 @@ def compare():
     ctx_b = build_result_context(b_name, request.args.get("b_gu", ""),
                                  request.args.get("b_dong", "")) if b_name else None
     comparison = build_comparison(ctx_a, ctx_b) if (ctx_a and ctx_b) else None
+    transaction_lines = {}
+    if ctx_a and ctx_b:
+        transaction_lines = {
+            "a": {
+                "trade": latest_compare_transaction_line(
+                    ctx_a.get("transaction_summary"), "sale",
+                    "latest_trade_amount", "latest_trade_date",
+                ),
+                "rent": latest_compare_transaction_line(
+                    ctx_a.get("transaction_summary"), "jeonse",
+                    "latest_rent_deposit", "latest_rent_date",
+                ),
+            },
+            "b": {
+                "trade": latest_compare_transaction_line(
+                    ctx_b.get("transaction_summary"), "sale",
+                    "latest_trade_amount", "latest_trade_date",
+                ),
+                "rent": latest_compare_transaction_line(
+                    ctx_b.get("transaction_summary"), "jeonse",
+                    "latest_rent_deposit", "latest_rent_date",
+                ),
+            },
+        }
     return render_template(
         "compare.html",
         a_name=a_name,
@@ -6185,6 +6239,7 @@ def compare():
         ctx_a=ctx_a,
         ctx_b=ctx_b,
         comparison=comparison,
+        transaction_lines=transaction_lines,
         presets=COMPARE_PRESETS,
         a_missing=bool(a_name) and ctx_a is None,
         b_missing=bool(b_name) and ctx_b is None,
