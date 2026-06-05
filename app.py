@@ -5316,21 +5316,23 @@ def build_explore_results(filters, limit=10):
 # 각 시나리오는 기존 build_explore_results 필터 조합을 그대로 재사용한다.
 _SCENARIO_ACADEMY = [("academy", "영어"), ("academy", "수학"), ("academy", "입시/보습")]
 
+_SCENARIO_ACADEMY_CHIPS = ["📚 영어", "📚 수학", "📚 입시/보습"]
+
 EXPLORE_SCENARIOS = [
     {
         "step": "STEP 1",
-        "icon": "📚",
-        "title": "한 가지 조건으로 시작",
-        "desc": "먼저 학원이 밀집한 단지부터 추려봅니다.",
-        "chips": ["📚 영어", "📚 수학", "📚 입시/보습"],
-        "filters": {"priorities": _SCENARIO_ACADEMY},
+        "icon": "📍",
+        "title": "지역·주거환경부터",
+        "desc": "노원구에서 조용한 주거(유흥시설 없음)부터 시작합니다.",
+        "chips": ["📍 노원구", "🍺 유흥시설 없음"],
+        "filters": {"gu": "노원구", "no_nightlife": "1"},
     },
     {
         "step": "STEP 2",
-        "icon": "📍",
-        "title": "지역·주거환경 더하기",
-        "desc": "노원구 + 조용한 주거(유흥시설 없음)로 좁힙니다.",
-        "chips": ["📍 노원구", "🍺 유흥시설 없음", "📚 영어·수학·입시"],
+        "icon": "📚",
+        "title": "교육 인프라 더하기",
+        "desc": "학원(영어·수학·입시)이 가까운 단지로 좁힙니다.",
+        "chips": ["📍 노원구", "🍺 유흥시설 없음"] + _SCENARIO_ACADEMY_CHIPS,
         "filters": {
             "gu": "노원구",
             "no_nightlife": "1",
@@ -5342,8 +5344,8 @@ EXPLORE_SCENARIOS = [
         "icon": "💰",
         "title": "예산·평형까지 맞추기",
         "desc": "전용면적과 매매가까지 더해 정밀하게 탐색합니다.",
-        "chips": ["📍 노원구", "🍺 유흥시설 없음", "📚 영어·수학·입시",
-                  "📐 전용 60~85㎡", "💰 매매 10억 이하"],
+        "chips": ["📍 노원구", "🍺 유흥시설 없음"] + _SCENARIO_ACADEMY_CHIPS
+                 + ["📐 전용 60~85㎡", "💰 매매 10억 이하"],
         "filters": {
             "gu": "노원구",
             "no_nightlife": "1",
