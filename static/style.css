@@ -5360,3 +5360,166 @@ body:not(.home-page) #resultLoadingOverlay {
         padding: 20px;
     }
 }
+
+/* Compact the redesigned landing page so it breathes instead of filling the screen edge-to-edge. */
+@media (min-width: 761px) {
+    .home-page .home-nav {
+        min-height: 62px;
+        padding: 0 clamp(34px, 5vw, 72px);
+    }
+
+    .home-page .home-nav nav {
+        gap: clamp(20px, 3vw, 38px);
+    }
+
+    .home-page .home-hero {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 34px 30px;
+    }
+
+    .home-page .home-hero-stage {
+        grid-template-columns: minmax(390px, 0.82fr) minmax(360px, 1fr);
+        min-height: 390px;
+        padding: 30px 0 22px;
+    }
+
+    .home-page .home-hero-inner {
+        width: min(510px, 100%);
+    }
+
+    .home-page .home-badge {
+        margin-bottom: 14px;
+        font-size: 12px;
+    }
+
+    .home-page .home-hero h1 {
+        margin-bottom: 14px;
+        font-size: clamp(36px, 3.8vw, 48px);
+        line-height: 1.16;
+    }
+
+    .home-page .home-hero p {
+        max-width: 450px;
+        font-size: 14px;
+        line-height: 1.65;
+    }
+
+    .home-page .home-search-form {
+        margin-top: 24px;
+    }
+
+    .home-page .home-search-row {
+        width: min(530px, 100%);
+        margin-bottom: 14px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .home-page .home-search-row input,
+    .home-page .home-search-row > button {
+        height: 52px;
+    }
+
+    .home-page .home-search-row > button {
+        flex-basis: 112px;
+        width: 112px;
+    }
+
+    .home-page .home-visual {
+        min-height: 330px;
+    }
+
+    .home-page .home-skyline {
+        right: -16px;
+        bottom: -8px;
+        width: min(610px, 50vw);
+    }
+
+    .home-page .home-floating-card {
+        min-width: 108px;
+        padding: 10px 12px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
+    }
+
+    .home-page .home-floating-card.education {
+        top: 42px;
+        left: 28%;
+    }
+
+    .home-page .home-floating-card.transit {
+        top: 66px;
+        right: 5%;
+    }
+
+    .home-page .home-floating-card.medical {
+        top: 166px;
+        left: 11%;
+    }
+
+    .home-page .home-floating-card.convenience {
+        right: 1%;
+        bottom: 70px;
+    }
+
+    .home-page .home-floating-card.price {
+        left: 23%;
+        bottom: 26px;
+    }
+
+    .home-page .home-entry-grid {
+        gap: 16px;
+        margin: 14px 0 24px;
+    }
+
+    .home-page .home-entry-card {
+        grid-template-columns: 58px minmax(0, 1fr) 32px;
+        gap: 16px;
+        min-height: 98px;
+        padding: 18px 20px;
+    }
+
+    .home-page .home-entry-icon {
+        width: 58px;
+        height: 58px;
+        font-size: 28px;
+    }
+
+    .home-page .home-entry-card strong {
+        margin-bottom: 6px;
+        font-size: 19px;
+    }
+
+    .home-page .home-entry-card em {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .home-page .home-region-section {
+        margin-bottom: 26px;
+    }
+
+    .home-page .home-region-grid {
+        gap: 12px;
+    }
+
+    .home-page .home-region-grid a {
+        min-height: 68px;
+        padding: 14px 38px 13px 16px;
+    }
+
+    .home-page .home-proof-strip {
+        gap: 14px;
+        margin-bottom: 24px;
+        padding: 20px 22px;
+    }
+}
+
+@media (max-width: 760px) {
+    .home-page .home-hero h1 {
+        font-size: 32px;
+    }
+
+    .home-page .home-visual {
+        min-height: 210px;
+    }
+}
