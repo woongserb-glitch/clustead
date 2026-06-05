@@ -12,14 +12,14 @@ from services.ranking_service import (
 
 import os
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 try:
     from dotenv import load_dotenv
 except ImportError:
     def load_dotenv(*args, **kwargs):
         return False
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 
 from services.poi_service import (
     get_category_summaries,
@@ -5448,15 +5448,12 @@ def explore():
     )
 
 
-@app.route("/result")
-def result():
-    apartment_name = request.args.get("apartment", "헬리오시티")
-    apartment_gu = request.args.get("gu", "")
-    apartment_dong = request.args.get("dong", "")
+def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None):
+    """result 페이지 렌더링 컨텍스트 일괄 생성. result() / Excel 내보내기에서 공용."""
     apartment = get_apartment(apartment_name, apartment_gu, apartment_dong)
 
     if apartment is None:
-        return render_template("index.html"), 404
+        return None
 
     school_zone = get_school_zone_for_apartment(apartment)
 
@@ -5518,7 +5515,7 @@ def result():
     base_category_scores = ranking_apartment["category_scores"] if ranking_apartment else {}
 
     # 진입경로(home/explore) — 현재 추천은 경로 무관 인근 단지로 통일.
-    entry_src = "explore" if request.args.get("src") == "explore" else "home"
+    entry_src = "explore" if src == "explore" else "home"
     domain_profile = compute_domain_profile(base_category_scores)
 
     recommendations = get_nearby_apartments(apartment)
@@ -5804,37 +5801,222 @@ def result():
     # 카테고리 상세 카드를 가치판단 중요도 순으로 정렬(지하철·버스·교육·학원 …).
     category_summaries = sort_category_summaries(category_summaries)
 
-    return render_template(
-        "result.html",
-        apartment=apartment,
-        scores=scores,
-        preferences=preferences,
-        entry_src=entry_src,
-        domain_profile=domain_profile,
-        recommendations=recommendations,
-        recommendations_title=recommendations_title,
-        recommendations_note=recommendations_note,
-        preference_tags=preference_tags,
-        category_summaries=category_summaries,
-        pois=pois,
-        kakao_javascript_key=KAKAO_JAVASCRIPT_KEY,
-        domain_summaries=domain_summaries,
-        school_zone=school_zone,
-        complex_info=complex_info,
-        insight=insight,
-        bus_info=bus_info,
-        bike_info=bike_info,
-        ev_charger_info=ev_charger_info,
-        medical_info=medical_info,
-        hangang_info=hangang_info,
-        commercial_info=commercial_info,
-        shopping_info=shopping_info,
-        nightlife_info=nightlife_info,
-        academy_info=academy_info,
-        school_environment_info=school_environment_info,
-        culture_info=culture_info,
-        fire_station_info=fire_station_info,
-        transaction_summary=transaction_summary,
+    return {
+        "apartment": apartment,
+        "scores": scores,
+        "preferences": preferences,
+        "entry_src": entry_src,
+        "domain_profile": domain_profile,
+        "recommendations": recommendations,
+        "recommendations_title": recommendations_title,
+        "recommendations_note": recommendations_note,
+        "preference_tags": preference_tags,
+        "category_summaries": category_summaries,
+        "pois": pois,
+        "kakao_javascript_key": KAKAO_JAVASCRIPT_KEY,
+        "domain_summaries": domain_summaries,
+        "school_zone": school_zone,
+        "complex_info": complex_info,
+        "insight": insight,
+        "bus_info": bus_info,
+        "bike_info": bike_info,
+        "ev_charger_info": ev_charger_info,
+        "medical_info": medical_info,
+        "hangang_info": hangang_info,
+        "commercial_info": commercial_info,
+        "shopping_info": shopping_info,
+        "nightlife_info": nightlife_info,
+        "academy_info": academy_info,
+        "school_environment_info": school_environment_info,
+        "culture_info": culture_info,
+        "fire_station_info": fire_station_info,
+        "transaction_summary": transaction_summary,
+    }
+
+
+@app.route("/result")
+def result():
+    context = build_result_context(
+        request.args.get("apartment", "헬리오시티"),
+        request.args.get("gu", ""),
+        request.args.get("dong", ""),
+        request.args.get("src"),
+    )
+    if context is None:
+        return render_template("index.html"), 404
+    return render_template("result.html", **context)
+
+
+def _xlsx_distance(value):
+    """POI 거리(m) → 정수 m, 없으면 빈 문자열."""
+    try:
+        return int(round(float(value)))
+    except (TypeError, ValueError):
+        return ""
+
+
+def build_result_workbook(context):
+    """result 컨텍스트로 단지 분석 리포트(.xlsx) 작성. BytesIO 반환."""
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    apartment = context["apartment"]
+    complex_info = context.get("complex_info") or {}
+    summaries = context.get("category_summaries") or []
+    transaction = context.get("transaction_summary") or {}
+
+    head_font = Font(bold=True, color="FFFFFF")
+    head_fill = PatternFill("solid", fgColor="2563EB")
+    title_font = Font(bold=True, size=14)
+    label_font = Font(bold=True)
+    # 셀 내용은 한 줄로 표시(자동 줄 바꿈 OFF). 길면 옆 칸으로 흘러도 됨.
+    cell_align = Alignment(vertical="center", wrap_text=False)
+
+    wb = Workbook()
+
+    def style_header(ws, row, ncols):
+        for col in range(1, ncols + 1):
+            cell = ws.cell(row=row, column=col)
+            cell.font = head_font
+            cell.fill = head_fill
+            cell.alignment = Alignment(vertical="center")
+
+    def set_widths(ws, widths):
+        for idx, width in enumerate(widths, start=1):
+            ws.column_dimensions[get_column_letter(idx)].width = width
+
+    # ── Sheet 1: 단지요약 (개요 + 종합 + 실거래) ────────────────────────────
+    ws = wb.active
+    ws.title = "단지요약"
+    set_widths(ws, [22, 60])
+    ws["A1"] = f"{apartment.get('name', '')} 생활환경 분석 리포트"
+    ws["A1"].font = title_font
+    ws["A3"] = "■ 단지 개요"
+    ws["A3"].font = label_font
+    overview = [
+        ("단지명", apartment.get("name", "")),
+        ("주소", apartment.get("road_address", "")),
+        ("자치구 · 동", f"{apartment.get('district', '')} {apartment.get('dong', '')}".strip()),
+        ("세대수", complex_info.get("households", "")),
+        ("사용승인", complex_info.get("approval_year", "")),
+        ("시공사", complex_info.get("builder", "")),
+        ("주차", complex_info.get("parking", "")),
+        ("최근접 지하철", complex_info.get("nearest_subway", "")),
+        ("대표 배정초", complex_info.get("school", "")),
+        ("면적 구성", complex_info.get("area_mix", "")),
+    ]
+    row = 4
+    for label, value in overview:
+        ws.cell(row=row, column=1, value=label).font = label_font
+        ws.cell(row=row, column=2, value=value).alignment = cell_align
+        row += 1
+
+    # 실거래 요약
+    row += 1
+    ws.cell(row=row, column=1, value="■ 실거래 요약").font = label_font
+    row += 1
+    if transaction.get("has_data"):
+        disp = transaction.get("batch_metrics_display") or {}
+        tx_rows = [
+            ("최근 매매가", disp.get("latest_trade_amount"), disp.get("latest_trade_date")),
+            ("최근 전세보증금", disp.get("latest_rent_deposit"), disp.get("latest_rent_date")),
+            ("최근 1년 매매", disp.get("trade_count_1y"), "건"),
+            ("최근 1년 전월세", disp.get("rent_count_1y"), "건"),
+            ("최근 1년 전세", disp.get("jeonse_count_1y"), "건"),
+            ("최근 1년 월세", disp.get("monthly_count_1y"), "건"),
+            ("전세 비중", disp.get("jeonse_ratio"), ""),
+        ]
+        for label, value, suffix in tx_rows:
+            if value in (None, ""):
+                continue
+            ws.cell(row=row, column=1, value=label).font = label_font
+            text = f"{value} ({suffix})" if suffix and suffix != "건" else (f"{value}{suffix}" if suffix else str(value))
+            ws.cell(row=row, column=2, value=text)
+            row += 1
+        ws.cell(row=row, column=1, value="출처").font = label_font
+        ws.cell(row=row, column=2, value=transaction.get("source_label", ""))
+        row += 1
+    else:
+        ws.cell(row=row, column=2, value="실거래 데이터가 없습니다.")
+        row += 1
+
+    # ── Sheet 2: 카테고리 점수 ────────────────────────────────────────────
+    ws2 = wb.create_sheet("카테고리 점수")
+    cat_headers = ["카테고리", "점수", "등급", "등급설명", "서울 백분위", "구 백분위", "설명", "출처"]
+    set_widths(ws2, [16, 8, 6, 12, 16, 16, 60, 20])
+    ws2.append(cat_headers)
+    style_header(ws2, 1, len(cat_headers))
+    ws2.freeze_panes = "A2"
+    for s in summaries:
+        # 교육환경은 result 페이지와 동일하게 점수·등급을 제거(표시하지 않음).
+        hide_score = s.get("key") == "school-environment"
+        ws2.append([
+            s.get("label", ""),
+            "" if hide_score else s.get("score", ""),
+            "" if hide_score else s.get("grade", ""),
+            "" if hide_score else s.get("grade_text", ""),
+            s.get("seoul_percentile_label", ""),
+            s.get("gu_percentile_label", ""),
+            s.get("description", ""),
+            s.get("source", ""),
+        ])
+
+    # ── Sheet 3: 인근 시설 ────────────────────────────────────────────────
+    ws3 = wb.create_sheet("인근 시설")
+    poi_headers = ["카테고리", "시설명", "거리(m)", "유형"]
+    set_widths(ws3, [18, 40, 10, 18])
+    ws3.append(poi_headers)
+    style_header(ws3, 1, len(poi_headers))
+    ws3.freeze_panes = "A2"
+    for s in summaries:
+        pois = s.get("pois") or []
+        for poi in sorted(pois, key=lambda p: _xlsx_distance(p.get("distance")) if _xlsx_distance(p.get("distance")) != "" else 10 ** 9):
+            ws3.append([
+                s.get("label", ""),
+                poi.get("label") or poi.get("name") or "",
+                _xlsx_distance(poi.get("distance")),
+                poi.get("subtype", ""),
+            ])
+
+    # 모든 시트의 모든 셀을 한 줄로 표시(자동 줄 바꿈 OFF) — 헤더 스타일은 유지.
+    for sheet in wb.worksheets:
+        for row_cells in sheet.iter_rows():
+            for cell in row_cells:
+                if cell.alignment.wrap_text:
+                    cell.alignment = Alignment(
+                        vertical=cell.alignment.vertical,
+                        horizontal=cell.alignment.horizontal,
+                        wrap_text=False,
+                    )
+
+    stream = BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+    return stream
+
+
+@app.route("/result/export.xlsx")
+def result_export_xlsx():
+    context = build_result_context(
+        request.args.get("apartment", "헬리오시티"),
+        request.args.get("gu", ""),
+        request.args.get("dong", ""),
+        request.args.get("src"),
+    )
+    if context is None:
+        return ("아파트를 찾을 수 없습니다.", 404)
+
+    stream = build_result_workbook(context)
+    name = clean_text(context["apartment"].get("name", "리포트")) or "리포트"
+    fallback = quote(f"LiveFit_{name}.xlsx")
+    return Response(
+        stream.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename=LiveFit_report.xlsx; filename*=UTF-8''{fallback}",
+        },
     )
 
 

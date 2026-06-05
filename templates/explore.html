@@ -29,25 +29,27 @@
                 <form action="/explore" method="get" class="explore-filter-form">
                     <div class="filter-section">
                         <div class="filter-section-head">📍 지역</div>
-                        <label>
-                            <span>구</span>
-                            <select name="gu" data-dong-source>
-                                <option value="">전체</option>
-                                {% for gu in gu_options %}
-                                <option value="{{ gu }}" {% if filters.gu == gu %}selected{% endif %}>{{ gu }}</option>
-                                {% endfor %}
-                            </select>
-                        </label>
+                        <div class="filter-duo">
+                            <label>
+                                <span>구</span>
+                                <select name="gu" data-dong-source>
+                                    <option value="">전체</option>
+                                    {% for gu in gu_options %}
+                                    <option value="{{ gu }}" {% if filters.gu == gu %}selected{% endif %}>{{ gu }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
 
-                        <label>
-                            <span>동</span>
-                            <select name="dong" data-dong-target data-selected="{{ filters.dong }}">
-                                <option value="">전체</option>
-                                {% for dong in dong_options %}
-                                <option value="{{ dong }}" {% if filters.dong == dong %}selected{% endif %}>{{ dong }}</option>
-                                {% endfor %}
-                            </select>
-                        </label>
+                            <label>
+                                <span>동</span>
+                                <select name="dong" data-dong-target data-selected="{{ filters.dong }}">
+                                    <option value="">전체</option>
+                                    {% for dong in dong_options %}
+                                    <option value="{{ dong }}" {% if filters.dong == dong %}selected{% endif %}>{{ dong }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="filter-section">

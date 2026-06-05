@@ -349,6 +349,13 @@ body:not(.home-page) #resultLoadingOverlay {
     line-height: 1.25;
 }
 
+.result-hero-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .back-link {
     display: inline-block;
     margin-bottom: 10px;
@@ -360,6 +367,27 @@ body:not(.home-page) #resultLoadingOverlay {
 
 .back-link:hover {
     color: #111;
+}
+
+.result-download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid #16a34a;
+    background: #f0fdf4;
+    color: #15803d;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.result-download-btn:hover {
+    background: #16a34a;
+    color: #ffffff;
 }
 
 .search-row {
@@ -3594,6 +3622,12 @@ body:not(.home-page) #resultLoadingOverlay {
     font-weight: 800;
 }
 
+.filter-duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
 .filter-section {
     display: grid;
     gap: 10px;
@@ -4017,5 +4051,11 @@ body:not(.home-page) #resultLoadingOverlay {
 
     .priority-quiet-check {
         align-self: flex-end;
+    }
+}
+
+@media (max-width: 560px) {
+    .filter-duo {
+        grid-template-columns: 1fr;
     }
 }
