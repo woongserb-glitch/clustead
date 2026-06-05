@@ -6178,6 +6178,18 @@ def latest_compare_transaction_line(transaction_summary, filter_type, amount_key
                 if latest is None or str(item.get("date") or "") > str(latest.get("date") or ""):
                     latest = item
 
+    if amount and latest:
+        latest_date = latest.get("date")
+        for rows in ((transaction_summary or {}).get("transactions_by_area") or {}).values():
+            for item in rows:
+                if (
+                    item.get("filter_type") == filter_type
+                    and item.get("date") == latest_date
+                    and item.get("price") == amount
+                ):
+                    latest = item
+                    break
+
     detail_parts = []
     if latest:
         date = latest.get("date") or date
