@@ -41,8 +41,9 @@
                         <input type="hidden" name="b_gu" value="{{ b_gu }}">
                         <input type="hidden" name="b_dong" value="{{ b_dong }}">
                     </label>
+
+                    <button type="submit" class="primary-tool-button compare-submit">비교하기</button>
                 </div>
-                <button type="submit" class="primary-tool-button compare-submit">두 단지 비교하기</button>
                 {% if a_missing or b_missing %}
                 <p class="compare-feedback">선택한 단지를 찾을 수 없습니다. 검색 후보에서 단지를 선택해주세요.</p>
                 {% endif %}
