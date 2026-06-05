@@ -6098,6 +6098,99 @@ def result_export_xlsx():
     )
 
 
+# 비교에서 점수·등급을 표시하지 않는 카테고리(result/Excel 정책과 동일).
+_COMPARE_HIDE_SCORE = {"school-environment"}
+
+# 빈 화면에서 바로 눌러볼 수 있는 예시 비교 조합(클릭 시 /compare로 이동).
+COMPARE_PRESETS = [
+    {
+        "label": "송파 대단지",
+        "a": {"name": "헬리오시티아파트", "gu": "송파구", "dong": "가락동"},
+        "b": {"name": "잠실엘스아파트", "gu": "송파구", "dong": "잠실동"},
+    },
+    {
+        "label": "서초 반포 라이벌",
+        "a": {"name": "반포자이", "gu": "서초구", "dong": "반포동"},
+        "b": {"name": "아크로리버파크", "gu": "서초구", "dong": "반포동"},
+    },
+    {
+        "label": "마포 vs 종로",
+        "a": {"name": "마포래미안푸르지오", "gu": "마포구", "dong": "아현동"},
+        "b": {"name": "경희궁자이3단지", "gu": "종로구", "dong": "평동"},
+    },
+]
+
+
+def build_comparison(ctx_a, ctx_b):
+    """두 단지 컨텍스트를 카테고리 key로 정합해 비교 행 + 우위 집계를 만든다.
+    점수는 단지별 독립 계산이라 지역이 달라도 그대로 비교 가능.
+    단, 구 백분위는 단지마다 기준 모집단(자기 구)이 달라 '참고용'으로만 표기한다."""
+    b_by_key = {s.get("key"): s for s in ctx_b["category_summaries"]}
+    rows = []
+    win_a = win_b = 0
+    for sa in ctx_a["category_summaries"]:
+        key = sa.get("key")
+        sb = b_by_key.get(key)
+        if sb is None:
+            continue
+        hide = key in _COMPARE_HIDE_SCORE
+        a_score = None if hide else sa.get("score")
+        b_score = None if hide else sb.get("score")
+        winner = None
+        if isinstance(a_score, (int, float)) and isinstance(b_score, (int, float)):
+            if a_score > b_score:
+                winner, win_a = "a", win_a + 1
+            elif b_score > a_score:
+                winner, win_b = "b", win_b + 1
+            else:
+                winner = "tie"
+
+        def side(summary, score):
+            return {
+                "score": score,
+                "grade": None if hide else summary.get("grade"),
+                "grade_text": None if hide else summary.get("grade_text"),
+                "seoul": summary.get("seoul_percentile_label"),
+                "gu": summary.get("gu_percentile_label"),
+            }
+
+        rows.append({
+            "key": key,
+            "label": sa.get("label", ""),
+            "hide": hide,
+            "a": side(sa, a_score),
+            "b": side(sb, b_score),
+            "winner": winner,
+        })
+    return {"rows": rows, "win_a": win_a, "win_b": win_b}
+
+
+@app.route("/compare")
+def compare():
+    a_name = clean_text(request.args.get("a", ""))
+    b_name = clean_text(request.args.get("b", ""))
+    ctx_a = build_result_context(a_name, request.args.get("a_gu", ""),
+                                 request.args.get("a_dong", "")) if a_name else None
+    ctx_b = build_result_context(b_name, request.args.get("b_gu", ""),
+                                 request.args.get("b_dong", "")) if b_name else None
+    comparison = build_comparison(ctx_a, ctx_b) if (ctx_a and ctx_b) else None
+    return render_template(
+        "compare.html",
+        a_name=a_name,
+        b_name=b_name,
+        a_gu=request.args.get("a_gu", ""),
+        a_dong=request.args.get("a_dong", ""),
+        b_gu=request.args.get("b_gu", ""),
+        b_dong=request.args.get("b_dong", ""),
+        ctx_a=ctx_a,
+        ctx_b=ctx_b,
+        comparison=comparison,
+        presets=COMPARE_PRESETS,
+        a_missing=bool(a_name) and ctx_a is None,
+        b_missing=bool(b_name) and ctx_b is None,
+    )
+
+
 def _warm_explore_caches():
     """기동 시 Explore 첫 진입에 필요한 무거운 lookup(학원·의료 등)을 미리 만들고
     추천 시나리오를 메모이즈한다. 콜드 첫 요청의 ~3초 지연을 기동 시점으로 이동."""

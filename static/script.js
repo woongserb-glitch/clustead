@@ -444,6 +444,9 @@ async function ensureKnownAutocomplete(input) {
         if (exact) {
             input.value = exact.value || exact.label;
             input.dataset.selectedValue = input.value;
+            // 아파트는 이름이 충돌하므로 식별용 gu/dong도 함께 보관(있을 때만).
+            if (exact.gu !== undefined) input.dataset.selectedGu = exact.gu || "";
+            if (exact.dong !== undefined) input.dataset.selectedDong = exact.dong || "";
             return true;
         }
     } catch (error) {
@@ -505,6 +508,45 @@ function setupKnownApartmentForms() {
                 hidePageLoading();
             }
         });
+    });
+}
+
+function setupCompareForm() {
+    const form = document.querySelector("[data-compare-form]");
+    if (!form) return;
+
+    const slots = Array.from(
+        form.querySelectorAll('[data-autocomplete="apartments"][data-identity-prefix]')
+    );
+
+    // 프리필(URL로 들어온 단지)을 dataset에 반영해 재제출 시 식별(gu/dong) 유지.
+    slots.forEach((input) => {
+        const prefix = input.dataset.identityPrefix;
+        if (input.value.trim()) {
+            input.dataset.selectedValue = input.value.trim();
+            input.dataset.selectedGu = form.querySelector(`input[name="${prefix}_gu"]`)?.value || "";
+            input.dataset.selectedDong = form.querySelector(`input[name="${prefix}_dong"]`)?.value || "";
+        }
+    });
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        for (const input of slots) {
+            if (!input.value.trim()) {
+                flagAutocompleteInvalid(input, "비교할 단지를 선택해주세요.");
+                return;
+            }
+            if (!(await ensureKnownAutocomplete(input))) {
+                return;
+            }
+        }
+        // 단지명이 서울에서 충돌하므로 선택한 단지의 gu/dong을 함께 제출.
+        slots.forEach((input) => {
+            const prefix = input.dataset.identityPrefix;
+            setHiddenField(form, `${prefix}_gu`, input.dataset.selectedGu || "");
+            setHiddenField(form, `${prefix}_dong`, input.dataset.selectedDong || "");
+        });
+        form.submit();
     });
 }
 
@@ -914,6 +956,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPrioritySearch();
     setupPriceTypeToggle();
     setupExploreLoading();
+    setupCompareForm();
 
     const detailCards = document.querySelectorAll(".detail-card");
 

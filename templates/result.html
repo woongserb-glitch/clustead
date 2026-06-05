@@ -21,7 +21,10 @@
         <header class="result-hero">
             <div class="result-hero-top">
                 <a class="back-link" href="/">← 다시 검색</a>
-                <a class="result-download-btn" href="{{ url_for('result_export_xlsx', apartment=apartment.name, gu=apartment.district, dong=apartment.dong) }}">⬇ Excel 다운로드</a>
+                <div class="result-hero-actions">
+                    <a class="result-download-btn result-compare-btn" href="{{ url_for('compare', a=apartment.name, a_gu=apartment.district, a_dong=apartment.dong) }}">⚖ 이 단지와 비교</a>
+                    <a class="result-download-btn" href="{{ url_for('result_export_xlsx', apartment=apartment.name, gu=apartment.district, dong=apartment.dong) }}">⬇ Excel 다운로드</a>
+                </div>
             </div>
             <div class="top-label">LIVEFIT RESULT</div>
             <h1>{{ apartment.name }}</h1>
