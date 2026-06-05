@@ -66,11 +66,32 @@
             <ul class="poi-list-scroll">
                 {% if summary.pois %}
                 {% for poi in summary.pois %}
-                <li>
+                <li
+                    data-subtype="{{ poi.subtype }}"
+                    {% if poi.subtypes %}
+                    data-subtypes='{{ poi.subtypes | tojson | safe }}'
+                    {% endif %}
+                >
                     <div class="poi-list-row">
                         <span class="poi-list-name">
                             {% if poi.subtype %}
+                            {% if summary.key == "bus-baseline" %}
+                            <span class="bus-route-badge bus-chip-{{ poi.subtype }}">{{ poi.subtype }}</span>
+                            {% elif summary.key == "academy" %}
+                            <span class="bus-route-badge academy-chip-{{ poi.subtype }}">{{ poi.subtype }}</span>
+                            {% elif summary.key == "culture" %}
+                            <span class="bus-route-badge culture-chip-{{ poi.subtype }}">{{ poi.subtype }}</span>
+                            {% elif summary.key == "commercial" %}
+                            <span class="bus-route-badge commercial-chip-{{ poi.subtype }}">{{ poi.subtype }}</span>
+                            {% elif summary.key == "shopping" %}
+                            <span class="bus-route-badge shopping-chip-{{ poi.subtype }}">{{ poi.subtype }}</span>
+                            {% elif summary.key == "school-environment" %}
+                            <span class="bus-route-badge school-chip-{{ poi.subtype }}">{{ poi.subtype }}</span>
+                            {% elif summary.is_medical_public_summary %}
+                            <span class="bus-route-badge medical-chip-{{ poi.subtype }}">{{ poi.subtype }}</span>
+                            {% else %}
                             <span class="bus-route-badge">{{ poi.subtype }}</span>
+                            {% endif %}
                             {% endif %}
                             {{ poi.label | poi_list_display_label(summary.key) }}
                         </span>
@@ -133,24 +154,6 @@
         {% set apt_a = ctx_a.apartment %}
         {% set apt_b = ctx_b.apartment %}
 
-        <section class="compare-summary-card">
-            <div class="compare-title-row">
-                <div class="compare-title compare-col-a">
-                    <strong>{{ apt_a.name }}</strong>
-                    <span>{{ apt_a.district }} {{ apt_a.dong }}</span>
-                </div>
-                <div class="compare-win-tally">
-                    <span class="tally-a {% if comparison.win_a > comparison.win_b %}tally-lead{% endif %}">{{ comparison.win_a }}</span>
-                    <em>카테고리 우위</em>
-                    <span class="tally-b {% if comparison.win_b > comparison.win_a %}tally-lead{% endif %}">{{ comparison.win_b }}</span>
-                </div>
-                <div class="compare-title compare-col-b">
-                    <strong>{{ apt_b.name }}</strong>
-                    <span>{{ apt_b.district }} {{ apt_b.dong }}</span>
-                </div>
-            </div>
-        </section>
-
         <section class="compare-table-card">
             <h2>기본 정보</h2>
             <table class="compare-table">
@@ -164,7 +167,6 @@
                 <tbody>
                     {% set info_rows = [
                         ('🏢 세대수', ctx_a.complex_info.households, ctx_b.complex_info.households),
-                        ('📐 전용면적 구성', ctx_a.complex_info.area_mix, ctx_b.complex_info.area_mix),
                         ('📅 준공', ctx_a.complex_info.approval_year, ctx_b.complex_info.approval_year),
                         ('🏗 건설사', ctx_a.complex_info.builder, ctx_b.complex_info.builder),
                         ('🚗 주차', ctx_a.complex_info.parking, ctx_b.complex_info.parking),
@@ -178,6 +180,23 @@
                         <td>{{ vb or '-' }}</td>
                     </tr>
                     {% endfor %}
+                    <tr>
+                        <th class="compare-row-label">📐 전용면적 구성</th>
+                        <td>
+                            <div class="compare-area-mix">
+                                {% for item in (ctx_a.complex_info.area_mix or '').split(' / ') %}
+                                <span>{{ item }}</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="compare-area-mix">
+                                {% for item in (ctx_b.complex_info.area_mix or '').split(' / ') %}
+                                <span>{{ item }}</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
                     {% set trade_a = transaction_lines.a.trade %}
                     {% set trade_b = transaction_lines.b.trade %}
                     <tr>
@@ -227,7 +246,14 @@
         <section class="compare-category-card">
             <div class="section-head">
                 <div>
-                    <h2>카테고리별 점수 비교</h2>
+                    <div class="compare-section-title-row">
+                        <h2>카테고리별 점수 비교</h2>
+                        <div class="compare-win-tally">
+                            <span class="tally-a {% if comparison.win_a > comparison.win_b %}tally-lead{% endif %}">{{ comparison.win_a }}</span>
+                            <em>카테고리 우위</em>
+                            <span class="tally-b {% if comparison.win_b > comparison.win_a %}tally-lead{% endif %}">{{ comparison.win_b }}</span>
+                        </div>
+                    </div>
                     <p>result 페이지의 상세 점수 카드를 좌우로 배치해 같은 카테고리끼리 비교합니다.</p>
                 </div>
             </div>

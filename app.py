@@ -6181,8 +6181,6 @@ def latest_compare_transaction_line(transaction_summary, filter_type, amount_key
     detail_parts = []
     if latest:
         date = latest.get("date") or date
-        if latest.get("apt_name"):
-            detail_parts.append(latest.get("apt_name"))
         if latest.get("area_label"):
             detail_parts.append(latest.get("area_label"))
         if latest.get("floor"):
