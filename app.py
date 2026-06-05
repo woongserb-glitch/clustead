@@ -4895,6 +4895,16 @@ EXPLORE_AREA_BUCKETS = [
 ]
 _AREA_BUCKET_COL = {b["key"]: b["column"] for b in EXPLORE_AREA_BUCKETS}
 
+# 세대수 구간(단지 규모). 경계는 [min, max) 반열림.
+EXPLORE_HOUSEHOLD_BUCKETS = [
+    {"key": "u300", "label": "300세대 미만", "min": None, "max": 300},
+    {"key": "300_500", "label": "300~500세대", "min": 300, "max": 500},
+    {"key": "500_1000", "label": "500~1,000세대", "min": 500, "max": 1000},
+    {"key": "1000_2000", "label": "1,000~2,000세대", "min": 1000, "max": 2000},
+    {"key": "o2000", "label": "2,000세대 이상", "min": 2000, "max": None},
+]
+_HOUSEHOLD_BUCKET_BY_KEY = {b["key"]: b for b in EXPLORE_HOUSEHOLD_BUCKETS}
+
 # 가격: 거래유형(매매/전세)별 금액 구간(만원). 평균값 기준이라 경계는 [min, max) 반열림.
 EXPLORE_TRADE_BUCKETS = [
     {"key": "u100000", "label": "10억 이하", "min": None, "max": 100000},
@@ -5126,6 +5136,7 @@ def build_explore_results(filters, limit=10):
     assigned_elem = clean_text(filters.get("assigned_elementary", ""))
     school_mh = clean_text(filters.get("school", ""))
     area_buckets = [b for b in (filters.get("area_buckets", []) or []) if b in _AREA_BUCKET_COL]
+    household_bucket = _HOUSEHOLD_BUCKET_BY_KEY.get(clean_text(filters.get("household", "")))
     price_type = clean_text(filters.get("price_type", "")) or "trade"
     if price_type not in _PRICE_BUCKET_BY_TYPE:
         price_type = "trade"
@@ -5209,6 +5220,18 @@ def build_explore_results(filters, limit=10):
         if area_buckets:
             if not any(to_int(apartment.get(_AREA_BUCKET_COL[b]), 0) > 0 for b in area_buckets):
                 continue
+
+        # 세대수: 단지 규모 구간(세대수 데이터 없는 단지는 제외)
+        if household_bucket:
+            households = to_int(apartment.get("household_count"), 0)
+            if households <= 0:
+                continue
+            if household_bucket["min"] is not None and households < household_bucket["min"]:
+                continue
+            if household_bucket["max"] is not None and households >= household_bucket["max"]:
+                continue
+            matched.append(f"🏢 {household_bucket['label']}")
+            score += 1
 
         # 가격: 거래유형(매매/전세)별 최근1년 평균 구간(거래 없는 단지는 제외)
         if price_bucket:
@@ -5331,7 +5354,7 @@ EXPLORE_SCENARIOS = [
         "step": "STEP 2",
         "icon": "📚",
         "title": "교육 인프라 더하기",
-        "desc": "학원(영어·수학·입시)이 가까운 단지로 좁힙니다.",
+        "desc": "학원(영어·수학·입시)이 많은 단지로 좁힙니다.",
         "chips": ["📍 노원구", "🍺 유흥시설 없음"] + _SCENARIO_ACADEMY_CHIPS,
         "filters": {
             "gu": "노원구",
@@ -5363,7 +5386,8 @@ def _explore_has_active_filters(filters):
     if filters.get("priorities") or filters.get("area_buckets"):
         return True
     text_keys = ("gu", "dong", "line", "station", "no_nightlife",
-                 "assigned_elementary", "school", "price", "bus_type", "bus_route")
+                 "assigned_elementary", "school", "price", "household",
+                 "bus_type", "bus_route")
     return any(clean_text(filters.get(k, "")) for k in text_keys)
 
 
@@ -5375,7 +5399,7 @@ def _scenario_query(filters):
     params = []
     for key in ("gu", "dong", "line", "station", "assigned_elementary",
                 "school", "bus_type", "bus_route", "price_type", "price",
-                "no_nightlife"):
+                "household", "no_nightlife"):
         value = filters.get(key)
         if value:
             params.append((key, value))
@@ -5430,6 +5454,7 @@ def explore():
         "assigned_elementary": request.args.get("assigned_elementary", ""),
         "school": request.args.get("school", ""),
         "area_buckets": request.args.getlist("area"),
+        "household": request.args.get("household", ""),
         "price_type": request.args.get("price_type", ""),
         "price": request.args.get("price", ""),
         "bus_type": request.args.get("bus_type", ""),
@@ -5490,6 +5515,7 @@ def explore():
         subtype_search_options=subtype_search_options,
         selected_priorities=selected_priorities,
         area_bucket_options=EXPLORE_AREA_BUCKETS,
+        household_bucket_options=EXPLORE_HOUSEHOLD_BUCKETS,
         price_type_options=EXPLORE_PRICE_TYPE_OPTIONS,
         current_price_buckets=current_price_buckets,
         price_buckets_by_type=price_buckets_by_type,

@@ -85,6 +85,16 @@
                         </div>
 
                         <label>
+                            <span>🏢 세대수</span>
+                            <select name="household">
+                                <option value="">전체</option>
+                                {% for bucket in household_bucket_options %}
+                                <option value="{{ bucket.key }}" {% if filters.household == bucket.key %}selected{% endif %}>{{ bucket.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label>
                             <span>💰 가격 (최근 1년 평균)</span>
                             <div class="price-filter" data-price-filter>
                                 <select name="price_type" data-price-type>
