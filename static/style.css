@@ -4403,10 +4403,6 @@ body:not(.home-page) #resultLoadingOverlay {
     font-size: 13px;
 }
 
-.compare-category-head strong:last-child {
-    text-align: right;
-}
-
 .compare-card-pairs {
     display: grid;
     gap: 12px;
@@ -4540,7 +4536,4 @@ body:not(.home-page) #resultLoadingOverlay {
         grid-template-columns: 1fr;
     }
 
-    .compare-category-head strong:last-child {
-        text-align: left;
-    }
 }
