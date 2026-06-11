@@ -19,7 +19,7 @@ try:
 except ImportError:
     def load_dotenv(*args, **kwargs):
         return False
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, abort, jsonify, render_template, request
 
 from services.poi_service import (
     get_category_summaries,
@@ -134,6 +134,52 @@ DEBUG_LOG = os.getenv("LIVEFIT_DEBUG", "0") == "1"
 def debug_log(*args):
     if DEBUG_LOG:
         print(*args)
+
+
+# ── 배포 보안 (외부 공개) ───────────────────────────────────────────────
+# Werkzeug 디버거는 임의 코드 실행(RCE) 경로다. 명시적 opt-in일 때만 켜고
+# 기본은 OFF. 로깅용 LIVEFIT_DEBUG와 분리해 실수로 켜지지 않게 한다.
+FLASK_DEBUG = os.getenv("FLASK_DEBUG", "0") == "1"
+
+# /admin/* 보호 토큰. 미설정이면 비-디버그 환경에서 admin 라우트를 404로 숨긴다.
+ADMIN_TOKEN = os.getenv("LIVEFIT_ADMIN_TOKEN", "")
+
+
+def _require_admin():
+    """admin 라우트 가드. 미인가 시 404로 abort(존재 자체를 숨김)."""
+    if FLASK_DEBUG:
+        return
+    if ADMIN_TOKEN:
+        supplied = request.headers.get("X-Admin-Token") or request.args.get("admin_token", "")
+        if supplied == ADMIN_TOKEN:
+            return
+    abort(404)
+
+
+_ERROR_PAGE = (
+    "<!doctype html><html lang=ko><head><meta charset=utf-8>"
+    "<meta name=viewport content='width=device-width,initial-scale=1'>"
+    "<title>{code} · LiveFit</title>"
+    "<style>body{{font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif;"
+    "background:#0f1115;color:#e6e8ec;display:flex;min-height:100vh;margin:0;"
+    "align-items:center;justify-content:center;text-align:center}}"
+    "a{{color:#5b8def;text-decoration:none}}</style></head><body><div>"
+    "<h1 style='font-size:3rem;margin:0'>{code}</h1>"
+    "<p style='opacity:.8'>{message}</p>"
+    "<p><a href='/'>홈으로 돌아가기</a></p></div></body></html>"
+)
+
+
+@app.errorhandler(404)
+def handle_404(err):
+    return _ERROR_PAGE.format(code=404, message="페이지를 찾을 수 없습니다."), 404
+
+
+@app.errorhandler(500)
+def handle_500(err):
+    # 프로덕션에서 트레이스백을 사용자에게 노출하지 않는다(서버 로그에만 기록).
+    app.logger.exception("Unhandled 500")
+    return _ERROR_PAGE.format(code=500, message="일시적인 오류가 발생했습니다."), 500
 
 
 PREFERENCE_KEYS = [
@@ -4332,6 +4378,7 @@ def home():
 
 @app.route("/admin/ranking-debug")
 def admin_ranking_debug():
+    _require_admin()
     metric_options = build_ranking_debug_options()
     selected_metric = request.args.get("metric") or "ev_charger"
 
@@ -6273,4 +6320,6 @@ _warm_explore_caches()
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # 외부 공개는 gunicorn/waitress 등 WSGI 서버로 구동한다.
+    # 로컬 디버거가 필요할 때만 FLASK_DEBUG=1 로 명시적으로 켠다(기본 OFF).
+    app.run(debug=FLASK_DEBUG)
