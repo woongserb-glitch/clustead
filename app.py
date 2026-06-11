@@ -20,6 +20,9 @@ except ImportError:
     def load_dotenv(*args, **kwargs):
         return False
 from flask import Flask, Response, abort, jsonify, render_template, request
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from services.poi_service import (
     get_category_summaries,
@@ -92,6 +95,22 @@ from scripts.baseline_metric_config import (
 load_dotenv()
 
 app = Flask(__name__)
+
+# 리버스 프록시(nginx 등) 뒤에서는 실제 클라이언트 IP가 X-Forwarded-For에 담긴다.
+# 이를 신뢰해야 레이트리밋이 IP별로 동작한다(아니면 모두 프록시 IP로 한 버킷 공유).
+# 프록시 뒤 배포 시에만 LIVEFIT_TRUST_PROXY=1 로 켠다(직접 노출 시엔 스푸핑 위험이라 OFF).
+if os.getenv("LIVEFIT_TRUST_PROXY", "0") == "1":
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+# Kakao 유료 API를 호출하는 /result·export 경로를 봇 폭주(쿼터 소진·비용)로부터 보호.
+# 단일 인스턴스는 memory 스토리지로 충분. 다중 인스턴스 확장 시 redis:// 로 교체.
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=[],  # 전역 기본 제한 없음 — 비용 경로에만 명시 적용
+    storage_uri=os.getenv("LIVEFIT_RATELIMIT_STORAGE", "memory://"),
+    enabled=os.getenv("LIVEFIT_RATELIMIT", "1") == "1",
+)
 
 KAKAO_RESULT_FALLBACK_CATEGORIES = ()
 KAKAO_RESULT_ALL_CATEGORIES = (
@@ -180,6 +199,13 @@ def handle_500(err):
     # 프로덕션에서 트레이스백을 사용자에게 노출하지 않는다(서버 로그에만 기록).
     app.logger.exception("Unhandled 500")
     return _ERROR_PAGE.format(code=500, message="일시적인 오류가 발생했습니다."), 500
+
+
+@app.errorhandler(429)
+def handle_429(err):
+    return _ERROR_PAGE.format(
+        code=429, message="요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."
+    ), 429
 
 
 PREFERENCE_KEYS = [
@@ -5960,6 +5986,7 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
 
 
 @app.route("/result")
+@limiter.limit("30 per minute")
 def result():
     context = build_result_context(
         request.args.get("apartment", "헬리오시티"),
@@ -6123,6 +6150,7 @@ def build_result_workbook(context):
 
 
 @app.route("/result/export.xlsx")
+@limiter.limit("10 per minute")
 def result_export_xlsx():
     context = build_result_context(
         request.args.get("apartment", "헬리오시티"),
