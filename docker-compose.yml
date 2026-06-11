@@ -1,0 +1,41 @@
+# LiveFit 배포 — 소규모 외부 공개(A안) / OCI Ubuntu VPS 1대
+# app(gunicorn) 은 외부에 직접 노출하지 않고 nginx 만 80(/443)을 공개한다.
+services:
+  app:
+    build: .
+    image: livefit-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # nginx 뒤에 있으므로 ProxyFix 활성 → 레이트리밋이 실제 클라이언트 IP 기준으로 동작.
+      - LIVEFIT_TRUST_PROXY=1
+      - WEB_CONCURRENCY=2
+      # 다중 워커에서 레이트리밋을 전역 일치시키려면 Redis 사용(미설정 시 워커별 카운트):
+      # - LIVEFIT_RATELIMIT_STORAGE=redis://redis:6379
+    volumes:
+      # 1.4GB 데이터(호스트). Kakao 캐시 write 때문에 read-write.
+      - ./data:/app/data
+    expose:
+      - "8000"        # 내부 네트워크에서 nginx 만 접근(호스트로 publish 안 함).
+    healthcheck:
+      # slim 이미지엔 curl 이 없어 python 으로 /healthz 확인. 부팅 워밍업은 start_period 로 흡수.
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      # - "443:443"   # TLS(certbot) 적용 시 주석 해제 — DEPLOY.md 참고
+    volumes:
+      - ./deploy/nginx/livefit.conf:/etc/nginx/conf.d/default.conf:ro
+      # TLS 적용 시:
+      # - ./deploy/certbot/conf:/etc/letsencrypt:ro
+      # - ./deploy/certbot/www:/var/www/certbot:ro

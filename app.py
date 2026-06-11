@@ -208,6 +208,13 @@ def handle_429(err):
     ), 429
 
 
+@app.route("/healthz")
+def healthz():
+    # 로드밸런서/Docker 헬스체크용. 데이터 적재 완료(부팅 워밍업 후)에만 200.
+    ready = bool(apartment_data)
+    return jsonify({"status": "ok" if ready else "loading"}), (200 if ready else 503)
+
+
 PREFERENCE_KEYS = [
     "subway",
     "bus",

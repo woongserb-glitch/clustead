@@ -6,3 +6,5 @@ pandas
 pyproj
 beautifulsoup4
 openpyxl
+# 프로덕션 WSGI 서버(Linux 컨테이너). Windows 개발 환경에선 설치/구동 안 함.
+gunicorn; sys_platform != "win32"
