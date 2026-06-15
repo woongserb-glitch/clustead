@@ -178,7 +178,7 @@ def _require_admin():
 _ERROR_PAGE = (
     "<!doctype html><html lang=ko><head><meta charset=utf-8>"
     "<meta name=viewport content='width=device-width,initial-scale=1'>"
-    "<title>{code} · LiveFit</title>"
+    "<title>{code} · Clustead</title>"
     "<style>body{{font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif;"
     "background:#0f1115;color:#e6e8ec;display:flex;min-height:100vh;margin:0;"
     "align-items:center;justify-content:center;text-align:center}}"
@@ -6170,12 +6170,12 @@ def result_export_xlsx():
 
     stream = build_result_workbook(context)
     name = clean_text(context["apartment"].get("name", "리포트")) or "리포트"
-    fallback = quote(f"LiveFit_{name}.xlsx")
+    fallback = quote(f"Clustead_{name}.xlsx")
     return Response(
         stream.getvalue(),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": f"attachment; filename=LiveFit_report.xlsx; filename*=UTF-8''{fallback}",
+            "Content-Disposition": f"attachment; filename=Clustead_report.xlsx; filename*=UTF-8''{fallback}",
         },
     )
 

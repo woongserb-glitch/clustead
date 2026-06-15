@@ -5,14 +5,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ apartment.name }} | LiveFit</title>
+    <title>{{ apartment.name }} | Clustead</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
     <div class="result-loading-overlay is-hidden" id="resultLoadingOverlay" aria-live="polite">
         <div class="result-loading-card">
-            <strong>LiveFit 분석 중</strong>
+            {% include "_brand_logo.html" %}
+            <strong>분석 중</strong>
             <p id="resultLoadingMessage">아파트 기본 정보를 불러오고 있습니다.</p>
         </div>
     </div>
@@ -27,7 +29,7 @@
                     <a class="result-download-btn" href="{{ url_for('result_export_xlsx', apartment=apartment.name, gu=apartment.district, dong=apartment.dong) }}">⬇ Excel 다운로드</a>
                 </div>
             </div>
-            <div class="top-label">LIVEFIT RESULT</div>
+            <div class="top-label">CLUSTEAD RESULT</div>
             <h1>{{ apartment.name }}</h1>
             <p>
                 {{ apartment.district }} {{ apartment.dong }}
@@ -333,7 +335,7 @@
             <div class="transaction-card-head">
                 <div>
                     <em>💰 실거래/전월세 흐름</em>
-                    <p>국토교통부 실거래가 공개시스템 신고 기준 데이터를 참고합니다.<br>실거래 정보는 계약 해제·정정·신고 시점 차이 등에 따라 실제와 일부 다를 수 있으며, 최근 거래는 신고 반영 시점에 따라 변동될 수 있습니다.<br>LiveFit은 단지명·도로명주소·거래 정보 등을 기준으로 신뢰 가능한 거래를 우선 연결합니다.<br>정확한 거래 정보는 국토교통부 실거래가 공개시스템을 함께 확인해 주세요.</p>
+                    <p>국토교통부 실거래가 공개시스템 신고 기준 데이터를 참고합니다.<br>실거래 정보는 계약 해제·정정·신고 시점 차이 등에 따라 실제와 일부 다를 수 있으며, 최근 거래는 신고 반영 시점에 따라 변동될 수 있습니다.<br>Clustead는 단지명·도로명주소·거래 정보 등을 기준으로 신뢰 가능한 거래를 우선 연결합니다.<br>정확한 거래 정보는 국토교통부 실거래가 공개시스템을 함께 확인해 주세요.</p>
                 </div>
             </div>
 

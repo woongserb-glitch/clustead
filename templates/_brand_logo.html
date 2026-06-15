@@ -1,0 +1,18 @@
+{# 공통 브랜드 로고(아퍼처 마크 + CLUSTEAD 워드마크). currentColor 상속이라 어떤 배경에서도 동작.
+   조리개(=cluster) + 우측 열린 흰 공간(=C). 강조 블레이드는 우측(rotate 60)에 opacity로 처리. #}
+<span class="clustead-logo">
+  <svg class="cl-mark" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+    <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(0 50 50)"/>
+    <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(60 50 50)" opacity="0.38"/>
+    <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(120 50 50)"/>
+    <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(180 50 50)"/>
+    <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(240 50 50)"/>
+    <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(300 50 50)"/>
+  </svg>
+  <span class="clustead-wordmark">CLUSTEAD</span>
+</span>
+<style>
+  .clustead-logo{display:inline-flex;align-items:center;gap:.55em;line-height:1;color:inherit;vertical-align:middle}
+  .clustead-logo .cl-mark{width:1.5em;height:1.5em;flex:none;display:block}
+  .clustead-logo .clustead-wordmark{font-family:'Jost','Century Gothic','Futura','Trebuchet MS',system-ui,sans-serif;font-weight:500;letter-spacing:.18em;padding-left:.18em;text-transform:uppercase}
+</style>

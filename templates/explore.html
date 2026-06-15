@@ -4,14 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Explore | LiveFit</title>
+    <title>Explore | Clustead</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
     <div class="result-loading-overlay home-loading-overlay is-hidden" id="homeLoadingOverlay" aria-live="polite">
         <div class="result-loading-card">
-            <strong>LiveFit 탐색 중</strong>
+            {% include "_brand_logo.html" %}
+            <strong>탐색 중</strong>
             <p>선택한 생활 조건에 맞는 아파트를 찾고 있습니다.<br>학교 · 평수 · 가격 · 생활 인프라를 함께 확인 중입니다.</p>
         </div>
     </div>

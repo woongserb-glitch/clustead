@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiveFit Ranking Debug</title>
+    <title>Clustead Ranking Debug</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <style>
         :root {
             color-scheme: light;
@@ -298,7 +299,7 @@
 <body>
 <main>
     <section class="notice">
-        <h1>LiveFit Ranking Debug</h1>
+        <h1>Clustead Ranking Debug</h1>
         <p><strong>관리자/디버그용 페이지입니다.</strong> 일반 사용자 화면 검증용 UI가 아니며, baseline percentile 계산값을 확인하기 위한 화면입니다.</p>
         <p>seoul_percentile: 서울 기준 상위 X%, 낮을수록 좋음 · seoul_score: 0~100점, 높을수록 좋음 · raw metric 방향성: higher_better / lower_better</p>
         {% if latest_validation_report %}
