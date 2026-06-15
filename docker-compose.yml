@@ -33,9 +33,19 @@ services:
         condition: service_healthy
     ports:
       - "80:80"
-      # - "443:443"   # TLS(certbot) 적용 시 주석 해제 — DEPLOY.md 참고
+      - "443:443"
     volumes:
+      # 부트스트랩(HTTP)은 livefit.conf, 인증서 발급 후 livefit-ssl.conf 로 교체(DEPLOY.md §7).
       - ./deploy/nginx/livefit.conf:/etc/nginx/conf.d/default.conf:ro
-      # TLS 적용 시:
-      # - ./deploy/certbot/conf:/etc/letsencrypt:ro
-      # - ./deploy/certbot/www:/var/www/certbot:ro
+      - ./deploy/certbot/conf:/etc/letsencrypt:ro
+      - ./deploy/certbot/www:/var/www/certbot:ro
+
+  # Let's Encrypt 인증서 발급/자동갱신. 최초 발급은 DEPLOY.md §7 의 1회 명령으로 실행.
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./deploy/certbot/conf:/etc/letsencrypt
+      - ./deploy/certbot/www:/var/www/certbot
+    # 12시간마다 갱신 시도(만료 임박분만 실제 갱신). 갱신 후 nginx 는 주기적 reload 또는 재기동 필요.
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
