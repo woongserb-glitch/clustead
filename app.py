@@ -4406,7 +4406,32 @@ def get_preference_tags(preferences, category_summaries, apartment):
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    gu_options = sorted({
+        clean_text(item.get("gu") or item.get("district", ""))
+        for item in apartment_data
+        if clean_text(item.get("gu") or item.get("district", ""))
+    })
+    brand_dir = os.path.join(app.static_folder, "brands")
+    brand_logos = []
+    if os.path.isdir(brand_dir):
+        brand_logos = sorted(
+            f for f in os.listdir(brand_dir)
+            if f.lower().endswith((".svg", ".png", ".webp", ".jpg", ".jpeg"))
+        )
+    home_config = {
+        "domains": build_home_graph(),
+        "brand_logos": brand_logos,
+        "presets": {
+            "gu": gu_options,
+            "area": EXPLORE_AREA_BUCKETS,
+            "household": EXPLORE_HOUSEHOLD_BUCKETS,
+            "price_types": [
+                {"key": t["key"], "label": t["label"], "buckets": t["buckets"]}
+                for t in EXPLORE_PRICE_TYPE_OPTIONS
+            ],
+        },
+    }
+    return render_template("index.html", home_config=home_config)
 
 
 @app.route("/admin/ranking-debug")
@@ -4571,10 +4596,16 @@ def api_options_dongs():
 
 @app.route("/api/options/subway-lines")
 def api_options_subway_lines():
+    query = normalize_search_text(request.args.get("q", ""))
+    lines = get_subway_line_options()
+    if query:
+        starts = [l for l in lines if normalize_search_text(l).startswith(query)]
+        contains = [l for l in lines if query in normalize_search_text(l) and l not in starts]
+        lines = starts + contains
     return jsonify({
         "items": [
             {"value": line, "label": line}
-            for line in get_subway_line_options()
+            for line in lines
         ]
     })
 
@@ -5013,6 +5044,127 @@ _PRICE_BUCKET_BY_TYPE = {
 
 # 버스: 노선유형(간선/지선/마을/심야/공항/기타)별 번호 검색 — 지하철 노선/역과 동일 컨셉.
 EXPLORE_BUS_TYPES = ["간선", "지선", "마을", "심야", "공항", "기타"]
+
+
+# 도메인별 표시색(Home 네트워크 그래프) — 결과 페이지 도메인 컬러와 일관.
+HOME_DOMAIN_COLORS = {
+    "transport": "#5b8def",
+    "education": "#e0a73e",
+    "convenience": "#34bd8a",
+    "medical": "#e8697f",
+    "rest": "#8c7cf0",
+    "culture": "#ef7d57",
+    "safety": "#46b3c4",
+}
+
+
+def _priority_category_node(category):
+    """SUBTYPE_SEARCH_CONFIG 한 항목을 Home 그래프 카테고리 노드로 변환."""
+    cfg = SUBTYPE_SEARCH_CONFIG[category]
+    return {
+        "key": category,
+        "label": cfg["label"],
+        "icon": cfg["icon"],
+        "kind": "priority",
+        "radius_label": cfg.get("radius_label", ""),
+        "subtypes": list(cfg["subtypes"]),
+    }
+
+
+def build_home_graph():
+    """Home 네트워크 그래프 트리: 도메인 → 카테고리 → 브랜드/유형.
+    필터로 실제 Explore에 전달 가능한 노드만 포함한다(점수 전용 노드 제외)."""
+    domains = [
+        {
+            "key": "transport",
+            "label": "교통",
+            "icon": "🚇",
+            "categories": [
+                {
+                    "key": "subway_line", "label": "지하철 노선", "icon": "🚇", "kind": "autocomplete",
+                    "endpoint": "/api/options/subway-lines", "param": "line",
+                    "placeholder": "노선 선택 (예: 2호선)",
+                },
+                {
+                    "key": "subway", "label": "지하철역", "icon": "🚉", "kind": "autocomplete",
+                    "endpoint": "/api/search/subway-stations", "param": "station",
+                    "placeholder": "역명 검색 (예: 종합운동장)", "suffix": "역",
+                    "filter_param": "line",
+                },
+                {
+                    "key": "bus", "label": "버스", "icon": "🚍", "kind": "autocomplete",
+                    "endpoint": "/api/search/bus-routes", "param": "bus_route",
+                    "placeholder": "버스 번호 검색 (예: 472)", "suffix": "번",
+                },
+            ],
+        },
+        {
+            "key": "education",
+            "label": "교육",
+            "icon": "🏫",
+            "categories": [
+                {
+                    "key": "assigned_elementary", "label": "배정초", "icon": "🎒", "kind": "autocomplete",
+                    "endpoint": "/api/search/assigned-elementary", "param": "assigned_elementary",
+                    "placeholder": "배정 초등학교명 검색",
+                },
+                {
+                    "key": "school", "label": "중·고등학교", "icon": "📖", "kind": "autocomplete",
+                    "endpoint": "/api/search/schools", "param": "school",
+                    "placeholder": "중/고 학교명 검색",
+                },
+                _priority_category_node("academy"),
+            ],
+        },
+        {
+            "key": "convenience",
+            "label": "생활편의",
+            "icon": "🛒",
+            "categories": [
+                _priority_category_node("large_mart"),
+                _priority_category_node("super_mart"),
+                _priority_category_node("warehouse_mart"),
+                _priority_category_node("convenience"),
+            ],
+        },
+        {
+            "key": "medical",
+            "label": "의료",
+            "icon": "🏥",
+            "categories": [_priority_category_node("medical")],
+        },
+        {
+            "key": "rest",
+            "label": "휴식",
+            "icon": "☕",
+            "categories": [
+                _priority_category_node("cafe"),
+                _priority_category_node("park"),
+            ],
+        },
+        {
+            "key": "culture",
+            "label": "문화",
+            "icon": "🎭",
+            "categories": [_priority_category_node("culture")],
+        },
+        {
+            "key": "safety",
+            "label": "안전",
+            "icon": "🛡",
+            "categories": [
+                {
+                    "key": "no_nightlife", "label": "유흥 없음", "icon": "🚭",
+                    "kind": "toggle", "param": "no_nightlife",
+                    "hint": "반경 500m 이내 유흥시설 없는 단지",
+                },
+            ],
+        },
+    ]
+    for domain in domains:
+        domain["color"] = HOME_DOMAIN_COLORS.get(domain["key"], "#888")
+    return domains
+
 
 _EXPLORE_LOOKUP_CACHE = {}
 
@@ -6357,4 +6509,5 @@ _warm_explore_caches()
 if __name__ == "__main__":
     # 외부 공개는 gunicorn/waitress 등 WSGI 서버로 구동한다.
     # 로컬 디버거가 필요할 때만 FLASK_DEBUG=1 로 명시적으로 켠다(기본 OFF).
-    app.run(debug=FLASK_DEBUG)
+    # 로컬 dev 편의: HOST/PORT 환경변수 지원(미설정 시 127.0.0.1:5000).
+    app.run(host=os.getenv("HOST", "127.0.0.1"), port=int(os.getenv("PORT", "5000")), debug=FLASK_DEBUG)

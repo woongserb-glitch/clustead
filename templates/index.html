@@ -4,89 +4,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiveFit</title>
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Clustead — 내 삶에 맞는 서울 아파트</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}?v=33">
 </head>
 
-<body class="home-page">
-    <div class="result-loading-overlay home-loading-overlay is-hidden" id="homeLoadingOverlay" aria-live="polite">
-        <div class="result-loading-card">
-            <strong>LiveFit 분석 중</strong>
-            <p>아파트 생활 데이터를 정리하고 있습니다.<br>교통 · 생활편의 · 의료 · 거래 정보를 함께 확인 중입니다.</p>
+<body class="hg-body">
+    <div class="hg-loading is-hidden" id="homeLoadingOverlay" aria-live="polite">
+        <div class="hg-loading-card">
+            <span class="hg-spinner" aria-hidden="true"></span>
+            <strong>조건에 맞는 단지를 찾는 중</strong>
+            <p>선택한 생활 조건을 기준으로 서울시 아파트를 탐색하고 있습니다.</p>
         </div>
     </div>
 
-    <div class="page home-shell">
-        <header class="home-nav">
-            <a class="home-brand" href="/">LIVEFIT</a>
+    <div class="hg-shell">
+        <!-- 상단 바 -->
+        <header class="hg-topbar">
+            <a class="hg-brand" href="/">
+                <span class="hg-brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 100 100" fill="#FFFFFF">
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(0 50 50)"/>
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(60 50 50)" opacity="0.4"/>
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(120 50 50)"/>
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(180 50 50)"/>
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(240 50 50)"/>
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(300 50 50)"/>
+                    </svg>
+                </span>
+                <span class="hg-brand-text">CLUSTEAD</span>
+            </a>
+            <div class="hg-topbar-center">
+                <p class="hg-tagline">원하는 조건을 순서대로 선택하세요. <b>아파트</b>가 보입니다.</p>
+            </div>
+            <div class="hg-topbar-actions">
+                <form action="/result" method="get" class="hg-name-search" data-name-search>
+                    <input type="text" name="apartment" placeholder="아파트명 직접 검색"
+                        autocomplete="off" data-name-input aria-label="아파트명 검색">
+                    <input type="hidden" name="src" value="home">
+                    <button type="submit" aria-label="검색">⌕</button>
+                    <div class="hg-name-menu" data-name-menu hidden></div>
+                </form>
+                <a class="hg-compare-btn" href="/compare">⚖ 단지 비교</a>
+            </div>
         </header>
 
-        <main class="home-hero">
-            <div class="home-hero-inner">
-                <div class="top-label">Finding your lifestyle</div>
-                <h1>LIVEFIT</h1>
-                <p>아파트 생활환경과 거래 흐름을 한눈에 확인하세요.</p>
+        <!-- 프리셋 바 (선제 셋팅: 지역/면적/가격) -->
+        <div class="hg-presetbar" data-presetbar>
+            <button class="hg-preset" type="button" data-preset="gu">
+                <span class="hg-preset-icon">📍</span>
+                <span class="hg-preset-label" data-preset-label="gu">지역</span>
+                <span class="hg-preset-caret">▾</span>
+            </button>
+            <button class="hg-preset" type="button" data-preset="area">
+                <span class="hg-preset-icon">📐</span>
+                <span class="hg-preset-label" data-preset-label="area">전용면적</span>
+                <span class="hg-preset-caret">▾</span>
+            </button>
+            <button class="hg-preset" type="button" data-preset="household">
+                <span class="hg-preset-icon">🏢</span>
+                <span class="hg-preset-label" data-preset-label="household">세대수</span>
+                <span class="hg-preset-caret">▾</span>
+            </button>
+            <button class="hg-preset" type="button" data-preset="price">
+                <span class="hg-preset-icon">💰</span>
+                <span class="hg-preset-label" data-preset-label="price">실거래가</span>
+                <span class="hg-preset-caret">▾</span>
+            </button>
+        </div>
 
-                <form action="/result" method="get" class="home-search-form" data-apartment-search-form data-show-loading="true">
-                    <input type="hidden" name="src" value="home">
-                    <div class="search-row home-search-row">
-                        <div class="autocomplete-field">
-                            <input
-                                type="text"
-                                name="apartment"
-                                placeholder="아파트 이름을 입력하세요. 예: 헬리오시티, 마포래미안푸르지오"
-                                autocomplete="off"
-                                data-autocomplete="apartments"
-                                data-require-known="true"
-                                data-submit-on-select="true">
-                        </div>
-                        <button type="submit">검색하기</button>
-                        <a class="home-row-action" href="/explore">탐색하기</a>
-                        <a class="home-row-action" href="/compare">비교하기</a>
-                    </div>
+        <!-- 네트워크 그래프 캔버스 -->
+        <main class="hg-stage" data-stage>
+            <svg class="hg-svg" data-svg aria-label="Clustead 생활 인프라 마인드맵"></svg>
 
-                    <div class="quick-search home-quick-search" aria-label="예시 검색">
-                        <span>예시 검색</span>
-                        <button type="button" data-value="헬리오시티">헬리오시티</button>
-                        <button type="button" data-value="마포래미안푸르지오">마포래미안푸르지오</button>
-                        <button type="button" data-value="반포자이">반포자이</button>
-                        <button type="button" data-value="서울숲리버뷰자이아파트">서울숲리버뷰자이</button>
-                    </div>
-                </form>
+            <!-- 브랜드 호버 툴팁 -->
+            <div class="hg-tooltip" data-tooltip hidden></div>
+
+            <!-- 노드 클릭형 검색 패널 스택 (여러 개 동시·좌측 고정) -->
+            <div class="hg-search-stack" data-search-stack></div>
+
+            <div class="hg-stage-hint" data-stage-hint>
+                <kbd>드래그</kbd> 이동 · <kbd>휠</kbd> 확대/축소 · 노드를 눌러 가지를 펼치세요
             </div>
-
-            <div class="home-city-illustration" aria-hidden="true">
-                <svg viewBox="0 0 720 170" role="img" focusable="false">
-                    <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M58 136h604" />
-                        <path d="M82 136V96h42v40" />
-                        <path d="M94 96V76h18v20" />
-                        <path d="M150 136V70h70v66" />
-                        <path d="M168 87h11M196 87h11M168 109h11M196 109h11" />
-                        <path d="M254 136V48h88v88" />
-                        <path d="M274 69h12M310 69h12M274 94h12M310 94h12M274 119h12M310 119h12" />
-                        <path d="M380 136V30h98v106" />
-                        <path d="M402 54h13M444 54h13M402 82h13M444 82h13M402 110h13M444 110h13" />
-                        <path d="M516 136V80h58v56" />
-                        <path d="M535 99h19M535 118h19" />
-                        <path d="M604 136V104h36v32" />
-                        <path d="M68 96c12-21 39-21 51 0M570 71c15-27 53-27 68 0" />
-                        <path d="M236 136v-22M236 114c-14-7-14-28 0-35 14 7 14 28 0 35Z" />
-                        <path d="M498 136v-24M498 112c-15-7-15-30 0-38 15 8 15 31 0 38Z" />
-                        <path d="M48 136v-14M674 136v-14" />
-                    </g>
-                </svg>
-            </div>
-
-            <section class="home-note" aria-label="LiveFit 데이터 안내">
-                <strong>LiveFit은 공공데이터와 공개 정보를 기반으로</strong>
-                <p>교통, 생활편의, 의료, 교육, 거래 흐름까지 한 번에 확인할 수 있습니다.</p>
-            </section>
         </main>
+
+        <!-- 선택 트레이 + 탐색 버튼 -->
+        <aside class="hg-tray" data-tray hidden>
+            <div class="hg-tray-head">
+                <strong>선택한 조건</strong>
+                <span class="hg-tray-count" data-tray-count>0</span>
+            </div>
+            <p class="hg-tray-note">위에서부터 <b>생활 인프라 우선순위</b> 순서입니다.</p>
+            <ul class="hg-tray-list" data-tray-list></ul>
+            <div class="hg-tray-actions">
+                <button type="button" class="hg-tray-reset" data-tray-reset>전체 해제</button>
+                <button type="button" class="hg-explore-btn" data-explore-btn>
+                    탐색하기 <span class="hg-explore-arrow">→</span>
+                </button>
+            </div>
+        </aside>
+
+        <button type="button" class="hg-tray-fab" data-tray-fab hidden>
+            <span data-fab-count>0</span>개 조건 · 탐색하기
+        </button>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script id="home-config" type="application/json">{{ home_config | tojson | safe }}</script>
+    <script src="{{ url_for('static', filename='vendor/d3.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='home.js') }}?v=28"></script>
 </body>
 
 </html>
