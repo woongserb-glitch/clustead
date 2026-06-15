@@ -20,8 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
-os.environ.setdefault("LIVEFIT_KAKAO_RESULT_MODE", "off")
-os.environ.setdefault("LIVEFIT_PRELOAD_VERBOSE", "0")
+os.environ.setdefault("CLUSTEAD_KAKAO_RESULT_MODE", "off")
+os.environ.setdefault("CLUSTEAD_PRELOAD_VERBOSE", "0")
 
 APPROX = 1e-6
 
@@ -231,6 +231,30 @@ def integ_ranking_coverage_expanded():
     # at least one apartment should carry most of the mapped categories
     best = max((len(v["category_scores"]) for v in idx.values()), default=0)
     assert best >= 12, f"expected wide category coverage, got {best}"
+
+
+def integ_subway_line_filter_exact_not_substring():
+    """Explore 노선 필터는 노선 '전체 일치'여야 한다 — 부분문자열이면 안 된다.
+    '1호선' 선택이 '공항철도1호선' 보유 단지(예: 가양2단지)에 오매칭되던 버그 회귀 방지.
+    데이터에서 (a)정확히 1호선인 단지와 (b)JSON엔 '1호선' 문자열이 있으나 정확 노선엔
+    없는 단지를 찾아, 구조적 매처가 (b)를 배제함을 단언한다."""
+    app = _app()
+    from services.preload_service import subway_baseline_data
+
+    target = "1호선"
+    substring_only = None  # subway_items_json 에 '1호선' 문자열은 있으나 정확 노선엔 없음
+    exact_hit = False      # 정확히 '1호선' 노선을 가진 단지가 존재
+    for r in subway_baseline_data:
+        lines = app._apartment_subway_lines(r)
+        if target in lines:
+            exact_hit = True
+        elif target in str(r.get("subway_items_json", "")):
+            substring_only = r
+
+    assert exact_hit, "expected at least one apartment on exact 1호선"
+    assert substring_only is not None, "expected a substring-only case (e.g. 공항철도1호선)"
+    # 핵심: 구조적 매처는 substring-only 단지를 1호선으로 인정하지 않는다.
+    assert target not in app._apartment_subway_lines(substring_only)
 
 
 # --------------------------------------------------------------------------

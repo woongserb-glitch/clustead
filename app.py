@@ -3,6 +3,7 @@ import csv
 import sys
 import re
 import math
+import base64
 
 from services.ranking_service import (
     get_ranked_apartments,
@@ -96,10 +97,15 @@ load_dotenv()
 
 app = Flask(__name__)
 
+
+def clustead_env(key, default=""):
+    """Read CLUSTEAD_* first, with LIVEFIT_* kept as a legacy fallback."""
+    return os.getenv(f"CLUSTEAD_{key}", os.getenv(f"LIVEFIT_{key}", default))
+
 # 리버스 프록시(nginx 등) 뒤에서는 실제 클라이언트 IP가 X-Forwarded-For에 담긴다.
 # 이를 신뢰해야 레이트리밋이 IP별로 동작한다(아니면 모두 프록시 IP로 한 버킷 공유).
-# 프록시 뒤 배포 시에만 LIVEFIT_TRUST_PROXY=1 로 켠다(직접 노출 시엔 스푸핑 위험이라 OFF).
-if os.getenv("LIVEFIT_TRUST_PROXY", "0") == "1":
+# 프록시 뒤 배포 시에만 CLUSTEAD_TRUST_PROXY=1 로 켠다(직접 노출 시엔 스푸핑 위험이라 OFF).
+if clustead_env("TRUST_PROXY", "0") == "1":
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # Kakao 유료 API를 호출하는 /result·export 경로를 봇 폭주(쿼터 소진·비용)로부터 보호.
@@ -108,8 +114,8 @@ limiter = Limiter(
     key_func=get_remote_address,
     app=app,
     default_limits=[],  # 전역 기본 제한 없음 — 비용 경로에만 명시 적용
-    storage_uri=os.getenv("LIVEFIT_RATELIMIT_STORAGE", "memory://"),
-    enabled=os.getenv("LIVEFIT_RATELIMIT", "1") == "1",
+    storage_uri=clustead_env("RATELIMIT_STORAGE", "memory://"),
+    enabled=clustead_env("RATELIMIT", "1") == "1",
 )
 
 KAKAO_RESULT_FALLBACK_CATEGORIES = ()
@@ -147,7 +153,7 @@ build_apartment_index()
 
 
 KAKAO_JAVASCRIPT_KEY = os.getenv("KAKAO_JAVASCRIPT_KEY", "")
-DEBUG_LOG = os.getenv("LIVEFIT_DEBUG", "0") == "1"
+DEBUG_LOG = clustead_env("DEBUG", "0") == "1"
 
 
 def debug_log(*args):
@@ -157,11 +163,11 @@ def debug_log(*args):
 
 # ── 배포 보안 (외부 공개) ───────────────────────────────────────────────
 # Werkzeug 디버거는 임의 코드 실행(RCE) 경로다. 명시적 opt-in일 때만 켜고
-# 기본은 OFF. 로깅용 LIVEFIT_DEBUG와 분리해 실수로 켜지지 않게 한다.
+# 기본은 OFF. 로깅용 CLUSTEAD_DEBUG와 분리해 실수로 켜지지 않게 한다.
 FLASK_DEBUG = os.getenv("FLASK_DEBUG", "0") == "1"
 
 # /admin/* 보호 토큰. 미설정이면 비-디버그 환경에서 admin 라우트를 404로 숨긴다.
-ADMIN_TOKEN = os.getenv("LIVEFIT_ADMIN_TOKEN", "")
+ADMIN_TOKEN = clustead_env("ADMIN_TOKEN", "")
 
 
 def _require_admin():
@@ -4162,7 +4168,7 @@ def get_preferences():
     return preferences
 
 
-def make_result_url(apartment_name, preferences, gu="", dong="", src="home"):
+def make_result_url(apartment_name, preferences, gu="", dong="", src="home", share_q=""):
     # Always carry gu/dong so links resolve the exact complex, not the first
     # name match. Names collide across Seoul (e.g. 신동아아파트 x3).
     params = {"apartment": apartment_name}
@@ -4173,6 +4179,8 @@ def make_result_url(apartment_name, preferences, gu="", dong="", src="home"):
         params["dong"] = dong
     if src:
         params["src"] = src  # 진입경로(home/explore)별 우측 패널 분기
+    if share_q:
+        params["q"] = share_q
 
     for key in PREFERENCE_KEYS:
         params[key] = preferences.get(key, 3)
@@ -4997,6 +5005,136 @@ def parse_priorities(raw_list):
     return priorities
 
 
+EXPLORE_SHARE_TEXT_KEYS = (
+    "gu", "dong", "line", "station", "assigned_elementary", "school",
+    "household", "price_type", "price", "bus_type", "bus_route",
+    "no_nightlife",
+)
+
+
+def _decode_share_payload(raw):
+    """Decode the compact client share query. Invalid values are ignored."""
+    raw = clean_text(raw)
+    if not raw or len(raw) > 6000:
+        return {}
+    try:
+        padding = "=" * (-len(raw) % 4)
+        decoded = base64.urlsafe_b64decode((raw + padding).encode("ascii"))
+        payload = json.loads(decoded.decode("utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    filters = payload.get("filters", payload)
+    return filters if isinstance(filters, dict) else {}
+
+
+def _share_list(value):
+    if isinstance(value, (list, tuple)):
+        return [clean_text(item) for item in value if clean_text(item)]
+    value = clean_text(value)
+    return [value] if value else []
+
+
+def normalize_explore_filters(raw_filters):
+    """Keep only Explore filter keys and normalize array-ish values."""
+    raw_filters = raw_filters or {}
+    filters = {key: clean_text(raw_filters.get(key, "")) for key in EXPLORE_SHARE_TEXT_KEYS}
+
+    area_values = raw_filters.get("area_buckets", raw_filters.get("area", []))
+    filters["area_buckets"] = [
+        value for value in _share_list(area_values) if value in _AREA_BUCKET_COL
+    ]
+
+    raw_priorities = raw_filters.get("priority", raw_filters.get("priorities", []))
+    priority_values = []
+    if isinstance(raw_priorities, list):
+        for item in raw_priorities:
+            if isinstance(item, dict):
+                category = clean_text(item.get("category", ""))
+                subtype = clean_text(item.get("subtype", ""))
+                if category and subtype:
+                    priority_values.append(f"{category}:{subtype}")
+                continue
+            if isinstance(item, (list, tuple)) and len(item) >= 2:
+                category = clean_text(item[0])
+                subtype = clean_text(item[1])
+                if category and subtype:
+                    priority_values.append(f"{category}:{subtype}")
+                continue
+            priority_values.extend(_share_list(item))
+    else:
+        priority_values = _share_list(raw_priorities)
+    filters["priorities"] = parse_priorities(priority_values)
+
+    if filters["price_type"] not in _PRICE_BUCKET_BY_TYPE:
+        filters["price_type"] = "trade"
+    if filters["price"] and filters["price"] not in _PRICE_BUCKET_BY_TYPE[filters["price_type"]]:
+        filters["price"] = ""
+    if filters["household"] and filters["household"] not in _HOUSEHOLD_BUCKET_BY_KEY:
+        filters["household"] = ""
+    if filters["bus_type"] and filters["bus_type"] not in EXPLORE_BUS_TYPES:
+        filters["bus_type"] = ""
+    return filters
+
+
+def _filters_from_request_args():
+    priority_args = request.args.getlist("priority")
+    for legacy_academy_key in request.args.getlist("academy"):
+        academy_type = _ACADEMY_TYPE_BY_KEY.get(clean_text(legacy_academy_key))
+        if academy_type:
+            priority_args.append(f"academy:{academy_type['label']}")
+
+    return {
+        "gu": request.args.get("gu", ""),
+        "dong": request.args.get("dong", ""),
+        "line": request.args.get("line", ""),
+        "station": request.args.get("station", ""),
+        "no_nightlife": request.args.get("no_nightlife", ""),
+        "priorities": parse_priorities(priority_args),
+        "assigned_elementary": request.args.get("assigned_elementary", ""),
+        "school": request.args.get("school", ""),
+        "area_buckets": request.args.getlist("area"),
+        "household": request.args.get("household", ""),
+        "price_type": request.args.get("price_type", ""),
+        "price": request.args.get("price", ""),
+        "bus_type": request.args.get("bus_type", ""),
+        "bus_route": request.args.get("bus_route", ""),
+    }
+
+
+def encode_explore_share_query(filters):
+    payload = {"v": 1, "filters": {}}
+    for key in EXPLORE_SHARE_TEXT_KEYS:
+        if key == "price_type":
+            continue
+        value = clean_text((filters or {}).get(key, ""))
+        if value:
+            payload["filters"][key] = value
+    if payload["filters"].get("price"):
+        payload["filters"]["price_type"] = clean_text((filters or {}).get("price_type", "")) or "trade"
+    area_values = [
+        clean_text(value) for value in ((filters or {}).get("area_buckets", []) or [])
+        if clean_text(value)
+    ]
+    if area_values:
+        payload["filters"]["area"] = area_values
+    priorities = []
+    for category, subtype in ((filters or {}).get("priorities", []) or []):
+        category = clean_text(category)
+        subtype = clean_text(subtype)
+        if category and subtype:
+            priorities.append(f"{category}:{subtype}")
+    if priorities:
+        payload["filters"]["priority"] = priorities
+    if not payload["filters"]:
+        return ""
+    encoded = base64.urlsafe_b64encode(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).decode("ascii")
+    return encoded.rstrip("=")
+
+
 # Explore 기본 검색 — 평수(전용 ㎡ 4구간 세대수) / 가격(최근1년 평균매매가, 만원).
 EXPLORE_AREA_BUCKETS = [
     {"key": "u60", "label": "전용 60㎡ 이하", "column": "area_under_60"},
@@ -5357,7 +5495,28 @@ def _apartment_station_names(subway_row):
     return names
 
 
-def build_explore_results(filters, limit=10):
+def _apartment_subway_lines(subway_row):
+    """단지 인근 지하철 '노선명' 집합(구조적). 노선 전체 일치 비교용.
+    get_subway_line_station_index 와 동일하게 subway_items_json 의 lines 를 파싱한다.
+    문자열 부분일치(예: '1호선' 이 '공항철도1호선' 에 매칭)로 오선별되던 것을 막는다."""
+    lines = set()
+    raw = subway_row.get("subway_items_json", "")
+    try:
+        items = json.loads(raw) if raw else []
+    except Exception:
+        items = []
+    for item in items:
+        raw_lines = item.get("lines", [])
+        if isinstance(raw_lines, str):
+            raw_lines = [part.strip() for part in raw_lines.replace("/", ",").split(",")]
+        for line in raw_lines:
+            name = clean_text(line)
+            if name:
+                lines.add(name)
+    return lines
+
+
+def build_explore_results(filters, limit=10, share_q=""):
     no_nightlife = bool(filters.get("no_nightlife"))
     gu_filter = clean_text(filters.get("gu", ""))
     dong_filter = clean_text(filters.get("dong", ""))
@@ -5404,8 +5563,8 @@ def build_explore_results(filters, limit=10):
         score = 0
 
         if line_filter:
-            line_text = str(subway.get("nearest_subway_lines", "")) + " " + str(subway.get("subway_items_json", ""))
-            if line_filter not in line_text:
+            # 노선 전체 일치(구조적). 부분문자열 매칭은 '1호선'→'공항철도1호선' 오선별을 유발했다.
+            if line_filter not in _apartment_subway_lines(subway):
                 continue
             matched.append(f"{line_filter} 접근")
             score += 3
@@ -5550,7 +5709,7 @@ def build_explore_results(filters, limit=10):
             "score": score,
             "sort_key": sort_key,
             "matched_features": matched[:8] or ["생활 균형형"],
-            "url": make_result_url(name, get_preferences(), gu, dong, src="explore"),
+            "url": make_result_url(name, get_preferences(), gu, dong, src="explore", share_q=share_q),
         })
 
     def order_key(item):
@@ -5655,7 +5814,8 @@ def build_explore_scenarios(limit=3):
     scenarios = []
     for spec in EXPLORE_SCENARIOS:
         filters = spec["filters"]
-        results = build_explore_results(filters, limit=limit)
+        share_q = encode_explore_share_query(filters)
+        results = build_explore_results(filters, limit=limit, share_q=share_q)
         if not results:
             continue
         scenarios.append({
@@ -5664,7 +5824,7 @@ def build_explore_scenarios(limit=3):
             "title": spec["title"],
             "desc": spec["desc"],
             "chips": spec["chips"],
-            "explore_url": "/explore?" + urlencode(_scenario_query(filters)),
+            "explore_url": "/explore?" + urlencode({"q": share_q}),
             "results": results,
         })
     _EXPLORE_SCENARIOS_CACHE = scenarios
@@ -5673,28 +5833,10 @@ def build_explore_scenarios(limit=3):
 
 @app.route("/explore")
 def explore():
-    priority_args = request.args.getlist("priority")
-    for legacy_academy_key in request.args.getlist("academy"):
-        academy_type = _ACADEMY_TYPE_BY_KEY.get(clean_text(legacy_academy_key))
-        if academy_type:
-            priority_args.append(f"academy:{academy_type['label']}")
+    shared_filters = _decode_share_payload(request.args.get("q", ""))
+    filters = normalize_explore_filters(shared_filters or _filters_from_request_args())
+    share_q = encode_explore_share_query(filters)
 
-    filters = {
-        "gu": request.args.get("gu", ""),
-        "dong": request.args.get("dong", ""),
-        "line": request.args.get("line", ""),
-        "station": request.args.get("station", ""),
-        "no_nightlife": request.args.get("no_nightlife", ""),
-        "priorities": parse_priorities(priority_args),
-        "assigned_elementary": request.args.get("assigned_elementary", ""),
-        "school": request.args.get("school", ""),
-        "area_buckets": request.args.getlist("area"),
-        "household": request.args.get("household", ""),
-        "price_type": request.args.get("price_type", ""),
-        "price": request.args.get("price", ""),
-        "bus_type": request.args.get("bus_type", ""),
-        "bus_route": request.args.get("bus_route", ""),
-    }
     gu_options = sorted({clean_text(item.get("gu", "")) for item in apartment_data if clean_text(item.get("gu", ""))})
     dong_options = sorted({
         clean_text(item.get("dong", ""))
@@ -5704,7 +5846,7 @@ def explore():
     })
 
     has_active_filters = _explore_has_active_filters(filters)
-    results = build_explore_results(filters) if has_active_filters else []
+    results = build_explore_results(filters, share_q=share_q) if has_active_filters else []
     scenarios = [] if has_active_filters else build_explore_scenarios()
 
     # 가격 거래유형 정규화(템플릿 선택 상태/구간 표시용)
@@ -5770,8 +5912,8 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
     scores = apartment["scores"]
     preferences = get_preferences()
     
-    kakao_result_mode = os.getenv("LIVEFIT_KAKAO_RESULT_MODE", "").strip().lower()
-    legacy_kakao_enabled = os.getenv("LIVEFIT_ENABLE_KAKAO_RESULT", "").strip() == "1"
+    kakao_result_mode = clustead_env("KAKAO_RESULT_MODE", "").strip().lower()
+    legacy_kakao_enabled = clustead_env("ENABLE_KAKAO_RESULT", "").strip() == "1"
 
     if kakao_result_mode == "off":
         real_pois = []
