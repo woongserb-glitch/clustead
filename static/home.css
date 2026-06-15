@@ -164,7 +164,7 @@
 
 .hg-ghost-btn:hover { color: var(--hg-text); border-color: var(--hg-accent); }
 
-/* 단지 비교 — 탐색하기 버튼과 동일 톤(accent 그라데이션) */
+/* 단지 비교 — 탐색하기 버튼과 동일 톤(브랜드 네이비) */
 .hg-compare-btn {
     display: inline-flex;
     align-items: center;
@@ -172,16 +172,16 @@
     padding: 10px 16px;
     border-radius: 10px;
     border: 0;
-    background: linear-gradient(135deg, var(--hg-accent), var(--hg-accent-2));
+    background: linear-gradient(135deg, var(--hg-ink), var(--hg-steel));
     color: #ffffff;
     text-decoration: none;
     font-size: 13px;
     font-weight: 800;
     white-space: nowrap;
     transition: 0.18s;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+    box-shadow: 0 4px 12px rgba(21, 36, 59, 0.24);
 }
-.hg-compare-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37, 99, 235, 0.32); }
+.hg-compare-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(21, 36, 59, 0.34); }
 
 .hg-name-search {
     position: relative;
@@ -206,7 +206,7 @@
 
 .hg-name-search button {
     border: 0;
-    background: var(--hg-accent);
+    background: var(--hg-ink);
     color: #ffffff;
     width: 30px;
     height: 30px;
