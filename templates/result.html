@@ -14,7 +14,7 @@
 <body>
     <div class="result-loading-overlay is-hidden" id="resultLoadingOverlay" aria-live="polite">
         <div class="result-loading-card">
-            {% include "_brand_logo.html" %}
+            {% include "_brand_spinner.html" %}
             <strong>분석 중</strong>
             <p id="resultLoadingMessage">아파트 기본 정보를 불러오고 있습니다.</p>
         </div>
@@ -24,8 +24,9 @@
 
         <header class="result-hero">
             <div class="result-hero-top">
-                <a class="back-link" href="/">← 다시 검색</a>
+                <a class="back-link" href="{% if entry_src == 'explore' and request.args.get('q') %}/explore?q={{ request.args.get('q') }}{% else %}/{% endif %}">← 다시 검색</a>
                 <div class="result-hero-actions">
+                    <button type="button" class="result-download-btn result-share-btn" data-share-url>공유하기</button>
                     <a class="result-download-btn result-compare-btn" href="{{ url_for('compare', a=apartment.name, a_gu=apartment.district, a_dong=apartment.dong) }}">⚖ 이 단지와 비교</a>
                     <a class="result-download-btn" href="{{ url_for('result_export_xlsx', apartment=apartment.name, gu=apartment.district, dong=apartment.dong) }}">⬇ Excel 다운로드</a>
                 </div>
@@ -621,7 +622,7 @@
 
         try {
         if (!window.kakao || !window.kakao.maps) {
-            window.livefitMapUnavailable = true;
+            window.clusteadMapUnavailable = true;
         } else {
         const container = document.getElementById("map");
 
@@ -709,7 +710,7 @@
         }
 
         function isOverlayInCurrentViewport(overlay) {
-            const position = overlay.livefitPosition;
+            const position = overlay.clusteadPosition;
             if (!position) {
                 return true;
             }
@@ -797,8 +798,8 @@
             syncMapCategoryLegend();
         }
 
-        window.livefitMap = map;
-        window.livefitOverlayStorage = overlayStorage;
+        window.clusteadMap = map;
+        window.clusteadOverlayStorage = overlayStorage;
 
         if (mapResetButton) {
             mapResetButton.addEventListener("click", () => {
@@ -855,11 +856,11 @@
                 yAnchor: 1
             });
 
-            overlay.livefitSubtype = poi.subtype || "기타";
-            overlay.livefitSubtypes = poi.subtypes || [];
-            overlay.livefitCategory = poi.category;
-            overlay.livefitPosition = position;
-            overlay.livefitDistance = getDistanceMetersFromApartment(poi);
+            overlay.clusteadSubtype = poi.subtype || "기타";
+            overlay.clusteadSubtypes = poi.subtypes || [];
+            overlay.clusteadCategory = poi.category;
+            overlay.clusteadPosition = position;
+            overlay.clusteadDistance = getDistanceMetersFromApartment(poi);
             const groupKey = getMapGroupForCategory(poi.category);
             const showInitially = groupKey
                 ? Boolean(mapGroupVisibility[groupKey])
@@ -882,33 +883,33 @@
         });
         updateVisibleOverlays();
 
-        window.livefitMapCategoryGroups = mapCategoryGroups;
-        window.livefitMapGroupVisibility = mapGroupVisibility;
-        window.livefitSetCategoryOverlays = setCategoryOverlays;
-        window.livefitSetAllCategoryOverlays = () => {
+        window.clusteadMapCategoryGroups = mapCategoryGroups;
+        window.clusteadMapGroupVisibility = mapGroupVisibility;
+        window.clusteadSetCategoryOverlays = setCategoryOverlays;
+        window.clusteadSetAllCategoryOverlays = () => {
             Object.keys(overlayStorage).forEach((category) => {
                 setCategoryOverlays(category, true);
             });
         };
-        window.livefitSetSubtypeOverlays = (category, subtype) => (
+        window.clusteadSetSubtypeOverlays = (category, subtype) => (
             setCategoryOverlays(category, true, {
                 predicate: (overlay) => {
-                    const overlaySubtypes = Array.isArray(overlay.livefitSubtypes)
-                        ? overlay.livefitSubtypes
+                    const overlaySubtypes = Array.isArray(overlay.clusteadSubtypes)
+                        ? overlay.clusteadSubtypes
                         : [];
 
-                    return overlay.livefitSubtype === subtype
+                    return overlay.clusteadSubtype === subtype
                         || overlaySubtypes.includes(subtype);
                 }
             })
         );
-        window.livefitSetMapLegendForCategory = (category) => {
+        window.clusteadSetMapLegendForCategory = (category) => {
             const groupKey = getMapGroupForCategory(category);
             if (groupKey) {
                 setOnlyMapGroupActive(groupKey);
             }
         };
-        window.livefitSetMapLegendAll = setAllMapGroupsActive;
+        window.clusteadSetMapLegendAll = setAllMapGroupsActive;
         initMapCategoryLegend();
 
         kakao.maps.event.addListener(map, "dragend", updateVisibleOverlays);
@@ -923,7 +924,7 @@
         }, 100);
         }
         } catch (error) {
-            window.livefitMapUnavailable = true;
+            window.clusteadMapUnavailable = true;
         }
     </script>
 
@@ -955,6 +956,7 @@
 
     {% include "_legal_footer.html" %}
 
+    <script src="{{ url_for('static', filename='share.js') }}?v=1"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>

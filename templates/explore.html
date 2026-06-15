@@ -13,7 +13,7 @@
 <body>
     <div class="result-loading-overlay home-loading-overlay is-hidden" id="homeLoadingOverlay" aria-live="polite">
         <div class="result-loading-card">
-            {% include "_brand_logo.html" %}
+            {% include "_brand_spinner.html" %}
             <strong>탐색 중</strong>
             <p>선택한 생활 조건에 맞는 아파트를 찾고 있습니다.<br>학교 · 평수 · 가격 · 생활 인프라를 함께 확인 중입니다.</p>
         </div>
@@ -25,7 +25,7 @@
                 <a class="back-link" href="/">← 홈으로</a>
                 <a class="result-download-btn" href="/compare">⚖ 단지 비교</a>
             </div>
-            <div class="top-label">LIVEFIT EXPLORE</div>
+            <div class="top-label">CLUSTEAD EXPLORE</div>
             <h1>서울시 아파트 탐색서비스</h1>
             <p>지역, 학교, 지하철, 버스, 병원, 대형마트, 실거래가까지 내가 원하는 조건을 직접 조합해보세요.</p>
         </header>
@@ -175,15 +175,18 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="primary-tool-button">탐색하기</button>
+                    <div class="explore-action-row">
+                        <button type="submit" class="primary-tool-button">탐색하기</button>
+                        <button type="button" class="share-action explore-share-button" data-share-url>공유하기</button>
+                    </div>
                     <p class="explore-submit-feedback" id="exploreSubmitFeedback" aria-live="polite">
                         적어도 한 개 이상의 검색조건을 입력해주세요.
                     </p>
                 </form>
                 <script>
-                    window.livefitSubtypeOptions = {{ subtype_search_options | tojson | safe }};
-                    window.livefitSelectedPriorities = {{ selected_priorities | tojson | safe }};
-                    window.livefitPriceBuckets = {{ price_buckets_by_type | tojson | safe }};
+                    window.clusteadSubtypeOptions = {{ subtype_search_options | tojson | safe }};
+                    window.clusteadSelectedPriorities = {{ selected_priorities | tojson | safe }};
+                    window.clusteadPriceBuckets = {{ price_buckets_by_type | tojson | safe }};
                 </script>
             </section>
 
@@ -267,6 +270,7 @@
         </main>
     </div>
     {% include "_legal_footer.html" %}
+    <script src="{{ url_for('static', filename='share.js') }}?v=1"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 
