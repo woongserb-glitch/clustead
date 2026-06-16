@@ -284,6 +284,41 @@ def integ_subway_line_filter_500m_exact():
     assert target not in app._apartment_subway_lines(radius_case)
 
 
+def integ_subway_station_filter_500m():
+    """역명 필터도 500m 도보권으로 한정해야 한다 — 넓은 반경(>500m, nearest 포함)의 역이
+    '접근'으로 잡혀 거의 모든 단지가 임의 역에 매칭되던 문제(2860/2861) 회귀 방지."""
+    app = _app()
+    import json
+    from services.preload_service import subway_baseline_data
+
+    def wide_station_names(r):
+        out = set()
+        nm0 = app.clean_text(r.get("nearest_subway_name", "")).replace("역", "")
+        if nm0:
+            out.add(app.normalize_search_text(nm0))
+        raw = r.get("subway_items_json", "")
+        try:
+            items = json.loads(raw) if raw else []
+        except Exception:
+            items = []
+        for it in items:
+            nm = app.clean_text(it.get("name", "")).replace("역", "")
+            if nm:
+                out.add(app.normalize_search_text(nm))
+        return out
+
+    # 넓은 셋에는 있으나 500m 셋엔 없는 역이 존재하는 단지(반경 초과). helper 가 넓게
+    # 되돌아가면 이런 단지가 사라져 assert 가 실패한다.
+    radius_case = next(
+        (r for r in subway_baseline_data
+         if wide_station_names(r) - app._apartment_station_names(r)),
+        None,
+    )
+    assert radius_case is not None, "expected a station-beyond-500m apartment (radius lock)"
+    near = app._apartment_station_names(radius_case)
+    assert near < wide_station_names(radius_case)  # 500m 셋은 넓은 셋의 진부분집합
+
+
 # --------------------------------------------------------------------------
 # Runner
 # --------------------------------------------------------------------------

@@ -5478,12 +5478,11 @@ def _bus_routes_by_type():
 
 
 def _apartment_station_names(subway_row):
-    """단지의 지하철 역명 집합(정규화, '역' 접미사 제거). 역명 전체 일치 비교용."""
+    """단지 도보권(500m) 지하철 역명 집합(정규화, '역' 접미사 제거). 역명 전체 일치 비교용.
+    노선 필터와 동일하게 500m 도보권으로 한정한다 — 1km 밖 역(nearest 포함)이
+    '접근'으로 잡혀 거의 모든 단지가 임의 역에 매칭되던 문제를 막는다."""
     names = set()
-    nearest = clean_text(subway_row.get("nearest_subway_name", "")).replace("역", "")
-    if nearest:
-        names.add(normalize_search_text(nearest))
-    raw = subway_row.get("subway_items_json", "")
+    raw = subway_row.get("subway_items_500m_json", "")
     try:
         items = json.loads(raw) if raw else []
     except Exception:
