@@ -233,28 +233,55 @@ def integ_ranking_coverage_expanded():
     assert best >= 12, f"expected wide category coverage, got {best}"
 
 
-def integ_subway_line_filter_exact_not_substring():
-    """Explore 노선 필터는 노선 '전체 일치'여야 한다 — 부분문자열이면 안 된다.
-    '1호선' 선택이 '공항철도1호선' 보유 단지(예: 가양2단지)에 오매칭되던 버그 회귀 방지.
-    데이터에서 (a)정확히 1호선인 단지와 (b)JSON엔 '1호선' 문자열이 있으나 정확 노선엔
-    없는 단지를 찾아, 구조적 매처가 (b)를 배제함을 단언한다."""
+def _wide_subway_lines(r):
+    """비교용: subway_items_json(넓은 반경) 의 구조적 노선 집합."""
+    import json as _json
+    out = set()
+    raw = r.get("subway_items_json", "")
+    try:
+        items = _json.loads(raw) if raw else []
+    except Exception:
+        items = []
+    for it in items:
+        ls = it.get("lines", [])
+        if isinstance(ls, str):
+            ls = [p.strip() for p in ls.replace("/", ",").split(",")]
+        for L in ls:
+            L = (L or "").strip()
+            if L:
+                out.add(L)
+    return out
+
+
+def integ_subway_line_filter_500m_exact():
+    """Explore 노선 필터는 (1) 노선 '전체 일치'(부분문자열 금지)이고 (2) 500m 도보권이어야 한다.
+    회귀 방지 두 케이스:
+      - 부분문자열: '1호선' 이 '공항철도1호선' 에 매칭되던 가양2단지류.
+      - 반경: '1호선' 역이 1.6km 밖이라 500m 도보권이 아닌 답십리한화류.
+    둘 다 _apartment_subway_lines(=500m 정확매칭) 가 1호선으로 인정하지 않아야 한다."""
     app = _app()
     from services.preload_service import subway_baseline_data
 
     target = "1호선"
-    substring_only = None  # subway_items_json 에 '1호선' 문자열은 있으나 정확 노선엔 없음
-    exact_hit = False      # 정확히 '1호선' 노선을 가진 단지가 존재
+    exact_hit = False        # 500m 내에 정확히 1호선이 있는 단지 존재
+    substring_only = None    # 넓은 json 문자열엔 '1호선' 있으나 500m 정확매칭엔 없음
+    radius_case = None       # 넓은 '구조적' 노선엔 1호선 있으나 500m 엔 없음(=반경 초과)
     for r in subway_baseline_data:
-        lines = app._apartment_subway_lines(r)
-        if target in lines:
+        near = app._apartment_subway_lines(r)        # 500m 정확매칭
+        if target in near:
             exact_hit = True
-        elif target in str(r.get("subway_items_json", "")):
+            continue
+        if target in str(r.get("subway_items_json", "")):
             substring_only = r
+        if target in _wide_subway_lines(r):
+            radius_case = r
 
-    assert exact_hit, "expected at least one apartment on exact 1호선"
-    assert substring_only is not None, "expected a substring-only case (e.g. 공항철도1호선)"
-    # 핵심: 구조적 매처는 substring-only 단지를 1호선으로 인정하지 않는다.
+    assert exact_hit, "expected at least one apartment with 1호선 within 500m"
+    assert substring_only is not None, "expected a substring/far case (e.g. 공항철도1호선)"
     assert target not in app._apartment_subway_lines(substring_only)
+    # 반경 잠금: helper 가 넓은 반경으로 되돌아가면 radius_case 가 사라져 실패한다.
+    assert radius_case is not None, "expected a 1호선-only-beyond-500m apartment (radius lock)"
+    assert target not in app._apartment_subway_lines(radius_case)
 
 
 # --------------------------------------------------------------------------

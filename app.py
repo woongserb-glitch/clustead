@@ -5496,11 +5496,12 @@ def _apartment_station_names(subway_row):
 
 
 def _apartment_subway_lines(subway_row):
-    """단지 인근 지하철 '노선명' 집합(구조적). 노선 전체 일치 비교용.
-    get_subway_line_station_index 와 동일하게 subway_items_json 의 lines 를 파싱한다.
-    문자열 부분일치(예: '1호선' 이 '공항철도1호선' 에 매칭)로 오선별되던 것을 막는다."""
+    """단지 도보권(500m) 지하철 '노선명' 집합(구조적). 노선 필터 매칭용.
+    제품의 지하철 기준(subway_line_count_500m·결과 카드)과 동일하게 500m 도보권으로
+    한정한다 — 1.6km 밖 노선이 '접근'으로 잡히던 문제를 막는다. 또한 노선 '전체 일치'라
+    문자열 부분일치(예: '1호선' 이 '공항철도1호선' 에 매칭)도 막는다."""
     lines = set()
-    raw = subway_row.get("subway_items_json", "")
+    raw = subway_row.get("subway_items_500m_json", "")
     try:
         items = json.loads(raw) if raw else []
     except Exception:
