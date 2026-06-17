@@ -2,9 +2,10 @@ Flask
 Flask-Limiter
 python-dotenv
 requests
-pandas
-pyproj
-beautifulsoup4
 openpyxl
 # 프로덕션 WSGI 서버(Linux 컨테이너). Windows 개발 환경에선 설치/구동 안 함.
 gunicorn; sys_platform != "win32"
+
+# 참고: pandas / pyproj / beautifulsoup4 는 런타임에서 사용하지 않으며
+# 오프라인 데이터 파이프라인(scripts/*) 전용이라 requirements-build.txt 로 분리했다.
+# 도커 이미지에는 이 파일만 설치되어 런타임 메모리/이미지 크기를 줄인다.

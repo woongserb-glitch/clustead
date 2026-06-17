@@ -1,0 +1,9 @@
+# 오프라인 데이터 파이프라인(scripts/*) 전용 의존성.
+# 런타임/도커 이미지에는 설치하지 않는다(Dockerfile 은 requirements.txt 만 설치).
+# baseline CSV 생성·지오코딩 등을 로컬/CI 에서 돌릴 때만 사용:
+#   pip install -r requirements-build.txt
+-r requirements.txt
+
+pandas        # scripts/build_*_baseline.py 의 CSV 생성·집계
+pyproj        # scripts 의 좌표계 변환(지오코딩)
+beautifulsoup4  # scripts 의 HTML 파싱/스크래핑
