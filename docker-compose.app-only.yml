@@ -1,0 +1,20 @@
+# Clustead 최소 운영 구성 — NCP 1GB VPS 응급/경량 배포(A안 축소판).
+# nginx/certbot/healthcheck 없이 app(gunicorn) 단일 컨테이너만 띄운다.
+# 풀 구성(nginx+TLS)은 docker-compose.yml 참조. 메모리가 안정되면 그쪽으로 승격.
+services:
+  app:
+    build: .
+    image: clustead-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - WEB_CONCURRENCY=1          # 1GB RAM → 워커 1개(요청 직렬화)
+      - CLUSTEAD_TRUST_PROXY=0     # nginx 없이 직접 노출 → ProxyFix off(IP 스푸핑 방지)
+    volumes:
+      - ./data:/app/data           # 1.4GB 데이터 + Kakao 캐시 write(rw)
+    ports:
+      - "80:8000"                  # 외부에서 http://서버IP 로 직접 접근(임시, TLS 없음)
+    # 메모리 상한: 폭주 시 host 가 hang 되는 대신 컨테이너만 OOM-kill 되게 한다(1GB 안전장치).
+    # 현재 정상 사용량 ~500MB 기준 768m 상한 + swap 768m 허용.
+    mem_limit: 768m
+    memswap_limit: 1536m
