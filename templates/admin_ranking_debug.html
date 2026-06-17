@@ -64,6 +64,28 @@
             color: var(--warn);
         }
 
+        .notice-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .admin-link {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            height: 30px;
+            padding: 0 12px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: #fff;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
         .meta-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -299,8 +321,12 @@
 <body>
 <main>
     <section class="notice">
-        <h1>Clustead Ranking Debug</h1>
+        <div class="notice-head">
+            <h1>Clustead Ranking Debug</h1>
+            <a class="admin-link" href="/admin/analytics{% if admin_token %}?admin_token={{ admin_token }}{% endif %}">← Analytics</a>
+        </div>
         <p><strong>관리자/디버그용 페이지입니다.</strong> 일반 사용자 화면 검증용 UI가 아니며, baseline percentile 계산값을 확인하기 위한 화면입니다.</p>
+        <p>표시 metric은 <strong>Home·Explore 랭킹이 실제 사용하는 기준(RANKING_SOURCES)</strong>과 일치시켰습니다. 랭킹에 쓰이지 않는 metric(park·school_zone 등)은 제외됩니다.</p>
         <p>seoul_percentile: 서울 기준 상위 X%, 낮을수록 좋음 · seoul_score: 0~100점, 높을수록 좋음 · raw metric 방향성: higher_better / lower_better</p>
         {% if latest_validation_report %}
             <p>최근 validation report: <span class="badge">{{ latest_validation_report }}</span></p>
@@ -327,6 +353,7 @@
     </section>
 
     <form class="filters panel" method="get" action="/admin/ranking-debug">
+        {% if admin_token %}<input type="hidden" name="admin_token" value="{{ admin_token }}">{% endif %}
         <label class="filter-metric">
             metric
             <select name="metric">

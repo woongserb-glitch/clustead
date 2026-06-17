@@ -1,0 +1,485 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1792" viewBox="0 0 1160 1792">
+  <style>
+    .bg { fill: #f8fafc; }
+    .title { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
+    .subtitle { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 14px; fill: #64748b; }
+    .section { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 19px; font-weight: 800; fill: #111827; }
+    .label { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 16px; font-weight: 800; fill: #111827; }
+    .meta { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #64748b; }
+    .tiny { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 10px; fill: #64748b; }
+    .emoji { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; font-size: 23px; }
+    .mono { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #64748b; }
+  </style>
+  <rect class="bg" width="100%" height="100%" />
+  <text class="title" x="44" y="52">Explore / Result Icon Mapping Preview</text>
+  <text class="subtitle" x="44" y="78">현재 이모지/표기와 추천 Lucide 또는 브랜드 로고 방향을 한눈에 보는 확정 전 미리보기입니다.</text>
+  
+    <text class="section" x="44" y="112">도메인 / 카테고리 아이콘</text>
+    <text class="meta" x="289" y="112">총 31개 · 현재 이모지에서 Lucide 라인 아이콘으로 통일</text>
+    <g>
+      <rect x="44" y="130" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="153">도메인 · transport</text>
+      <text class="label" x="62" y="179">교통</text>
+      <text class="tiny" x="62" y="199">현재</text>
+      <text class="emoji" x="102" y="202">🚇</text>
+      <path d="M416 176h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 170l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="148" width="50" height="50" rx="14" fill="#2563eb" opacity="0.11" />
+      
+    <g transform="translate(505 161) scale(1)" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 3.1V7a4 4 0 0 0 8 0V3.1" /><path d="m9 15-1-1" /><path d="m15 15 1-1" /><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z" /><path d="m8 19-2 3" /><path d="m16 19 2 3" />
+    </g>
+      <text class="mono" x="467" y="208" text-anchor="middle">train-front</text>
+    </g>
+    <g>
+      <rect x="594" y="130" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="153">도메인 · education</text>
+      <text class="label" x="612" y="179">교육</text>
+      <text class="tiny" x="612" y="199">현재</text>
+      <text class="emoji" x="652" y="202">🏫 🎓 📚 ✏️</text>
+      <path d="M966 176h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 170l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="148" width="50" height="50" rx="14" fill="#4f46e5" opacity="0.11" />
+      
+    <g transform="translate(1055 161) scale(1)" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" /><path d="M22 10v6" /><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
+    </g>
+      <text class="mono" x="1017" y="208" text-anchor="middle">graduation-cap</text>
+    </g>
+    <g>
+      <rect x="44" y="232" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="255">도메인 · convenience</text>
+      <text class="label" x="62" y="281">생활편의</text>
+      <text class="tiny" x="62" y="301">현재</text>
+      <text class="emoji" x="102" y="304">🛒 🏪 ⚡ 🚲</text>
+      <path d="M416 278h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 272l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="250" width="50" height="50" rx="14" fill="#059669" opacity="0.11" />
+      
+    <g transform="translate(505 263) scale(1)" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5" /><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244" /><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05" />
+    </g>
+      <text class="mono" x="467" y="310" text-anchor="middle">store</text>
+    </g>
+    <g>
+      <rect x="594" y="232" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="255">도메인 · medical</text>
+      <text class="label" x="612" y="281">의료</text>
+      <text class="tiny" x="612" y="301">현재</text>
+      <text class="emoji" x="652" y="304">🏥 🚑 💊</text>
+      <path d="M966 278h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 272l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="250" width="50" height="50" rx="14" fill="#e11d48" opacity="0.11" />
+      
+    <g transform="translate(1055 263) scale(1)" fill="none" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 7v4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M14 9h-4" /><path d="M18 11h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h2" /><path d="M18 21V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16" />
+    </g>
+      <text class="mono" x="1017" y="310" text-anchor="middle">hospital</text>
+    </g>
+    <g>
+      <rect x="44" y="334" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="357">도메인 · safety</text>
+      <text class="label" x="62" y="383">안전</text>
+      <text class="tiny" x="62" y="403">현재</text>
+      <text class="emoji" x="102" y="406">🛡 🚒 📹</text>
+      <path d="M416 380h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 374l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="352" width="50" height="50" rx="14" fill="#dc2626" opacity="0.11" />
+      
+    <g transform="translate(505 365) scale(1)" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" />
+    </g>
+      <text class="mono" x="467" y="412" text-anchor="middle">shield-check</text>
+    </g>
+    <g>
+      <rect x="594" y="334" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="357">도메인 · rest</text>
+      <text class="label" x="612" y="383">휴식/여가</text>
+      <text class="tiny" x="612" y="403">현재</text>
+      <text class="emoji" x="652" y="406">☕ 🌳 🌊</text>
+      <path d="M966 380h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 374l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="352" width="50" height="50" rx="14" fill="#16a34a" opacity="0.11" />
+      
+    <g transform="translate(1055 365) scale(1)" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" /><path d="M6 2v2" />
+    </g>
+      <text class="mono" x="1017" y="412" text-anchor="middle">coffee</text>
+    </g>
+    <g>
+      <rect x="44" y="436" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="459">도메인 · culture</text>
+      <text class="label" x="62" y="485">문화생활</text>
+      <text class="tiny" x="62" y="505">현재</text>
+      <text class="emoji" x="102" y="508">🎭</text>
+      <path d="M416 482h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 476l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="454" width="50" height="50" rx="14" fill="#7c3aed" opacity="0.11" />
+      
+    <g transform="translate(505 467) scale(1)" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 11h.01" /><path d="M14 6h.01" /><path d="M18 6h.01" /><path d="M6.5 13.1h.01" /><path d="M22 5c0 9-4 12-6 12s-6-3-6-12c0-2 2-3 6-3s6 1 6 3" /><path d="M17.4 9.9c-.8.8-2 .8-2.8 0" /><path d="M10.1 7.1C9 7.2 7.7 7.7 6 8.6c-3.5 2-4.7 3.9-3.7 5.6 4.5 7.8 9.5 8.4 11.2 7.4.9-.5 1.9-2.1 1.9-4.7" /><path d="M9.1 16.5c.3-1.1 1.4-1.7 2.4-1.4" />
+    </g>
+      <text class="mono" x="467" y="514" text-anchor="middle">drama</text>
+    </g>
+    <g>
+      <rect x="594" y="436" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="459">도메인 · activity</text>
+      <text class="label" x="612" y="485">상권/활기</text>
+      <text class="tiny" x="612" y="505">현재</text>
+      <text class="emoji" x="652" y="508">🌃 🛍️ 🏙️ 🍺</text>
+      <path d="M966 482h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 476l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="454" width="50" height="50" rx="14" fill="#d97706" opacity="0.11" />
+      
+    <g transform="translate(1055 467) scale(1)" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 12h4" /><path d="M10 8h4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" /><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />
+    </g>
+      <text class="mono" x="1017" y="514" text-anchor="middle">building-2</text>
+    </g>
+    <g>
+      <rect x="44" y="538" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="561">카테고리 · subway</text>
+      <text class="label" x="62" y="587">지하철역</text>
+      <text class="tiny" x="62" y="607">현재</text>
+      <text class="emoji" x="102" y="610">🚇</text>
+      <path d="M416 584h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 578l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="556" width="50" height="50" rx="14" fill="#2563eb" opacity="0.11" />
+      
+    <g transform="translate(505 569) scale(1)" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 3.1V7a4 4 0 0 0 8 0V3.1" /><path d="m9 15-1-1" /><path d="m15 15 1-1" /><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z" /><path d="m8 19-2 3" /><path d="m16 19 2 3" />
+    </g>
+      <text class="mono" x="467" y="616" text-anchor="middle">train-front</text>
+    </g>
+    <g>
+      <rect x="594" y="538" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="561">카테고리 · bus-baseline</text>
+      <text class="label" x="612" y="587">버스 접근성</text>
+      <text class="tiny" x="612" y="607">현재</text>
+      <text class="emoji" x="652" y="610">🚌 🚍</text>
+      <path d="M966 584h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 578l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="556" width="50" height="50" rx="14" fill="#0284c7" opacity="0.11" />
+      
+    <g transform="translate(1055 569) scale(1)" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" />
+    </g>
+      <text class="mono" x="1017" y="616" text-anchor="middle">bus-front</text>
+    </g>
+    <g>
+      <rect x="44" y="640" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="663">카테고리 · bike</text>
+      <text class="label" x="62" y="689">따릉이</text>
+      <text class="tiny" x="62" y="709">현재</text>
+      <text class="emoji" x="102" y="712">🚲</text>
+      <path d="M416 686h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 680l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="658" width="50" height="50" rx="14" fill="#0d9488" opacity="0.11" />
+      
+    <g transform="translate(505 671) scale(1)" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="18.5" cy="17.5" r="3.5" /><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="15" cy="5" r="1" /><path d="M12 17.5V14l-3-3 4-3 2 3h2" />
+    </g>
+      <text class="mono" x="467" y="718" text-anchor="middle">bike</text>
+    </g>
+    <g>
+      <rect x="594" y="640" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="663">카테고리 · large_mart</text>
+      <text class="label" x="612" y="689">대형마트</text>
+      <text class="tiny" x="612" y="709">현재</text>
+      <text class="emoji" x="652" y="712">🛒</text>
+      <path d="M966 686h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 680l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="658" width="50" height="50" rx="14" fill="#ea580c" opacity="0.11" />
+      
+    <g transform="translate(1055 671) scale(1)" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+    </g>
+      <text class="mono" x="1017" y="718" text-anchor="middle">shopping-cart</text>
+    </g>
+    <g>
+      <rect x="44" y="742" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="765">카테고리 · super_mart</text>
+      <text class="label" x="62" y="791">슈퍼마켓</text>
+      <text class="tiny" x="62" y="811">현재</text>
+      <text class="emoji" x="102" y="814">🏪</text>
+      <path d="M416 788h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 782l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="760" width="50" height="50" rx="14" fill="#059669" opacity="0.11" />
+      
+    <g transform="translate(505 773) scale(1)" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5" /><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244" /><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05" />
+    </g>
+      <text class="mono" x="467" y="820" text-anchor="middle">store</text>
+    </g>
+    <g>
+      <rect x="594" y="742" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="765">카테고리 · warehouse_mart</text>
+      <text class="label" x="612" y="791">창고형마트</text>
+      <text class="tiny" x="612" y="811">현재</text>
+      <text class="emoji" x="652" y="814">📦</text>
+      <path d="M966 788h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 782l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="760" width="50" height="50" rx="14" fill="#ca8a04" opacity="0.11" />
+      
+    <g transform="translate(1055 773) scale(1)" fill="none" stroke="#ca8a04" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="M12 22V12" /><polyline points="3.29 7 12 12 20.71 7" /><path d="m7.5 4.27 9 5.15" />
+    </g>
+      <text class="mono" x="1017" y="820" text-anchor="middle">package</text>
+    </g>
+    <g>
+      <rect x="44" y="844" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="867">카테고리 · convenience</text>
+      <text class="label" x="62" y="893">편의점</text>
+      <text class="tiny" x="62" y="913">현재</text>
+      <text class="emoji" x="102" y="916">🏪</text>
+      <path d="M416 890h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 884l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="862" width="50" height="50" rx="14" fill="#9333ea" opacity="0.11" />
+      
+    <g transform="translate(505 875) scale(1)" fill="none" stroke="#9333ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5" /><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244" /><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05" />
+    </g>
+      <text class="mono" x="467" y="922" text-anchor="middle">store</text>
+    </g>
+    <g>
+      <rect x="594" y="844" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="867">카테고리 · ev-charger</text>
+      <text class="label" x="612" y="893">전기차 충전</text>
+      <text class="tiny" x="612" y="913">현재</text>
+      <text class="emoji" x="652" y="916">⚡</text>
+      <path d="M966 890h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 884l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="862" width="50" height="50" rx="14" fill="#ea580c" opacity="0.11" />
+      
+    <g transform="translate(1055 875) scale(1)" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z" /><path d="m2 22 3-3" /><path d="M7.5 13.5 10 11" /><path d="M10.5 16.5 13 14" /><path d="m18 3-4 4h6l-4 4" />
+    </g>
+      <text class="mono" x="1017" y="922" text-anchor="middle">plug-zap</text>
+    </g>
+    <g>
+      <rect x="44" y="946" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="969">카테고리 · cafe</text>
+      <text class="label" x="62" y="995">카페</text>
+      <text class="tiny" x="62" y="1015">현재</text>
+      <text class="emoji" x="102" y="1018">☕</text>
+      <path d="M416 992h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 986l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="964" width="50" height="50" rx="14" fill="#92400e" opacity="0.11" />
+      
+    <g transform="translate(505 977) scale(1)" fill="none" stroke="#92400e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" /><path d="M6 2v2" />
+    </g>
+      <text class="mono" x="467" y="1024" text-anchor="middle">coffee</text>
+    </g>
+    <g>
+      <rect x="594" y="946" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="969">카테고리 · hospital</text>
+      <text class="label" x="612" y="995">병원</text>
+      <text class="tiny" x="612" y="1015">현재</text>
+      <text class="emoji" x="652" y="1018">🏥</text>
+      <path d="M966 992h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 986l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="964" width="50" height="50" rx="14" fill="#e11d48" opacity="0.11" />
+      
+    <g transform="translate(1055 977) scale(1)" fill="none" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 7v4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M14 9h-4" /><path d="M18 11h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h2" /><path d="M18 21V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16" />
+    </g>
+      <text class="mono" x="1017" y="1024" text-anchor="middle">hospital</text>
+    </g>
+    <g>
+      <rect x="44" y="1048" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="1071">카테고리 · general-hospital</text>
+      <text class="label" x="62" y="1097">종합병원</text>
+      <text class="tiny" x="62" y="1117">현재</text>
+      <text class="emoji" x="102" y="1120">🏥</text>
+      <path d="M416 1094h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 1088l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="1066" width="50" height="50" rx="14" fill="#e11d48" opacity="0.11" />
+      
+    <g transform="translate(505 1079) scale(1)" fill="none" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 12h4" /><path d="M10 8h4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" /><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />
+    </g>
+      <text class="mono" x="467" y="1126" text-anchor="middle">building-2</text>
+    </g>
+    <g>
+      <rect x="594" y="1048" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="1071">카테고리 · emergency-room</text>
+      <text class="label" x="612" y="1097">응급실</text>
+      <text class="tiny" x="612" y="1117">현재</text>
+      <text class="emoji" x="652" y="1120">🚑</text>
+      <path d="M966 1094h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 1088l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="1066" width="50" height="50" rx="14" fill="#dc2626" opacity="0.11" />
+      
+    <g transform="translate(1055 1079) scale(1)" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 10H6" /><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" /><path d="M19 18h2a1 1 0 0 0 1-1v-3.28a1 1 0 0 0-.684-.948l-1.923-.641a1 1 0 0 1-.578-.502l-1.539-3.076A1 1 0 0 0 16.382 8H14" /><path d="M8 8v4" /><path d="M9 18h6" /><circle cx="17" cy="18" r="2" /><circle cx="7" cy="18" r="2" />
+    </g>
+      <text class="mono" x="1017" y="1126" text-anchor="middle">ambulance</text>
+    </g>
+    <g>
+      <rect x="44" y="1150" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="1173">카테고리 · pharmacy</text>
+      <text class="label" x="62" y="1199">약국</text>
+      <text class="tiny" x="62" y="1219">현재</text>
+      <text class="emoji" x="102" y="1222">💊</text>
+      <path d="M416 1196h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 1190l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="1168" width="50" height="50" rx="14" fill="#16a34a" opacity="0.11" />
+      
+    <g transform="translate(505 1181) scale(1)" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /><path d="m8.5 8.5 7 7" />
+    </g>
+      <text class="mono" x="467" y="1228" text-anchor="middle">pill</text>
+    </g>
+    <g>
+      <rect x="594" y="1150" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="1173">카테고리 · school-environment</text>
+      <text class="label" x="612" y="1199">교육환경</text>
+      <text class="tiny" x="612" y="1219">현재</text>
+      <text class="emoji" x="652" y="1222">🏫</text>
+      <path d="M966 1196h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 1190l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="1168" width="50" height="50" rx="14" fill="#4f46e5" opacity="0.11" />
+      
+    <g transform="translate(1055 1181) scale(1)" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M18 4.933V21" /><path d="m4 6 7.106-3.79a2 2 0 0 1 1.788 0L20 6" /><path d="m6 11-3.52 2.147a1 1 0 0 0-.48.854V19a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a1 1 0 0 0-.48-.853L18 11" /><path d="M6 4.933V21" /><circle cx="12" cy="9" r="2" />
+    </g>
+      <text class="mono" x="1017" y="1228" text-anchor="middle">school</text>
+    </g>
+    <g>
+      <rect x="44" y="1252" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="1275">카테고리 · academy</text>
+      <text class="label" x="62" y="1301">학원</text>
+      <text class="tiny" x="62" y="1321">현재</text>
+      <text class="emoji" x="102" y="1324">✏️ 🏫 📚</text>
+      <path d="M416 1298h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 1292l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="1270" width="50" height="50" rx="14" fill="#4f46e5" opacity="0.11" />
+      
+    <g transform="translate(505 1283) scale(1)" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 21V7" /><path d="m16 12 2 2 4-4" /><path d="M22 6V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4 4 4 0 0 0-4-4H3a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h6a3 3 0 0 1 3 3 3 3 0 0 1 3-3h6a1 1 0 0 0 1-1v-1.3" />
+    </g>
+      <text class="mono" x="467" y="1330" text-anchor="middle">book-open-check</text>
+    </g>
+    <g>
+      <rect x="594" y="1252" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="1275">카테고리 · cctv</text>
+      <text class="label" x="612" y="1301">CCTV</text>
+      <text class="tiny" x="612" y="1321">현재</text>
+      <text class="emoji" x="652" y="1324">🛡 📹</text>
+      <path d="M966 1298h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 1292l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="1270" width="50" height="50" rx="14" fill="#475569" opacity="0.11" />
+      
+    <g transform="translate(1055 1283) scale(1)" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16.75 12h3.632a1 1 0 0 1 .894 1.447l-2.034 4.069a1 1 0 0 1-1.708.134l-2.124-2.97" /><path d="M17.106 9.053a1 1 0 0 1 .447 1.341l-3.106 6.211a1 1 0 0 1-1.342.447L3.61 12.3a2.92 2.92 0 0 1-1.3-3.91L3.69 5.6a2.92 2.92 0 0 1 3.92-1.3z" /><path d="M2 19h3.76a2 2 0 0 0 1.8-1.1L9 15" /><path d="M2 21v-4" /><path d="M7 9h.01" />
+    </g>
+      <text class="mono" x="1017" y="1330" text-anchor="middle">cctv</text>
+    </g>
+    <g>
+      <rect x="44" y="1354" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="1377">카테고리 · fire-station</text>
+      <text class="label" x="62" y="1403">119안전센터/구조대</text>
+      <text class="tiny" x="62" y="1423">현재</text>
+      <text class="emoji" x="102" y="1426">🚒</text>
+      <path d="M416 1400h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 1394l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="1372" width="50" height="50" rx="14" fill="#dc2626" opacity="0.11" />
+      
+    <g transform="translate(505 1385) scale(1)" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 18v-6a5 5 0 1 1 10 0v6" /><path d="M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z" /><path d="M21 12h1" /><path d="M18.5 4.5 18 5" /><path d="M2 12h1" /><path d="M12 2v1" /><path d="m4.929 4.929.707.707" /><path d="M12 12v6" />
+    </g>
+      <text class="mono" x="467" y="1432" text-anchor="middle">siren</text>
+    </g>
+    <g>
+      <rect x="594" y="1354" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="1377">카테고리 · park</text>
+      <text class="label" x="612" y="1403">공원</text>
+      <text class="tiny" x="612" y="1423">현재</text>
+      <text class="emoji" x="652" y="1426">🌳</text>
+      <path d="M966 1400h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 1394l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="1372" width="50" height="50" rx="14" fill="#16a34a" opacity="0.11" />
+      
+    <g transform="translate(1055 1385) scale(1)" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z" /><path d="M7 16v6" /><path d="M13 19v3" /><path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5" />
+    </g>
+      <text class="mono" x="1017" y="1432" text-anchor="middle">trees</text>
+    </g>
+    <g>
+      <rect x="44" y="1456" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="1479">카테고리 · hangang</text>
+      <text class="label" x="62" y="1505">한강공원</text>
+      <text class="tiny" x="62" y="1525">현재</text>
+      <text class="emoji" x="102" y="1528">🌊</text>
+      <path d="M416 1502h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 1496l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="1474" width="50" height="50" rx="14" fill="#0891b2" opacity="0.11" />
+      
+    <g transform="translate(505 1487) scale(1)" fill="none" stroke="#0891b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z" /><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97" />
+    </g>
+      <text class="mono" x="467" y="1534" text-anchor="middle">droplets</text>
+    </g>
+    <g>
+      <rect x="594" y="1456" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="1479">카테고리 · culture</text>
+      <text class="label" x="612" y="1505">문화생활</text>
+      <text class="tiny" x="612" y="1525">현재</text>
+      <text class="emoji" x="652" y="1528">🎭</text>
+      <path d="M966 1502h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 1496l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="1474" width="50" height="50" rx="14" fill="#7c3aed" opacity="0.11" />
+      
+    <g transform="translate(1055 1487) scale(1)" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 11h.01" /><path d="M14 6h.01" /><path d="M18 6h.01" /><path d="M6.5 13.1h.01" /><path d="M22 5c0 9-4 12-6 12s-6-3-6-12c0-2 2-3 6-3s6 1 6 3" /><path d="M17.4 9.9c-.8.8-2 .8-2.8 0" /><path d="M10.1 7.1C9 7.2 7.7 7.7 6 8.6c-3.5 2-4.7 3.9-3.7 5.6 4.5 7.8 9.5 8.4 11.2 7.4.9-.5 1.9-2.1 1.9-4.7" /><path d="M9.1 16.5c.3-1.1 1.4-1.7 2.4-1.4" />
+    </g>
+      <text class="mono" x="1017" y="1534" text-anchor="middle">drama</text>
+    </g>
+    <g>
+      <rect x="44" y="1558" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="1581">카테고리 · commercial</text>
+      <text class="label" x="62" y="1607">상권</text>
+      <text class="tiny" x="62" y="1627">현재</text>
+      <text class="emoji" x="102" y="1630">🌃 🏙️</text>
+      <path d="M416 1604h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 1598l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="1576" width="50" height="50" rx="14" fill="#d97706" opacity="0.11" />
+      
+    <g transform="translate(505 1589) scale(1)" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 12h4" /><path d="M10 8h4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" /><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />
+    </g>
+      <text class="mono" x="467" y="1636" text-anchor="middle">building-2</text>
+    </g>
+    <g>
+      <rect x="594" y="1558" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="612" y="1581">카테고리 · shopping</text>
+      <text class="label" x="612" y="1607">쇼핑</text>
+      <text class="tiny" x="612" y="1627">현재</text>
+      <text class="emoji" x="652" y="1630">🛍️ 🛍</text>
+      <path d="M966 1604h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M1004 1598l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="1042" y="1576" width="50" height="50" rx="14" fill="#db2777" opacity="0.11" />
+      
+    <g transform="translate(1055 1589) scale(1)" fill="none" stroke="#db2777" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 10a4 4 0 0 1-8 0" /><path d="M3.103 6.034h17.794" /><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z" />
+    </g>
+      <text class="mono" x="1017" y="1636" text-anchor="middle">shopping-bag</text>
+    </g>
+    <g>
+      <rect x="44" y="1660" width="522" height="88" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <text class="meta" x="62" y="1683">카테고리 · nightlife</text>
+      <text class="label" x="62" y="1709">유흥주점</text>
+      <text class="tiny" x="62" y="1729">현재</text>
+      <text class="emoji" x="102" y="1732">🍺</text>
+      <path d="M416 1706h42" stroke="#cbd5e1" stroke-width="1.5" />
+      <path d="M454 1700l8 6-8 6" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="492" y="1678" width="50" height="50" rx="14" fill="#9333ea" opacity="0.11" />
+      
+    <g transform="translate(505 1691) scale(1)" fill="none" stroke="#9333ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 22h8" /><path d="M12 11v11" /><path d="m19 3-7 8-7-8Z" />
+    </g>
+      <text class="mono" x="467" y="1738" text-anchor="middle">martini</text>
+    </g>
+</svg>

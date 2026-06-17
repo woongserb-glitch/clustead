@@ -1,4 +1,4 @@
-"""Gunicorn 설정 — LiveFit 소규모 외부 공개(A안) / OCI 단일 VPS.
+"""Gunicorn 설정 — Clustead 소규모 외부 공개(A안) / OCI 단일 VPS.
 
 핵심: 1.4GB 데이터를 preload로 마스터에서 1회 적재한 뒤 워커를 fork한다.
 리눅스 copy-on-write 덕분에 워커들이 메모리를 대부분 공유 → 워커×1.4GB

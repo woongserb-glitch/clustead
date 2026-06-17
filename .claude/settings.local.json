@@ -27,7 +27,25 @@
       "Bash(python scripts/apply_missing_apartment_geocodes.py)",
       "Bash(git -c user.email=audit@livefit.local -c 'user.name=LiveFit Audit' commit -q -m 'refactor: CCTV card uses baked baseline score/count, drops live percentile path *)",
       "Bash(LIVEFIT_KAKAO_RESULT_MODE=off python -c ' *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(ls .claude/)",
+      "Bash(cat .claude/launch.json)",
+      "PowerShell(Get-Process python -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "PowerShell(\"cleared\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -sL \"https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js\" -o static/vendor/d3.min.js)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5000/static/vendor/d3.min.js)",
+      "Bash(echo \"d3 local: $\\(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5000/static/vendor/d3.min.js\\)\")",
+      "Bash(curl -s http://127.0.0.1:5000/)",
+      "Bash(sed -i 's/home.css'\\\\''\\) }}?v=2/home.css'\\\\''\\) }}?v=3/; s/home.js'\\\\''\\) }}?v=2/home.js'\\\\''\\) }}?v=3/' templates/index.html)",
+      "Bash(grep -oE \"home\\\\.\\(css|js\\).{0,12}\" templates/index.html)",
+      "Bash(grep -oE \"home\\\\.\\(css|js\\)'\\\\\\\\\\)\\) }}\\\\\\\\?v=4\" templates/index.html)",
+      "Bash(node -e \"new Function\\(require\\('fs'\\).readFileSync\\('static/home.js','utf8'\\)\\); console.log\\('home.js parses OK'\\)\")",
+      "Bash(sed -i 's/?v=8/?v=9/g' templates/index.html)",
+      "Bash(node -e \"new Function\\(require\\('fs'\\).readFileSync\\('static/home.js','utf8'\\)\\)\")",
+      "Bash(git stash *)",
+      "Bash(python -m py_compile app.py services/ranking_service.py)"
     ]
   }
 }

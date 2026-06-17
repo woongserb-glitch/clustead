@@ -8,9 +8,8 @@
         <em class="domain-badge">{{ summary.domain_label }}</em>
         <span>{{ summary.label }}</span>
     </div>
-    {% if summary.key != "school-environment" %}
-    <strong class="{{ summary.score_class }}">{{ summary.score }}</strong>
-    {% endif %}
+    {# 카테고리별 0~100 숫자 점수는 표시하지 않는다(등급 배지·시설 목록으로 대체).
+       Result/Compare 공통. 비교 우위는 compare-card-win 하이라이트로 유지된다. #}
 </div>
 
 <p class="detail-description">

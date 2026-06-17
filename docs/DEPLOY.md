@@ -1,4 +1,4 @@
-# LiveFit 배포 가이드 (소규모 외부 공개 / OCI Ubuntu VPS)
+# Clustead 배포 가이드 (소규모 외부 공개 / OCI Ubuntu VPS)
 
 스택: **OCI Ubuntu VPS 1대 · Docker · Gunicorn · Nginx**
 구성: 인터넷 → Nginx(80) → Gunicorn(app:8000, 컨테이너 내부) → Flask 앱
@@ -11,9 +11,9 @@
 외부 공개 전 반드시 확인:
 
 - [ ] `.env` 에 `FLASK_DEBUG` 미설정(=OFF). **디버거 켜면 RCE.**
-- [ ] `.env` 에 `LIVEFIT_ADMIN_TOKEN` 을 강한 랜덤값으로 설정(`/admin/*` 보호).
+- [ ] `.env` 에 `CLUSTEAD_ADMIN_TOKEN` 을 강한 랜덤값으로 설정(`/admin/*` 보호).
 - [ ] Kakao 콘솔에서 `KAKAO_JAVASCRIPT_KEY` 의 **플랫폼 도메인 화이트리스트** 등록(키 도용 방지).
-- [ ] 레이트리밋 활성(기본 ON). `compose` 가 `LIVEFIT_TRUST_PROXY=1` 주입(아래 참고).
+- [ ] 레이트리밋 활성(기본 ON). `compose` 가 `CLUSTEAD_TRUST_PROXY=1` 주입(아래 참고).
 
 ---
 
@@ -40,13 +40,13 @@ sudo usermod -aG docker $USER   # 재로그인 후 적용
 ## 3. 코드 + 데이터 배치
 
 ```bash
-git clone <REPO_URL> livefit && cd livefit
+git clone <REPO_URL> clustead && cd clustead
 cp .env.example .env && nano .env     # 0번 체크리스트대로 채운다
 ```
 
 데이터(`data/`, 1.4GB)는 git 추적 대상이 아니다. 빌드/수집 머신에서 전송:
 ```bash
-rsync -avz --progress ./data/ <user>@<vps>:~/livefit/data/
+rsync -avz --progress ./data/ <user>@<vps>:~/clustead/data/
 ```
 
 **권한**: 컨테이너는 비루트(uid 10001)로 구동된다. Kakao 캐시 write(`data/cache/`)를 위해:
@@ -78,7 +78,7 @@ curl -s -o /dev/null -w "%{http_code}" http://<공인IP>/   # 200
 ### 레이트리밋
 - `/result` 30/분, `/result/export.xlsx` 10/분 (IP 기준, Kakao 유료쿼터 방어).
 - **주의**: 메모리 스토리지는 워커별 카운트라 워커 2개면 실질 한도가 ~2배가 된다. 전역 일치가 필요하면 Redis 사용:
-  - `compose` 에 redis 서비스 추가 + `LIVEFIT_RATELIMIT_STORAGE=redis://redis:6379`.
+  - `compose` 에 redis 서비스 추가 + `CLUSTEAD_RATELIMIT_STORAGE=redis://redis:6379`.
 
 ### 로그 / 헬스
 ```bash
@@ -111,7 +111,7 @@ www.clustead.com    A   <VM_PUBLIC_IP>
 ⚠️ OCI Security List + 호스트 iptables 에 **443 도 개방**해야 한다(§1 의 80 과 동일하게 dport 443).
 
 ### 7-2. HTTP로 먼저 기동 (인증서 발급 준비)
-부트스트랩 conf(livefit.conf)는 인증서를 참조하지 않으므로 바로 뜬다:
+부트스트랩 conf(clustead.conf)는 인증서를 참조하지 않으므로 바로 뜬다:
 ```bash
 docker compose up -d --build      # http://clustead.com 로 접속되면 정상
 ```
@@ -128,7 +128,7 @@ docker compose run --rm --entrypoint certbot certbot \
 ### 7-4. nginx 를 HTTPS conf 로 전환
 `docker-compose.yml` 의 nginx default.conf 마운트를 SSL conf 로 변경:
 ```yaml
-      - ./deploy/nginx/livefit-ssl.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx/clustead-ssl.conf:/etc/nginx/conf.d/default.conf:ro
 ```
 적용:
 ```bash

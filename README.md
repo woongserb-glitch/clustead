@@ -31,11 +31,11 @@ python app.py               # http://127.0.0.1:5000
 
 | 변수 | 기본 | 설명 |
 |---|---|---|
-| `LIVEFIT_KAKAO_RESULT_MODE` | (fallback) | `off`=결과 페이지 Kakao 호출 안 함, `all`=전 카테고리, 미설정=cafe/convenience/mart만 |
-| `LIVEFIT_KAKAO_CACHE` | `1` | Kakao POI 캐시 사용(`0`=끔) |
-| `LIVEFIT_KAKAO_CACHE_TTL` | `2592000`(30일) | 캐시 TTL(초) |
-| `LIVEFIT_PRELOAD_VERBOSE` | `0` | 적재 로그 출력 |
-| `LIVEFIT_DEBUG` | `0` | 디버그 로그 |
+| `CLUSTEAD_KAKAO_RESULT_MODE` | (fallback) | `off`=결과 페이지 Kakao 호출 안 함, `all`=전 카테고리, 미설정=cafe/convenience/mart만 |
+| `CLUSTEAD_KAKAO_CACHE` | `1` | Kakao POI 캐시 사용(`0`=끔) |
+| `CLUSTEAD_KAKAO_CACHE_TTL` | `2592000`(30일) | 캐시 TTL(초) |
+| `CLUSTEAD_PRELOAD_VERBOSE` | `0` | 적재 로그 출력 |
+| `CLUSTEAD_DEBUG` | `0` | 디버그 로그 |
 
 ---
 

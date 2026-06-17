@@ -4,6 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        // 모바일(≤760px)에서는 d3 네트워크 그래프 대신 Explore로 진입.
+        // <head>에서 즉시 실행해 무거운 그래프 스크립트 로드 전에 전환한다.
+        // ?home=graph 로 강제 우회(태블릿/디버그용).
+        (function () {
+            try {
+                if (location.search.indexOf('home=graph') !== -1) return;
+                if (window.matchMedia('(max-width: 760px)').matches) {
+                    location.replace('/explore');
+                }
+            } catch (e) { /* matchMedia 미지원 시 홈 유지 */ }
+        })();
+    </script>
     <title>Clustead — 내 삶에 맞는 서울 아파트</title>
     <meta name="description" content="집값·브랜드가 아니라 실제 누리는 생활 인프라(교통·의료·교육·편의·안전)를 서울시 상대평가로 점수화. Cluster + Stead, Clustead.">
     <meta property="og:type" content="website">

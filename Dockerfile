@@ -1,4 +1,4 @@
-# LiveFit — 소규모 외부 공개(A안) / OCI Ubuntu VPS · Docker · Gunicorn · Nginx
+# Clustead — 소규모 외부 공개(A안) / OCI Ubuntu VPS · Docker · Gunicorn · Nginx
 # 데이터(1.4GB)는 이미지에 굽지 않는다. 런타임에 ./data 를 /app/data 로 마운트.
 FROM python:3.12-slim
 

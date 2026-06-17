@@ -1,5 +1,5 @@
 /* ============================================================
-   LiveFit Home — 네트워크 그래프 마인드맵
+   Clustead Home — 네트워크 그래프 마인드맵
    center(아파트) → domain → category → brand/type
    조건을 순차 선택 → /explore 로 전달
    ============================================================ */
@@ -163,6 +163,126 @@
     var selections = [];
     // presets
     var preset = { gu: "", dong: "", area: [], household: "", price_type: "trade", price: "" };
+
+    function categoryByParam(param) {
+        var found = null;
+        CONFIG.domains.forEach(function (dom) {
+            (dom.categories || []).forEach(function (cat) {
+                if (cat.param === param) found = cat;
+            });
+        });
+        return found;
+    }
+
+    function priorityCategoryByKey(categoryKey) {
+        var found = null;
+        CONFIG.domains.forEach(function (dom) {
+            (dom.categories || []).forEach(function (cat) {
+                if (cat.key === categoryKey && cat.kind === "priority") found = cat;
+            });
+        });
+        return found;
+    }
+
+    function currentShareFilters() {
+        var filters = {};
+        if (preset.gu) filters.gu = preset.gu;
+        if (preset.dong) filters.dong = preset.dong;
+        if (preset.area.length) filters.area = preset.area.slice();
+        if (preset.household) filters.household = preset.household;
+        if (preset.price) {
+            filters.price_type = preset.price_type || "trade";
+            filters.price = preset.price;
+        }
+
+        var priorities = [];
+        selections.forEach(function (s) {
+            if (s.kind === "priority") priorities.push(s.category + ":" + s.subtype);
+            else if (s.kind === "param") filters[s.param] = s.value;
+            else if (s.kind === "toggle") filters[s.param] = "1";
+        });
+        if (priorities.length) filters.priority = priorities;
+        return filters;
+    }
+
+    function updateShareUrl() {
+        if (!window.ClusteadShare) return;
+        window.ClusteadShare.replaceQueryFromFilters(currentShareFilters());
+    }
+
+    function restoreStateFromShareQuery() {
+        if (!window.ClusteadShare) return false;
+        var filters = window.ClusteadShare.filtersFromQuery();
+        if (!filters) return false;
+
+        function hasKey(list, key) {
+            return (list || []).some(function (item) { return item.key === key; });
+        }
+        function validPriceType(key) {
+            return (presets.price_types || []).some(function (item) { return item.key === key; });
+        }
+        function validPriceBucket(typeKey, bucketKey) {
+            var type = (presets.price_types || []).filter(function (item) { return item.key === typeKey; })[0];
+            return !!type && (type.buckets || []).some(function (item) { return item.key === bucketKey; });
+        }
+
+        var nextGu = (presets.gu || []).indexOf(filters.gu || "") >= 0 ? filters.gu : "";
+        var nextArea = Array.isArray(filters.area) ? filters.area.filter(function (key) {
+            return hasKey(presets.area, key);
+        }) : [];
+        var nextHousehold = hasKey(presets.household, filters.household) ? filters.household : "";
+        var nextPriceType = validPriceType(filters.price_type) ? filters.price_type : "trade";
+        var nextPrice = validPriceBucket(nextPriceType, filters.price) ? filters.price : "";
+
+        preset = {
+            gu: nextGu,
+            dong: nextGu ? (filters.dong || "") : "",
+            area: nextArea,
+            household: nextHousehold,
+            price_type: nextPriceType,
+            price: nextPrice
+        };
+
+        selections = [];
+        if (filters.no_nightlife) {
+            var toggleCat = categoryByParam("no_nightlife");
+            selections.push({
+                selId: "t:no_nightlife", kind: "toggle", param: "no_nightlife",
+                label: toggleCat ? toggleCat.label : "유흥 없음",
+                sub: toggleCat ? (toggleCat.hint || "") : ""
+            });
+        }
+
+        ["line", "station", "bus_route", "assigned_elementary", "school"].forEach(function (param) {
+            var value = filters[param];
+            var cat = categoryByParam(param);
+            if (!value || !cat) return;
+            selections.push({
+                selId: "a:" + param, kind: "param", param: param,
+                value: value, label: value + (cat.suffix || ""), sub: cat.label
+            });
+        });
+
+        (filters.priority || []).forEach(function (raw) {
+            var parts = String(raw || "").split(":");
+            if (parts.length < 2) return;
+            var category = parts.shift();
+            var subtype = parts.join(":");
+            var cat = priorityCategoryByKey(category);
+            if (!cat || (cat.subtypes || []).indexOf(subtype) < 0) return;
+            selections.push({
+                selId: "p:" + category + ":" + subtype, kind: "priority",
+                category: category, subtype: subtype,
+                label: subtype, sub: cat.label
+            });
+        });
+
+        if (window.ClusteadShare.hasFilters(currentShareFilters())) {
+            expandAllNodes();
+            return true;
+        }
+        return false;
+    }
 
     function selIndex(id) {
         for (var i = 0; i < selections.length; i++) if (selections[i].selId === id) return i;
@@ -785,6 +905,7 @@
     var trayList = document.querySelector("[data-tray-list]");
     var trayCount = document.querySelector("[data-tray-count]");
     var trayFab = document.querySelector("[data-tray-fab]");
+    var shareFab = document.querySelector("[data-share-fab]");
     var fabCount = document.querySelector("[data-fab-count]");
 
     function activeCount() {
@@ -820,6 +941,8 @@
         var show = total > 0;
         tray.hidden = !show;
         trayFab.hidden = !show;
+        if (shareFab) shareFab.hidden = !show;
+        updateShareUrl();
     }
 
     document.querySelector("[data-tray-reset]").addEventListener("click", function () {
@@ -831,25 +954,13 @@
 
     document.querySelector("[data-explore-btn]").addEventListener("click", goExplore);
     trayFab.addEventListener("click", goExplore);
+    document.addEventListener("clustead:before-share", updateShareUrl);
 
     function goExplore() {
-        var p = new URLSearchParams();
-        if (preset.gu) p.set("gu", preset.gu);
-        if (preset.dong) p.set("dong", preset.dong);
-        preset.area.forEach(function (a) { p.append("area", a); });
-        if (preset.household) p.set("household", preset.household);
-        if (preset.price) { p.set("price_type", preset.price_type); p.set("price", preset.price); }
-
-        selections.forEach(function (s) {
-            if (s.kind === "priority") p.append("priority", s.category + ":" + s.subtype);
-            else if (s.kind === "param") p.set(s.param, s.value);
-            else if (s.kind === "toggle") p.set(s.param, "1");
-        });
-
-        var qs = p.toString();
-        if (!qs) return;
+        var encoded = window.ClusteadShare && window.ClusteadShare.encodeFilters(currentShareFilters());
+        if (!encoded) return;
         showLoading();
-        window.location.href = "/explore?" + qs;
+        window.location.href = "/explore?q=" + encoded;
     }
 
     function showLoading() {
@@ -1182,7 +1293,9 @@
     }
 
     /* ---------- 초기 렌더 ---------- */
+    restoreStateFromShareQuery();
     updatePresetLabels();
+    renderTray();
     radialSeed();      // restart 전에 시딩 → 진입 시 깔끔한 방사형 펼침
     restart(0.9);
 

@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1216" height="1792" viewBox="0 0 1216 1792">
+  <style>
+    .page { fill: #f6f7fb; }
+    .title { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 33px; font-weight: 900; fill: #0f172a; }
+    .subtitle { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 15px; fill: #475569; }
+    .h2 { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 23px; font-weight: 900; fill: #111827; }
+    .h3 { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 17px; font-weight: 900; fill: #111827; }
+    .body { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 13px; fill: #64748b; }
+    .label { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 15px; font-weight: 900; fill: #111827; }
+    .small { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #475569; }
+    .emoji { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; }
+    .brand { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-weight: 900; }
+  </style>
+  <rect class="page" width="100%" height="100%" />
+  <text class="title" x="48" y="54">Emoji-First Icon System</text>
+  <text class="subtitle" x="48" y="82">이모지를 대체하지 않고, 생활 인프라의 즉시 인지성을 유지하면서 UI 품질만 올리는 방향입니다.</text>
+  
+    <rect x="48" y="112" width="1120" height="328" rx="22" fill="#ffffff" stroke="#dfe7f2" />
+    <text class="h2" x="76" y="154">1. 카테고리는 이모지 타일로 유지</text>
+    <text class="body" x="76" y="178">기존보다 나아 보이는 핵심은 아이콘 교체가 아니라 크기, 배경, 여백, 톤을 통일하는 것입니다.</text>
+    <rect x="1026" y="136" width="110" height="30" rx="15" fill="#ecfeff" stroke="#a5f3fc" /><text class="small" x="1081" y="156" text-anchor="middle" font-weight="900" fill="#0e7490">추천 방향</text>
+  
+    <g>
+      <rect x="76" y="198" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="92" y="213" width="42" height="42" rx="15" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.2" />
+      <text class="emoji" x="113" y="241" text-anchor="middle" font-size="24">🚇</text>
+      <text class="label" x="146" y="232">지하철역</text>
+      <text class="small" x="146" y="253">노선/역</text>
+    </g>
+    <g>
+      <rect x="254" y="198" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="270" y="213" width="42" height="42" rx="15" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.2" />
+      <text class="emoji" x="291" y="241" text-anchor="middle" font-size="24">🚌</text>
+      <text class="label" x="324" y="232">버스</text>
+      <text class="small" x="324" y="253">간선·지선</text>
+    </g>
+    <g>
+      <rect x="432" y="198" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="448" y="213" width="42" height="42" rx="15" fill="#dcfce7" stroke="#86efac" stroke-width="1.2" />
+      <text class="emoji" x="469" y="241" text-anchor="middle" font-size="24">🏪</text>
+      <text class="label" x="502" y="232">편의점</text>
+      <text class="small" x="502" y="253">브랜드 우선</text>
+    </g>
+    <g>
+      <rect x="610" y="198" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="626" y="213" width="42" height="42" rx="15" fill="#dcfce7" stroke="#86efac" stroke-width="1.2" />
+      <text class="emoji" x="647" y="241" text-anchor="middle" font-size="24">☕</text>
+      <text class="label" x="680" y="232">카페</text>
+      <text class="small" x="680" y="253">브랜드 우선</text>
+    </g>
+    <g>
+      <rect x="788" y="198" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="804" y="213" width="42" height="42" rx="15" fill="#ffe4e6" stroke="#fda4af" stroke-width="1.2" />
+      <text class="emoji" x="825" y="241" text-anchor="middle" font-size="24">🏥</text>
+      <text class="label" x="858" y="232">병원</text>
+      <text class="small" x="858" y="253">진료과 칩</text>
+    </g>
+    <g>
+      <rect x="966" y="198" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="982" y="213" width="42" height="42" rx="15" fill="#ffe4e6" stroke="#fda4af" stroke-width="1.2" />
+      <text class="emoji" x="1003" y="241" text-anchor="middle" font-size="24">💊</text>
+      <text class="label" x="1036" y="232">약국</text>
+      <text class="small" x="1036" y="253">야간·휴일</text>
+    </g>
+    <g>
+      <rect x="76" y="290" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="92" y="305" width="42" height="42" rx="15" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.2" />
+      <text class="emoji" x="113" y="333" text-anchor="middle" font-size="24">🏫</text>
+      <text class="label" x="146" y="324">학교</text>
+      <text class="small" x="146" y="345">배정초</text>
+    </g>
+    <g>
+      <rect x="254" y="290" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="270" y="305" width="42" height="42" rx="15" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.2" />
+      <text class="emoji" x="291" y="333" text-anchor="middle" font-size="24">📚</text>
+      <text class="label" x="324" y="324">학원</text>
+      <text class="small" x="324" y="345">과목별</text>
+    </g>
+    <g>
+      <rect x="432" y="290" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="448" y="305" width="42" height="42" rx="15" fill="#dcfce7" stroke="#86efac" stroke-width="1.2" />
+      <text class="emoji" x="469" y="333" text-anchor="middle" font-size="24">🌳</text>
+      <text class="label" x="502" y="324">공원</text>
+      <text class="small" x="502" y="345">일반/대형</text>
+    </g>
+    <g>
+      <rect x="610" y="290" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="626" y="305" width="42" height="42" rx="15" fill="#cffafe" stroke="#67e8f9" stroke-width="1.2" />
+      <text class="emoji" x="647" y="333" text-anchor="middle" font-size="24">🌊</text>
+      <text class="label" x="680" y="324">한강공원</text>
+      <text class="small" x="680" y="345">수변</text>
+    </g>
+    <g>
+      <rect x="788" y="290" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="804" y="305" width="42" height="42" rx="15" fill="#f3e8ff" stroke="#d8b4fe" stroke-width="1.2" />
+      <text class="emoji" x="825" y="333" text-anchor="middle" font-size="24">🎭</text>
+      <text class="label" x="858" y="324">문화생활</text>
+      <text class="small" x="858" y="345">공연·전시</text>
+    </g>
+    <g>
+      <rect x="966" y="290" width="168" height="78" rx="18" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="982" y="305" width="42" height="42" rx="15" fill="#ffedd5" stroke="#fdba74" stroke-width="1.2" />
+      <text class="emoji" x="1003" y="333" text-anchor="middle" font-size="24">🌃</text>
+      <text class="label" x="1036" y="324">상권</text>
+      <text class="small" x="1036" y="345">대형/골목</text>
+    </g>
+    <rect x="48" y="468" width="1120" height="244" rx="22" fill="#ffffff" stroke="#dfe7f2" />
+    <text class="h2" x="76" y="510">2. 서브타입칩은 이모지 + 문자 배지 혼합</text>
+    <text class="body" x="76" y="534">버스/지하철은 문자 배지가 더 좋고, 진료과/생활 항목은 이모지가 더 빠르게 읽힙니다.</text>
+    <rect x="1026" y="492" width="110" height="30" rx="15" fill="#ecfeff" stroke="#a5f3fc" /><text class="small" x="1081" y="512" text-anchor="middle" font-weight="900" fill="#0e7490">혼합형</text>
+  <text class="h3" x="78" y="577">교통</text>
+    <g>
+      <rect x="178" y="552" width="116" height="42" rx="21" fill="#ffffff" stroke="#93c5fd" />
+      <rect x="185" y="559" width="28" height="28" rx="14" fill="#0052a4" />
+      <text class="brand" x="199" y="579" text-anchor="middle" font-size="13" fill="#ffffff">1</text>
+      <text class="label" x="222" y="579" font-size="14">1호선</text>
+    </g>
+    <g>
+      <rect x="304" y="552" width="116" height="42" rx="21" fill="#ffffff" stroke="#93c5fd" />
+      <rect x="311" y="559" width="28" height="28" rx="14" fill="#00a84d" />
+      <text class="brand" x="325" y="579" text-anchor="middle" font-size="13" fill="#ffffff">2</text>
+      <text class="label" x="348" y="579" font-size="14">2호선</text>
+    </g>
+    <g>
+      <rect x="430" y="552" width="116" height="42" rx="21" fill="#ffffff" stroke="#93c5fd" />
+      <rect x="437" y="559" width="28" height="28" rx="14" fill="#2563eb" />
+      <text class="brand" x="451" y="579" text-anchor="middle" font-size="13" fill="#ffffff">B</text>
+      <text class="label" x="474" y="579" font-size="14">간선</text>
+    </g>
+    <g>
+      <rect x="556" y="552" width="116" height="42" rx="21" fill="#ffffff" stroke="#93c5fd" />
+      <rect x="563" y="559" width="28" height="28" rx="14" fill="#16a34a" />
+      <text class="brand" x="577" y="579" text-anchor="middle" font-size="13" fill="#ffffff">G</text>
+      <text class="label" x="600" y="579" font-size="14">지선</text>
+    </g>
+    <g>
+      <rect x="682" y="552" width="116" height="42" rx="21" fill="#ffffff" stroke="#fda4af" />
+      <rect x="689" y="559" width="28" height="28" rx="14" fill="#dc2626" />
+      <text class="brand" x="703" y="579" text-anchor="middle" font-size="13" fill="#ffffff">R</text>
+      <text class="label" x="726" y="579" font-size="14">광역</text>
+    </g>
+    <g>
+      <rect x="808" y="552" width="116" height="42" rx="21" fill="#ffffff" stroke="#c4b5fd" />
+      <rect x="815" y="559" width="28" height="28" rx="14" fill="#ede9fe" />
+      <text class="emoji" x="829" y="579" text-anchor="middle" font-size="17" fill="#6d28d9">🌙</text>
+      <text class="label" x="852" y="579" font-size="14">심야</text>
+    </g>
+    <g>
+      <rect x="934" y="552" width="116" height="42" rx="21" fill="#ffffff" stroke="#93c5fd" />
+      <rect x="941" y="559" width="28" height="28" rx="14" fill="#dbeafe" />
+      <text class="emoji" x="955" y="579" text-anchor="middle" font-size="17" fill="#1d4ed8">✈️</text>
+      <text class="label" x="978" y="579" font-size="14">공항</text>
+    </g><text class="h3" x="78" y="635">병원/학원</text>
+    <g>
+      <rect x="178" y="610" width="116" height="42" rx="21" fill="#ffffff" stroke="#fda4af" />
+      <rect x="185" y="617" width="28" height="28" rx="14" fill="#ffe4e6" />
+      <text class="emoji" x="199" y="637" text-anchor="middle" font-size="17" fill="#be123c">🩺</text>
+      <text class="label" x="222" y="637" font-size="14">내과</text>
+    </g>
+    <g>
+      <rect x="304" y="610" width="116" height="42" rx="21" fill="#ffffff" stroke="#fda4af" />
+      <rect x="311" y="617" width="28" height="28" rx="14" fill="#ffe4e6" />
+      <text class="emoji" x="325" y="637" text-anchor="middle" font-size="17" fill="#be123c">👶</text>
+      <text class="label" x="348" y="637" font-size="14">소아과</text>
+    </g>
+    <g>
+      <rect x="430" y="610" width="116" height="42" rx="21" fill="#ffffff" stroke="#fda4af" />
+      <rect x="437" y="617" width="28" height="28" rx="14" fill="#ffe4e6" />
+      <text class="emoji" x="451" y="637" text-anchor="middle" font-size="17" fill="#be123c">🦷</text>
+      <text class="label" x="474" y="637" font-size="14">치과</text>
+    </g>
+    <g>
+      <rect x="556" y="610" width="116" height="42" rx="21" fill="#ffffff" stroke="#fda4af" />
+      <rect x="563" y="617" width="28" height="28" rx="14" fill="#ffe4e6" />
+      <text class="emoji" x="577" y="637" text-anchor="middle" font-size="17" fill="#be123c">👁️</text>
+      <text class="label" x="600" y="637" font-size="14">안과</text>
+    </g>
+    <g>
+      <rect x="682" y="610" width="116" height="42" rx="21" fill="#ffffff" stroke="#a5b4fc" />
+      <rect x="689" y="617" width="28" height="28" rx="14" fill="#4f46e5" />
+      <text class="brand" x="703" y="637" text-anchor="middle" font-size="13" fill="#ffffff">A</text>
+      <text class="label" x="726" y="637" font-size="14">영어</text>
+    </g>
+    <g>
+      <rect x="808" y="610" width="116" height="42" rx="21" fill="#ffffff" stroke="#a5b4fc" />
+      <rect x="815" y="617" width="28" height="28" rx="14" fill="#4f46e5" />
+      <text class="brand" x="829" y="637" text-anchor="middle" font-size="13" fill="#ffffff">Σ</text>
+      <text class="label" x="852" y="637" font-size="14">수학</text>
+    </g>
+    <g>
+      <rect x="934" y="610" width="116" height="42" rx="21" fill="#ffffff" stroke="#a5b4fc" />
+      <rect x="941" y="617" width="28" height="28" rx="14" fill="#e0e7ff" />
+      <text class="emoji" x="955" y="637" text-anchor="middle" font-size="17" fill="#4338ca">📖</text>
+      <text class="label" x="978" y="637" font-size="14">독서실</text>
+    </g><text class="h3" x="78" y="693">생활/안전</text>
+    <g>
+      <rect x="178" y="668" width="116" height="42" rx="21" fill="#ffffff" stroke="#c4b5fd" />
+      <rect x="185" y="675" width="28" height="28" rx="14" fill="#ede9fe" />
+      <text class="emoji" x="199" y="695" text-anchor="middle" font-size="17" fill="#6d28d9">🌙</text>
+      <text class="label" x="222" y="695" font-size="14">야간</text>
+    </g>
+    <g>
+      <rect x="304" y="668" width="116" height="42" rx="21" fill="#ffffff" stroke="#86efac" />
+      <rect x="311" y="675" width="28" height="28" rx="14" fill="#dcfce7" />
+      <text class="emoji" x="325" y="695" text-anchor="middle" font-size="17" fill="#15803d">📅</text>
+      <text class="label" x="348" y="695" font-size="14">주말</text>
+    </g>
+    <g>
+      <rect x="430" y="668" width="124" height="42" rx="21" fill="#ffffff" stroke="#94a3b8" />
+      <rect x="437" y="675" width="28" height="28" rx="14" fill="#e2e8f0" />
+      <text class="emoji" x="451" y="695" text-anchor="middle" font-size="17" fill="#334155">🛡️</text>
+      <text class="label" x="474" y="695" font-size="14">생활방범</text>
+    </g>
+    <g>
+      <rect x="564" y="668" width="139" height="42" rx="21" fill="#ffffff" stroke="#a5b4fc" />
+      <rect x="571" y="675" width="28" height="28" rx="14" fill="#e0e7ff" />
+      <text class="emoji" x="585" y="695" text-anchor="middle" font-size="17" fill="#4338ca">🧒</text>
+      <text class="label" x="608" y="695" font-size="14">어린이보호</text>
+    </g>
+    <g>
+      <rect x="713" y="668" width="124" height="42" rx="21" fill="#ffffff" stroke="#67e8f9" />
+      <rect x="720" y="675" width="28" height="28" rx="14" fill="#cffafe" />
+      <text class="emoji" x="734" y="695" text-anchor="middle" font-size="17" fill="#0e7490">🌊</text>
+      <text class="label" x="757" y="695" font-size="14">한강공원</text>
+    </g>
+    <g>
+      <rect x="847" y="668" width="116" height="42" rx="21" fill="#ffffff" stroke="#94a3b8" />
+      <rect x="854" y="675" width="28" height="28" rx="14" fill="#64748b" />
+      <text class="brand" x="868" y="695" text-anchor="middle" font-size="13" fill="#ffffff">?</text>
+      <text class="label" x="891" y="695" font-size="14">기타</text>
+    </g>
+    <rect x="48" y="740" width="1120" height="236" rx="22" fill="#ffffff" stroke="#dfe7f2" />
+    <text class="h2" x="76" y="782">3. 브랜드는 일반 아이콘 금지, 로고/워드마크 우선</text>
+    <text class="body" x="76" y="806">브랜드칩은 이모지도 Lucide도 이길 수 없습니다. 공식 로고가 없을 때만 임시 워드마크를 씁니다.</text>
+    <rect x="1026" y="764" width="110" height="30" rx="15" fill="#ecfeff" stroke="#a5f3fc" /><text class="small" x="1081" y="784" text-anchor="middle" font-weight="900" fill="#0e7490">브랜드 우선</text>
+  
+    <g>
+      <rect x="80" y="826" width="210" height="48" rx="24" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="87" y="833" width="58" height="34" rx="17" fill="#00704a" />
+      <text class="brand" x="116" y="855" text-anchor="middle" font-size="10" fill="#ffffff">STAR</text>
+      <text class="label" x="155" y="856" font-size="14">스타벅스</text>
+    </g>
+    <g>
+      <rect x="344" y="826" width="210" height="48" rx="24" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="351" y="833" width="42" height="34" rx="17" fill="#d31145" />
+      <text class="brand" x="372" y="855" text-anchor="middle" font-size="14" fill="#ffffff">A</text>
+      <text class="label" x="402" y="856" font-size="14">투썸</text>
+    </g>
+    <g>
+      <rect x="608" y="826" width="210" height="48" rx="24" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="615" y="833" width="42" height="34" rx="17" fill="#642f8f" />
+      <text class="brand" x="636" y="855" text-anchor="middle" font-size="14" fill="#ffffff">CU</text>
+      <text class="label" x="666" y="856" font-size="14">CU</text>
+    </g>
+    <g>
+      <rect x="872" y="826" width="210" height="48" rx="24" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="879" y="833" width="58" height="34" rx="17" fill="#0072ce" />
+      <text class="brand" x="908" y="855" text-anchor="middle" font-size="10" fill="#ffffff">GS25</text>
+      <text class="label" x="947" y="856" font-size="14">GS25</text>
+    </g>
+    <g>
+      <rect x="80" y="892" width="210" height="48" rx="24" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="87" y="899" width="42" height="34" rx="17" fill="#008061" />
+      <text class="brand" x="108" y="921" text-anchor="middle" font-size="14" fill="#ffffff">7</text>
+      <text class="label" x="138" y="922" font-size="14">세븐일레븐</text>
+    </g>
+    <g>
+      <rect x="344" y="892" width="210" height="48" rx="24" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="351" y="899" width="42" height="34" rx="17" fill="#ffd200" />
+      <text class="brand" x="372" y="921" text-anchor="middle" font-size="14" fill="#111827">e</text>
+      <text class="label" x="402" y="922" font-size="14">이마트</text>
+    </g>
+    <g>
+      <rect x="608" y="892" width="210" height="48" rx="24" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="615" y="899" width="58" height="34" rx="17" fill="#005daa" />
+      <text class="brand" x="644" y="921" text-anchor="middle" font-size="10" fill="#ffffff">COST</text>
+      <text class="label" x="683" y="922" font-size="14">코스트코</text>
+    </g>
+    <g>
+      <rect x="872" y="892" width="210" height="48" rx="24" fill="#ffffff" stroke="#dde6f2" />
+      <rect x="879" y="899" width="42" height="34" rx="17" fill="#e31b23" />
+      <text class="brand" x="900" y="921" text-anchor="middle" font-size="14" fill="#ffffff">H</text>
+      <text class="label" x="930" y="922" font-size="14">홈플러스</text>
+    </g>
+    <rect x="48" y="1004" width="1120" height="288" rx="22" fill="#ffffff" stroke="#dfe7f2" />
+    <text class="h2" x="76" y="1046">4. Result 지도는 이모지 마커가 더 읽힙니다</text>
+    <text class="body" x="76" y="1070">지도 위에서는 선 아이콘보다 컬러 핀 + 이모지가 더 빠르게 인지됩니다. 브랜드 POI는 로고 핀으로 분리합니다.</text>
+    <rect x="1026" y="1028" width="110" height="30" rx="15" fill="#ecfeff" stroke="#a5f3fc" /><text class="small" x="1081" y="1048" text-anchor="middle" font-weight="900" fill="#0e7490">지도 전용</text>
+  
+    <g>
+      <path d="M120 1092c-26.52 0-34 21.08-34 34 0 39.44 34 83 34 83s34-57.12 34-83c0-12.92-7.48-34-34-34Z" fill="#1d4ed8" />
+      <circle cx="120" cy="1126" r="23.799999999999997" fill="#ffffff" opacity="0.96" />
+      <text class="emoji" x="120" y="1136" text-anchor="middle" font-size="29.24">🚇</text>
+      <text class="small" x="120" y="1202" text-anchor="middle">지하철역</text>
+    </g>
+    <g>
+      <path d="M252 1092c-26.52 0-34 21.08-34 34 0 39.44 34 83 34 83s34-57.12 34-83c0-12.92-7.48-34-34-34Z" fill="#1d4ed8" />
+      <circle cx="252" cy="1126" r="23.799999999999997" fill="#ffffff" opacity="0.96" />
+      <text class="emoji" x="252" y="1136" text-anchor="middle" font-size="29.24">🚌</text>
+      <text class="small" x="252" y="1202" text-anchor="middle">버스</text>
+    </g>
+    <g>
+      <path d="M384 1092c-26.52 0-34 21.08-34 34 0 39.44 34 83 34 83s34-57.12 34-83c0-12.92-7.48-34-34-34Z" fill="#15803d" />
+      <circle cx="384" cy="1126" r="23.799999999999997" fill="#ffffff" opacity="0.96" />
+      <text class="emoji" x="384" y="1136" text-anchor="middle" font-size="29.24">🏪</text>
+      <text class="small" x="384" y="1202" text-anchor="middle">편의점</text>
+    </g>
+    <g>
+      <path d="M516 1092c-26.52 0-34 21.08-34 34 0 39.44 34 83 34 83s34-57.12 34-83c0-12.92-7.48-34-34-34Z" fill="#15803d" />
+      <circle cx="516" cy="1126" r="23.799999999999997" fill="#ffffff" opacity="0.96" />
+      <text class="emoji" x="516" y="1136" text-anchor="middle" font-size="29.24">☕</text>
+      <text class="small" x="516" y="1202" text-anchor="middle">카페</text>
+    </g>
+    <g>
+      <path d="M648 1092c-26.52 0-34 21.08-34 34 0 39.44 34 83 34 83s34-57.12 34-83c0-12.92-7.48-34-34-34Z" fill="#be123c" />
+      <circle cx="648" cy="1126" r="23.799999999999997" fill="#ffffff" opacity="0.96" />
+      <text class="emoji" x="648" y="1136" text-anchor="middle" font-size="29.24">🏥</text>
+      <text class="small" x="648" y="1202" text-anchor="middle">병원</text>
+    </g>
+    <g>
+      <path d="M780 1092c-26.52 0-34 21.08-34 34 0 39.44 34 83 34 83s34-57.12 34-83c0-12.92-7.48-34-34-34Z" fill="#be123c" />
+      <circle cx="780" cy="1126" r="23.799999999999997" fill="#ffffff" opacity="0.96" />
+      <text class="emoji" x="780" y="1136" text-anchor="middle" font-size="29.24">💊</text>
+      <text class="small" x="780" y="1202" text-anchor="middle">약국</text>
+    </g>
+    <g>
+      <path d="M912 1092c-26.52 0-34 21.08-34 34 0 39.44 34 83 34 83s34-57.12 34-83c0-12.92-7.48-34-34-34Z" fill="#4338ca" />
+      <circle cx="912" cy="1126" r="23.799999999999997" fill="#ffffff" opacity="0.96" />
+      <text class="emoji" x="912" y="1136" text-anchor="middle" font-size="29.24">🏫</text>
+      <text class="small" x="912" y="1202" text-anchor="middle">학교</text>
+    </g>
+    <g>
+      <path d="M1044 1092c-26.52 0-34 21.08-34 34 0 39.44 34 83 34 83s34-57.12 34-83c0-12.92-7.48-34-34-34Z" fill="#4338ca" />
+      <circle cx="1044" cy="1126" r="23.799999999999997" fill="#ffffff" opacity="0.96" />
+      <text class="emoji" x="1044" y="1136" text-anchor="middle" font-size="29.24">📚</text>
+      <text class="small" x="1044" y="1202" text-anchor="middle">학원</text>
+    </g>
+    <rect x="48" y="1320" width="1120" height="264" rx="22" fill="#ffffff" stroke="#dfe7f2" />
+    <text class="h2" x="76" y="1362">5. Result/Explore 컴포넌트에 들어갔을 때</text>
+    <text class="body" x="76" y="1386">아이콘을 바꾸는 대신, 한 위치에 고정하고 같은 크기로 감싸면 기존 이모지의 장점이 살아납니다.</text>
+    <rect x="1026" y="1344" width="110" height="30" rx="15" fill="#ecfeff" stroke="#a5f3fc" /><text class="small" x="1081" y="1364" text-anchor="middle" font-weight="900" fill="#0e7490">UI 예시</text>
+  
+    <g>
+      <rect x="78" y="1412" width="318" height="62" rx="16" fill="#eff6ff" stroke="#93c5fd" />
+      <rect x="92" y="1423" width="40" height="40" rx="14" fill="#ffffff" stroke="#93c5fd" />
+      <text class="emoji" x="112" y="1451" text-anchor="middle" font-size="24">🚇</text>
+      <text class="label" x="146" y="1440">지하철역</text>
+      <text class="small" x="146" y="1459">기존 이모지 유지 · 위치/크기만 통일</text>
+    </g>
+    <g>
+      <rect x="428" y="1412" width="318" height="62" rx="16" fill="#eff6ff" stroke="#93c5fd" />
+      <rect x="442" y="1423" width="40" height="40" rx="14" fill="#ffffff" stroke="#93c5fd" />
+      <text class="emoji" x="462" y="1451" text-anchor="middle" font-size="24">🚌</text>
+      <text class="label" x="496" y="1440">버스</text>
+      <text class="small" x="496" y="1459">기존 이모지 유지 · 위치/크기만 통일</text>
+    </g>
+    <g>
+      <rect x="778" y="1412" width="318" height="62" rx="16" fill="#f0fdf4" stroke="#86efac" />
+      <rect x="792" y="1423" width="40" height="40" rx="14" fill="#ffffff" stroke="#86efac" />
+      <text class="emoji" x="812" y="1451" text-anchor="middle" font-size="24">🏪</text>
+      <text class="label" x="846" y="1440">편의점</text>
+      <text class="small" x="846" y="1459">기존 이모지 유지 · 위치/크기만 통일</text>
+    </g>
+    <g>
+      <rect x="78" y="1488" width="318" height="62" rx="16" fill="#f0fdf4" stroke="#86efac" />
+      <rect x="92" y="1499" width="40" height="40" rx="14" fill="#ffffff" stroke="#86efac" />
+      <text class="emoji" x="112" y="1527" text-anchor="middle" font-size="24">☕</text>
+      <text class="label" x="146" y="1516">카페</text>
+      <text class="small" x="146" y="1535">기존 이모지 유지 · 위치/크기만 통일</text>
+    </g>
+    <g>
+      <rect x="428" y="1488" width="318" height="62" rx="16" fill="#fff1f2" stroke="#fda4af" />
+      <rect x="442" y="1499" width="40" height="40" rx="14" fill="#ffffff" stroke="#fda4af" />
+      <text class="emoji" x="462" y="1527" text-anchor="middle" font-size="24">🏥</text>
+      <text class="label" x="496" y="1516">병원</text>
+      <text class="small" x="496" y="1535">기존 이모지 유지 · 위치/크기만 통일</text>
+    </g>
+    <g>
+      <rect x="778" y="1488" width="318" height="62" rx="16" fill="#fff1f2" stroke="#fda4af" />
+      <rect x="792" y="1499" width="40" height="40" rx="14" fill="#ffffff" stroke="#fda4af" />
+      <text class="emoji" x="812" y="1527" text-anchor="middle" font-size="24">💊</text>
+      <text class="label" x="846" y="1516">약국</text>
+      <text class="small" x="846" y="1535">기존 이모지 유지 · 위치/크기만 통일</text>
+    </g>
+  <rect x="48" y="1618" width="1120" height="136" rx="22" fill="#0f172a" />
+  <text x="78" y="1658" font-family="Malgun Gothic, Segoe UI, Arial" font-size="22" font-weight="900" fill="#ffffff">정리</text>
+  <text x="78" y="1692" font-family="Malgun Gothic, Segoe UI, Arial" font-size="15" fill="#dbeafe">이모지보다 나은 범용 아이콘을 찾는 방향은 효율이 낮습니다. 이 화면에서는 이모지를 유지하되, UI 시스템으로 다듬는 쪽이 더 자연스럽습니다.</text>
+  <text x="78" y="1720" font-family="Malgun Gothic, Segoe UI, Arial" font-size="15" fill="#dbeafe">추천 조합: 카테고리=이모지 타일, 서브타입=이모지/문자 배지 혼합, 브랜드=공식 로고, 지도=이모지/로고 핀.</text>
+
+</svg>

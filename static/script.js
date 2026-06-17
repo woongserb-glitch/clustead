@@ -1,16 +1,3 @@
-if (!document.body.classList.contains("home-page")) {
-    const sliders = document.querySelectorAll('input[type="range"]');
-
-    sliders.forEach((slider) => {
-        slider.addEventListener("input", () => {
-            const value = slider.closest(".compact-slider")?.querySelector(".value");
-            if (value) {
-                value.textContent = slider.value;
-            }
-        });
-    });
-}
-
 const quickButtons = document.querySelectorAll(".quick-search button");
 const searchInput = document.querySelector(".search-row input");
 
@@ -60,6 +47,69 @@ function hasExploreSearchCriteria(form) {
     );
 }
 
+function collectExploreFormFilters(form) {
+    const valueOf = (selector) => form.querySelector(selector)?.value.trim() || "";
+    const filters = {};
+
+    [
+        ["gu", 'select[name="gu"]'],
+        ["dong", 'select[name="dong"]'],
+        ["assigned_elementary", 'input[name="assigned_elementary"]'],
+        ["school", 'input[name="school"]'],
+        ["household", 'select[name="household"]'],
+        ["line", 'select[name="line"]'],
+        ["station", 'input[name="station"]'],
+        ["bus_type", 'select[name="bus_type"]'],
+        ["bus_route", 'input[name="bus_route"]'],
+    ].forEach(([key, selector]) => {
+        const value = valueOf(selector);
+        if (value) filters[key] = value;
+    });
+
+    const area = Array.from(form.querySelectorAll('input[name="area"]:checked'))
+        .map((input) => input.value.trim())
+        .filter(Boolean);
+    if (area.length) filters.area = area;
+
+    const price = valueOf('select[name="price"]');
+    if (price) {
+        filters.price = price;
+        filters.price_type = valueOf('select[name="price_type"]') || "trade";
+    }
+
+    const priority = Array.from(form.querySelectorAll('input[type="hidden"][name="priority"]'))
+        .map((input) => input.value.trim())
+        .filter(Boolean);
+    if (priority.length) filters.priority = priority;
+
+    if (form.querySelector('input[name="no_nightlife"]')?.checked) {
+        filters.no_nightlife = "1";
+    }
+
+    return filters;
+}
+
+function syncExploreShareUrl(form) {
+    if (!window.ClusteadShare || !form) return "";
+    return window.ClusteadShare.replaceQueryFromFilters(collectExploreFormFilters(form));
+}
+
+function setupExploreStateSharing() {
+    const form = document.querySelector(".explore-filter-form");
+    if (!form || !window.ClusteadShare) return;
+
+    const sync = debounce(() => syncExploreShareUrl(form), 60);
+    form.addEventListener("input", sync);
+    form.addEventListener("change", sync);
+    form.addEventListener("click", (event) => {
+        if (event.target.closest(".priority-chip, .priority-remove-btn, [data-priority-add]")) {
+            window.setTimeout(() => syncExploreShareUrl(form), 0);
+        }
+    });
+    document.addEventListener("clustead:before-share", () => syncExploreShareUrl(form));
+    syncExploreShareUrl(form);
+}
+
 function setExploreSubmitFeedback(form, visible) {
     const feedback = form.querySelector("#exploreSubmitFeedback");
     if (!feedback) return;
@@ -89,6 +139,13 @@ function setupExploreLoading() {
             }
         }
         setExploreSubmitFeedback(form, false);
+        if (window.ClusteadShare) {
+            const encoded = window.ClusteadShare.encodeFilters(collectExploreFormFilters(form));
+            if (encoded) {
+                window.location.href = `/explore?q=${encoded}`;
+                return;
+            }
+        }
         form.submit();
     });
 }
@@ -586,7 +643,10 @@ function setupDependentDongSelect() {
 
     guSelect.addEventListener("change", () => {
         dongSelect.dataset.selected = "";
-        loadDongs(false);
+        dongSelect.value = "";
+        loadDongs(false).then(() => {
+            dongSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        });
     });
 
     loadDongs(true);
@@ -608,8 +668,8 @@ function setupSubwayStationDependency() {
 
 function getMapContext() {
     return {
-        map: window.livefitMap,
-        overlayStorage: window.livefitOverlayStorage || {}
+        map: window.clusteadMap,
+        overlayStorage: window.clusteadOverlayStorage || {}
     };
 }
 
@@ -618,11 +678,11 @@ function showAllOverlays() {
 
     if (!map) return;
 
-    if (typeof window.livefitSetAllCategoryOverlays === "function") {
-        window.livefitSetAllCategoryOverlays();
+    if (typeof window.clusteadSetAllCategoryOverlays === "function") {
+        window.clusteadSetAllCategoryOverlays();
 
-        if (typeof window.livefitSetMapLegendAll === "function") {
-            window.livefitSetMapLegendAll();
+        if (typeof window.clusteadSetMapLegendAll === "function") {
+            window.clusteadSetMapLegendAll();
         }
         return;
     }
@@ -631,8 +691,8 @@ function showAllOverlays() {
         overlays.forEach((overlay) => overlay.setMap(map));
     });
 
-    if (typeof window.livefitSetMapLegendAll === "function") {
-        window.livefitSetMapLegendAll();
+    if (typeof window.clusteadSetMapLegendAll === "function") {
+        window.clusteadSetMapLegendAll();
     }
 }
 
@@ -648,13 +708,13 @@ function showCategoryOverlays(category) {
         return;
     }
 
-    if (typeof window.livefitSetCategoryOverlays === "function") {
+    if (typeof window.clusteadSetCategoryOverlays === "function") {
         Object.keys(overlayStorage).forEach((key) => {
-            window.livefitSetCategoryOverlays(key, key === category);
+            window.clusteadSetCategoryOverlays(key, key === category);
         });
 
-        if (typeof window.livefitSetMapLegendForCategory === "function") {
-            window.livefitSetMapLegendForCategory(category);
+        if (typeof window.clusteadSetMapLegendForCategory === "function") {
+            window.clusteadSetMapLegendForCategory(category);
         }
         return;
     }
@@ -665,8 +725,8 @@ function showCategoryOverlays(category) {
         });
     });
 
-    if (typeof window.livefitSetMapLegendForCategory === "function") {
-        window.livefitSetMapLegendForCategory(category);
+    if (typeof window.clusteadSetMapLegendForCategory === "function") {
+        window.clusteadSetMapLegendForCategory(category);
     }
 }
 
@@ -682,26 +742,26 @@ function showSubtypeOverlays(category, subtype) {
         return;
     }
 
-    if (typeof window.livefitSetCategoryOverlays === "function") {
+    if (typeof window.clusteadSetCategoryOverlays === "function") {
         Object.keys(overlayStorage).forEach((key) => {
-            if (key === category && typeof window.livefitSetSubtypeOverlays === "function") {
-                window.livefitSetSubtypeOverlays(category, subtype);
+            if (key === category && typeof window.clusteadSetSubtypeOverlays === "function") {
+                window.clusteadSetSubtypeOverlays(category, subtype);
             } else {
-                window.livefitSetCategoryOverlays(key, false);
+                window.clusteadSetCategoryOverlays(key, false);
             }
         });
 
-        if (typeof window.livefitSetMapLegendForCategory === "function") {
-            window.livefitSetMapLegendForCategory(category);
+        if (typeof window.clusteadSetMapLegendForCategory === "function") {
+            window.clusteadSetMapLegendForCategory(category);
         }
         return;
     }
 
     Object.entries(overlayStorage).forEach(([key, overlays]) => {
         overlays.forEach((overlay) => {
-            const overlaySubtype = overlay.livefitSubtype;
-            const overlaySubtypes = Array.isArray(overlay.livefitSubtypes)
-                ? overlay.livefitSubtypes
+            const overlaySubtype = overlay.clusteadSubtype;
+            const overlaySubtypes = Array.isArray(overlay.clusteadSubtypes)
+                ? overlay.clusteadSubtypes
                 : [];
             const matchesSubtype = (
                 overlaySubtype === subtype
@@ -716,8 +776,8 @@ function showSubtypeOverlays(category, subtype) {
         });
     });
 
-    if (typeof window.livefitSetMapLegendForCategory === "function") {
-        window.livefitSetMapLegendForCategory(category);
+    if (typeof window.clusteadSetMapLegendForCategory === "function") {
+        window.clusteadSetMapLegendForCategory(category);
     }
 }
 
@@ -727,7 +787,7 @@ function setupPrioritySearch() {
 
     const rowsEl = container.querySelector("[data-priority-rows]");
     const addBtn = container.querySelector("[data-priority-add]");
-    const options = window.livefitSubtypeOptions || [];
+    const options = window.clusteadSubtypeOptions || [];
     if (!options.length) {
         container.style.display = "none";
         return;
@@ -900,7 +960,7 @@ function setupPrioritySearch() {
         return row;
     }
 
-    const selected = window.livefitSelectedPriorities || [];
+    const selected = window.clusteadSelectedPriorities || [];
     if (selected.length) {
         const academySelected = selected
             .filter((p) => p.category === "academy")
@@ -926,7 +986,7 @@ function setupPriceTypeToggle() {
     }
     const typeSelect = wrap.querySelector("[data-price-type]");
     const bucketSelect = wrap.querySelector("[data-price-bucket]");
-    const buckets = window.livefitPriceBuckets || {};
+    const buckets = window.clusteadPriceBuckets || {};
     if (!typeSelect || !bucketSelect) {
         return;
     }
@@ -955,6 +1015,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupSubwayStationDependency();
     setupPrioritySearch();
     setupPriceTypeToggle();
+    setupExploreStateSharing();
     setupExploreLoading();
     setupCompareForm();
 

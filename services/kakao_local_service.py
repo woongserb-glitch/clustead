@@ -24,9 +24,15 @@ def safe_print(message):
 
 _CACHE_DIR = Path(__file__).resolve().parents[1] / "data" / "cache" / "kakao"
 _MEMORY_CACHE = {}
-_CACHE_ENABLED = os.getenv("LIVEFIT_KAKAO_CACHE", "1") != "0"
+
+
+def clustead_env(key, default=""):
+    return os.getenv(f"CLUSTEAD_{key}", os.getenv(f"LIVEFIT_{key}", default))
+
+
+_CACHE_ENABLED = clustead_env("KAKAO_CACHE", "1") != "0"
 try:
-    _CACHE_TTL_SECONDS = int(os.getenv("LIVEFIT_KAKAO_CACHE_TTL", str(30 * 24 * 3600)))
+    _CACHE_TTL_SECONDS = int(clustead_env("KAKAO_CACHE_TTL", str(30 * 24 * 3600)))
 except ValueError:
     _CACHE_TTL_SECONDS = 30 * 24 * 3600
 

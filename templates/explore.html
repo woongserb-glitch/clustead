@@ -20,14 +20,19 @@
     </div>
 
     <div class="page">
-        <header class="tool-hero">
+        <header class="tool-hero tool-hero-home">
             <div class="result-hero-top">
                 <a class="back-link" href="/">← 홈으로</a>
+                {# 모바일에선 Explore가 곧 홈 → 브랜드 로고를 노출(데스크톱은 숨김) #}
+                <span class="explore-home-brand">{% include "_brand_logo.html" %}</span>
                 <a class="result-download-btn" href="/compare">⚖ 단지 비교</a>
             </div>
             <div class="top-label">CLUSTEAD EXPLORE</div>
-            <h1>서울시 아파트 탐색서비스</h1>
-            <p>지역, 학교, 지하철, 버스, 병원, 대형마트, 실거래가까지 내가 원하는 조건을 직접 조합해보세요.</p>
+            <h1>
+                <span class="hero-title-tool">서울시 아파트 탐색서비스</span>
+                <span class="hero-title-home">내 삶에 맞는<br>서울 아파트 찾기</span>
+            </h1>
+            <p>지역, 학교, 지하철, 버스, 병원, 대형마트, 실거래가까지<br>원하는 조건을 직접 조합해 찾아보세요.</p>
         </header>
 
         <main class="tool-layout">

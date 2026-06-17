@@ -9,6 +9,7 @@ from services.ranking_service import (
     get_ranked_apartments,
     build_apartment_index,
     calculate_weighted_score,
+    RANKING_METRIC_KEYS,
 )
 
 import os
@@ -87,6 +88,7 @@ from services.preload_service import shopping_baseline_data, shopping_baseline_i
 from services.preload_service import ev_charger_baseline_data, ev_charger_baseline_index, load_ev_charger_baseline_data
 from services.preload_service import medical_baseline_data, medical_baseline_index, load_medical_baseline_data
 from services.preload_service import get_indexed_baseline_row
+from services import analytics_service
 from scripts.baseline_metric_config import (
     BASELINE_METRIC_CONFIG,
     HIGHER_BETTER,
@@ -1133,6 +1135,11 @@ def build_ranking_debug_options():
 
     for key, config in BASELINE_METRIC_CONFIG.items():
         if not config.get("ranking_enabled", True):
+            continue
+
+        # Home/Explore 가 실제 랭킹에 쓰는 metric 만 노출(단일 기준 일치).
+        # park/school_zone 등 랭킹 브리지에 없는 metric 은 제외한다.
+        if key not in RANKING_METRIC_KEYS:
             continue
 
         metric = config.get("primary_metric", "")
@@ -4439,6 +4446,12 @@ def home():
             ],
         },
     }
+    analytics_service.track(
+        "page_view",
+        ip=get_remote_address(),
+        user_agent=request.headers.get("User-Agent"),
+        path=request.path,
+    )
     return render_template("index.html", home_config=home_config)
 
 
@@ -4448,7 +4461,8 @@ def admin_ranking_debug():
     metric_options = build_ranking_debug_options()
     selected_metric = request.args.get("metric") or "ev_charger"
 
-    if selected_metric not in BASELINE_METRIC_CONFIG:
+    # Home/Explore 랭킹에 쓰이지 않는 metric(park/school_zone 등)은 직접 지정해도 기본값으로 폴백.
+    if selected_metric not in RANKING_METRIC_KEYS:
         selected_metric = metric_options[0]["key"] if metric_options else ""
 
     selected_config = BASELINE_METRIC_CONFIG.get(selected_metric, {})
@@ -4500,6 +4514,25 @@ def admin_ranking_debug():
         gu_options=ranking_data["gu_options"],
         dong_options=ranking_data["dong_options"],
         latest_validation_report=get_latest_validation_report(),
+        admin_token=request.args.get("admin_token", ""),
+    )
+
+
+@app.route("/admin/analytics")
+def admin_analytics():
+    _require_admin()
+    try:
+        days = int(request.args.get("days", "30"))
+    except ValueError:
+        days = 30
+    if days not in (7, 30, 90, 0):
+        days = 30
+    data = analytics_service.query_analytics(days=days)
+    return render_template(
+        "admin_analytics.html",
+        data=data,
+        selected_days=days,
+        admin_token=request.args.get("admin_token", ""),
     )
 
 
@@ -5849,6 +5882,18 @@ def explore():
     results = build_explore_results(filters, share_q=share_q) if has_active_filters else []
     scenarios = [] if has_active_filters else build_explore_scenarios()
 
+    if has_active_filters:
+        combo_key, combo = analytics_service.build_filter_combo(filters)
+        analytics_service.track(
+            "explore_search",
+            ip=get_remote_address(),
+            user_agent=request.headers.get("User-Agent"),
+            path=request.path,
+            combo_key=combo_key,
+            combo=combo,
+            result_count=len(results),
+        )
+
     # 가격 거래유형 정규화(템플릿 선택 상태/구간 표시용)
     price_type = clean_text(filters["price_type"]) or "trade"
     if price_type not in _PRICE_BUCKET_BY_TYPE:
@@ -6297,6 +6342,19 @@ def result():
     )
     if context is None:
         return render_template("index.html"), 404
+    combo_key, combo = analytics_service.build_weight_combo(get_preferences())
+    analytics_service.track(
+        "result_view",
+        ip=get_remote_address(),
+        user_agent=request.headers.get("User-Agent"),
+        path=request.path,
+        apartment=request.args.get("apartment", "헬리오시티"),
+        apartment_gu=request.args.get("gu", ""),
+        apartment_dong=request.args.get("dong", ""),
+        src=request.args.get("src"),
+        combo_key=combo_key,
+        combo=combo,
+    )
     return render_template("result.html", **context)
 
 
@@ -6395,19 +6453,19 @@ def build_result_workbook(context):
         ws.cell(row=row, column=2, value="실거래 데이터가 없습니다.")
         row += 1
 
-    # ── Sheet 2: 카테고리 점수 ────────────────────────────────────────────
-    ws2 = wb.create_sheet("카테고리 점수")
-    cat_headers = ["카테고리", "점수", "등급", "등급설명", "서울 백분위", "구 백분위", "설명", "출처"]
-    set_widths(ws2, [16, 8, 6, 12, 16, 16, 60, 20])
+    # ── Sheet 2: 카테고리 평가 ────────────────────────────────────────────
+    # result/compare 화면과 동일하게 0~100 숫자 점수는 제공하지 않고 등급(S~D)만 제공한다.
+    ws2 = wb.create_sheet("카테고리 평가")
+    cat_headers = ["카테고리", "등급", "등급설명", "서울 백분위", "구 백분위", "설명", "출처"]
+    set_widths(ws2, [16, 6, 12, 16, 16, 60, 20])
     ws2.append(cat_headers)
     style_header(ws2, 1, len(cat_headers))
     ws2.freeze_panes = "A2"
     for s in summaries:
-        # 교육환경은 result 페이지와 동일하게 점수·등급을 제거(표시하지 않음).
+        # 교육환경은 result 페이지와 동일하게 등급을 제거(표시하지 않음).
         hide_score = s.get("key") == "school-environment"
         ws2.append([
             s.get("label", ""),
-            "" if hide_score else s.get("score", ""),
             "" if hide_score else s.get("grade", ""),
             "" if hide_score else s.get("grade_text", ""),
             s.get("seoul_percentile_label", ""),

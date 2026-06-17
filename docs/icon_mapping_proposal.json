@@ -1,0 +1,538 @@
+{
+  "version": "2026-06-07-draft",
+  "status": "proposal_for_confirmation",
+  "scope": [
+    "Explore page filter sections",
+    "Explore page scenario cards and matched feature chips",
+    "Result page domain badges and domain grade chips",
+    "Result page category detail cards",
+    "Result page subtype chips",
+    "Result page nearest POI icons",
+    "Result page map group toggles and POI markers",
+    "Result page complex information strip",
+    "Result page insight feature icons"
+  ],
+  "designPrinciples": {
+    "genericIconSystem": "lucide-svg",
+    "genericIconStyle": "16px or 18px line icon, 2px stroke, currentColor, rounded stroke caps",
+    "brandIconSystem": "official-logo-svg-preferred",
+    "brandFallbackOrder": [
+      "official brand SVG or BI asset stored locally",
+      "Simple Icons SVG when available and legally acceptable",
+      "custom compact wordmark or monogram in brand color"
+    ],
+    "implementationNote": "Keep this file as the source of truth before replacing emoji strings in app.py, services/poi_service.py, templates/result.html, templates/explore.html, and services/insight_service.py.",
+    "licenseNote": "Verify brand asset usage before committing logo files. Do not hotlink external logo URLs in production."
+  },
+  "lucideValidation": {
+    "checkedAt": "2026-06-07",
+    "sourcePattern": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/{icon}.svg",
+    "method": "HTTP HEAD against official Lucide SVG files on GitHub.",
+    "summary": {
+      "originalCandidateCount": 73,
+      "validOnFirstCheck": 70,
+      "notFoundOnFirstCheck": 3,
+      "postReplacementCandidateCount": 73,
+      "postReplacementInvalidCount": 0
+    },
+    "notFoundOnFirstCheck": [
+      "circle-help",
+      "tooth",
+      "waves"
+    ],
+    "replacements": [
+      {
+        "from": "circle-help",
+        "to": "circle-question-mark",
+        "reason": "Lucide main icon set returned 404 for circle-help; circle-question-mark is the closest valid generic 기타 icon.",
+        "affectedLabels": ["기타", "기타쇼핑"],
+        "alternateValidIcons": ["badge-question-mark", "ellipsis"]
+      },
+      {
+        "from": "tooth",
+        "to": "smile-plus",
+        "reason": "Lucide main icon set returned 404 for tooth; smile-plus is the closest valid dental-care oriented icon.",
+        "affectedLabels": ["치과"],
+        "alternateValidIcons": ["smile", "badge-plus", "cross"]
+      },
+      {
+        "from": "waves",
+        "to": "droplets",
+        "reason": "Lucide main icon set returned 404 for waves; droplets keeps the Han River/water meaning without implying pool-specific facilities.",
+        "affectedLabels": ["한강공원"],
+        "alternateValidIcons": ["sailboat", "waves-ladder", "ship-wheel"]
+      }
+    ]
+  },
+  "brandLogoValidation": {
+    "status": "pending_step_3",
+    "note": "Brand logo files are excluded from Lucide validation. In step 3, verify official BI availability, Simple Icons fallback availability, local file names, and usage constraints."
+  },
+  "domains": [
+    {
+      "key": "transport",
+      "label": "교통",
+      "currentIcons": ["🚇"],
+      "recommended": {
+        "type": "lucide",
+        "icon": "train-front",
+        "fallbackIcon": "route",
+        "tone": "blue"
+      }
+    },
+    {
+      "key": "education",
+      "label": "교육",
+      "currentIcons": ["🏫", "🎓", "📚", "✏️"],
+      "recommended": {
+        "type": "lucide",
+        "icon": "graduation-cap",
+        "fallbackIcon": "school",
+        "tone": "indigo"
+      }
+    },
+    {
+      "key": "convenience",
+      "label": "생활편의",
+      "currentIcons": ["🛒", "🏪", "⚡", "🚲"],
+      "recommended": {
+        "type": "lucide",
+        "icon": "store",
+        "fallbackIcon": "shopping-basket",
+        "tone": "emerald"
+      }
+    },
+    {
+      "key": "medical",
+      "label": "의료",
+      "currentIcons": ["🏥", "🚑", "💊"],
+      "recommended": {
+        "type": "lucide",
+        "icon": "hospital",
+        "fallbackIcon": "stethoscope",
+        "tone": "rose"
+      }
+    },
+    {
+      "key": "safety",
+      "label": "안전",
+      "currentIcons": ["🛡", "🚒", "📹"],
+      "recommended": {
+        "type": "lucide",
+        "icon": "shield-check",
+        "fallbackIcon": "siren",
+        "tone": "red"
+      }
+    },
+    {
+      "key": "rest",
+      "label": "휴식/여가",
+      "currentIcons": ["☕", "🌳", "🌊"],
+      "recommended": {
+        "type": "lucide",
+        "icon": "coffee",
+        "fallbackIcon": "trees",
+        "tone": "green"
+      }
+    },
+    {
+      "key": "culture",
+      "label": "문화생활",
+      "currentIcons": ["🎭"],
+      "recommended": {
+        "type": "lucide",
+        "icon": "drama",
+        "fallbackIcon": "ticket",
+        "tone": "violet"
+      }
+    },
+    {
+      "key": "activity",
+      "label": "상권/활기",
+      "currentIcons": ["🌃", "🛍️", "🏙️", "🍺"],
+      "recommended": {
+        "type": "lucide",
+        "icon": "building-2",
+        "fallbackIcon": "store",
+        "tone": "amber"
+      }
+    }
+  ],
+  "categories": [
+    {
+      "key": "subway",
+      "label": "지하철역",
+      "currentIcons": ["🚇"],
+      "recommended": {"type": "lucide", "icon": "train-front", "tone": "blue"},
+      "locations": ["result category card", "nearest POI", "map marker", "Explore filter/result feature"]
+    },
+    {
+      "key": "bus-baseline",
+      "label": "버스 접근성",
+      "currentIcons": ["🚌", "🚍"],
+      "recommended": {"type": "lucide", "icon": "bus-front", "tone": "sky"},
+      "locations": ["result category card", "nearest POI", "map marker", "Explore filter/result feature"]
+    },
+    {
+      "key": "bike",
+      "label": "따릉이",
+      "currentIcons": ["🚲"],
+      "recommended": {"type": "lucide", "icon": "bike", "tone": "teal"},
+      "locations": ["result category card", "nearest POI", "map marker"]
+    },
+    {
+      "key": "large_mart",
+      "label": "대형마트",
+      "currentIcons": ["🛒"],
+      "recommended": {"type": "lucide", "icon": "shopping-cart", "tone": "orange"},
+      "brandLogoPreferred": true,
+      "locations": ["result category card", "Explore priority category"]
+    },
+    {
+      "key": "super_mart",
+      "label": "슈퍼마켓",
+      "currentIcons": ["🏪"],
+      "recommended": {"type": "lucide", "icon": "store", "tone": "emerald"},
+      "brandLogoPreferred": true,
+      "locations": ["result category card", "Explore priority category"]
+    },
+    {
+      "key": "warehouse_mart",
+      "label": "창고형마트",
+      "currentIcons": ["📦"],
+      "recommended": {"type": "lucide", "icon": "package", "tone": "yellow"},
+      "brandLogoPreferred": true,
+      "locations": ["result category card", "Explore priority category"]
+    },
+    {
+      "key": "convenience",
+      "label": "편의점",
+      "currentIcons": ["🏪"],
+      "recommended": {"type": "lucide", "icon": "store", "tone": "purple"},
+      "brandLogoPreferred": true,
+      "locations": ["result category card", "nearest POI", "map marker", "Explore priority category"]
+    },
+    {
+      "key": "ev-charger",
+      "label": "전기차 충전",
+      "currentIcons": ["⚡"],
+      "recommended": {"type": "lucide", "icon": "plug-zap", "tone": "orange"},
+      "locations": ["result category card", "nearest POI", "map marker", "map group toggle"]
+    },
+    {
+      "key": "cafe",
+      "label": "카페",
+      "currentIcons": ["☕"],
+      "recommended": {"type": "lucide", "icon": "coffee", "tone": "brown"},
+      "brandLogoPreferred": true,
+      "locations": ["result category card", "nearest POI", "map marker", "Explore priority category"]
+    },
+    {
+      "key": "hospital",
+      "label": "병원",
+      "currentIcons": ["🏥"],
+      "recommended": {"type": "lucide", "icon": "hospital", "tone": "rose"},
+      "locations": ["result category card", "nearest POI", "map marker"]
+    },
+    {
+      "key": "general-hospital",
+      "label": "종합병원",
+      "currentIcons": ["🏥"],
+      "recommended": {"type": "lucide", "icon": "building-2", "fallbackIcon": "hospital", "tone": "rose"},
+      "locations": ["result category card", "nearest POI", "map marker"]
+    },
+    {
+      "key": "emergency-room",
+      "label": "응급실",
+      "currentIcons": ["🚑"],
+      "recommended": {"type": "lucide", "icon": "ambulance", "tone": "red"},
+      "locations": ["result category card", "nearest POI", "map marker", "Explore priority subtype"]
+    },
+    {
+      "key": "pharmacy",
+      "label": "약국",
+      "currentIcons": ["💊"],
+      "recommended": {"type": "lucide", "icon": "pill", "tone": "green"},
+      "brandLogoPreferred": true,
+      "locations": ["result category card", "nearest POI", "map marker"]
+    },
+    {
+      "key": "school-environment",
+      "label": "교육환경",
+      "currentIcons": ["🏫"],
+      "recommended": {"type": "lucide", "icon": "school", "tone": "indigo"},
+      "locations": ["result category card", "nearest POI", "map marker", "Explore filter/result feature"]
+    },
+    {
+      "key": "academy",
+      "label": "학원",
+      "currentIcons": ["✏️", "🏫", "📚"],
+      "recommended": {"type": "lucide", "icon": "book-open-check", "fallbackIcon": "graduation-cap", "tone": "indigo"},
+      "locations": ["result category card", "nearest POI", "map marker", "Explore priority category"]
+    },
+    {
+      "key": "cctv",
+      "label": "CCTV",
+      "currentIcons": ["🛡", "📹"],
+      "recommended": {"type": "lucide", "icon": "cctv", "fallbackIcon": "shield-check", "tone": "slate"},
+      "locations": ["result category card", "nearest POI", "map marker", "subtype chip"]
+    },
+    {
+      "key": "fire-station",
+      "label": "119안전센터/구조대",
+      "currentIcons": ["🚒"],
+      "recommended": {"type": "lucide", "icon": "siren", "fallbackIcon": "flame", "tone": "red"},
+      "locations": ["result category card", "nearest POI", "map marker"]
+    },
+    {
+      "key": "park",
+      "label": "공원",
+      "currentIcons": ["🌳"],
+      "recommended": {"type": "lucide", "icon": "trees", "tone": "green"},
+      "locations": ["result category card", "nearest POI", "map marker", "Explore priority category"]
+    },
+    {
+      "key": "hangang",
+      "label": "한강공원",
+      "currentIcons": ["🌊"],
+      "recommended": {"type": "lucide", "icon": "droplets", "tone": "cyan"},
+      "locations": ["result category card", "nearest POI", "map marker", "Explore priority subtype"]
+    },
+    {
+      "key": "culture",
+      "label": "문화생활",
+      "currentIcons": ["🎭"],
+      "recommended": {"type": "lucide", "icon": "drama", "fallbackIcon": "ticket", "tone": "violet"},
+      "locations": ["result category card", "nearest POI", "map marker", "Explore priority category"]
+    },
+    {
+      "key": "commercial",
+      "label": "상권",
+      "currentIcons": ["🌃", "🏙️"],
+      "recommended": {"type": "lucide", "icon": "building-2", "fallbackIcon": "store", "tone": "amber"},
+      "locations": ["result category card", "nearest POI", "map marker"]
+    },
+    {
+      "key": "shopping",
+      "label": "쇼핑",
+      "currentIcons": ["🛍️", "🛍"],
+      "recommended": {"type": "lucide", "icon": "shopping-bag", "tone": "pink"},
+      "locations": ["result category card", "nearest POI", "map marker"]
+    },
+    {
+      "key": "nightlife",
+      "label": "유흥주점",
+      "currentIcons": ["🍺"],
+      "recommended": {"type": "lucide", "icon": "martini", "fallbackIcon": "beer", "tone": "purple"},
+      "locations": ["result category card", "nearest POI", "map marker", "Explore no-nightlife feature"]
+    }
+  ],
+  "subtypes": {
+    "subway": [
+      {"name": "호선", "currentIcon": null, "recommended": {"type": "badge", "style": "subway-line-color-dot"}},
+      {"name": "환승역", "currentIcon": null, "recommended": {"type": "lucide", "icon": "repeat-2"}}
+    ],
+    "bus-baseline": [
+      {"name": "간선", "currentIcon": null, "recommended": {"type": "badge", "label": "B", "icon": "bus-front", "tone": "blue"}},
+      {"name": "지선", "currentIcon": null, "recommended": {"type": "badge", "label": "G", "icon": "bus-front", "tone": "green"}},
+      {"name": "광역", "currentIcon": null, "recommended": {"type": "badge", "label": "R", "icon": "bus-front", "tone": "red"}},
+      {"name": "마을", "currentIcon": null, "recommended": {"type": "badge", "label": "M", "icon": "bus-front", "tone": "slate"}},
+      {"name": "심야", "currentIcon": null, "recommended": {"type": "lucide", "icon": "moon"}},
+      {"name": "공항", "currentIcon": null, "recommended": {"type": "lucide", "icon": "plane"}},
+      {"name": "기타", "currentIcon": null, "recommended": {"type": "lucide", "icon": "circle-question-mark"}}
+    ],
+    "ev-charger": [
+      {"name": "급속", "currentIcon": null, "recommended": {"type": "lucide", "icon": "zap"}},
+      {"name": "완속", "currentIcon": null, "recommended": {"type": "lucide", "icon": "battery-charging"}}
+    ],
+    "hospital": [
+      {"name": "내과", "currentIcon": null, "recommended": {"type": "lucide", "icon": "stethoscope"}},
+      {"name": "소아과", "currentIcon": null, "recommended": {"type": "lucide", "icon": "baby"}},
+      {"name": "치과", "currentIcon": null, "recommended": {"type": "lucide", "icon": "smile-plus"}},
+      {"name": "안과", "currentIcon": null, "recommended": {"type": "lucide", "icon": "eye"}},
+      {"name": "이비인후과", "currentIcon": null, "recommended": {"type": "lucide", "icon": "ear"}},
+      {"name": "정형외과", "currentIcon": null, "recommended": {"type": "lucide", "icon": "bone"}},
+      {"name": "산부인과", "currentIcon": null, "recommended": {"type": "lucide", "icon": "venus"}},
+      {"name": "피부과", "currentIcon": null, "recommended": {"type": "lucide", "icon": "sparkles"}},
+      {"name": "한의원", "currentIcon": null, "recommended": {"type": "lucide", "icon": "leaf"}},
+      {"name": "정신건강의학과", "currentIcon": null, "recommended": {"type": "lucide", "icon": "brain"}},
+      {"name": "기타", "currentIcon": null, "recommended": {"type": "lucide", "icon": "circle-question-mark"}}
+    ],
+    "pharmacy": [
+      {"name": "야간", "currentIcon": null, "recommended": {"type": "lucide", "icon": "moon"}},
+      {"name": "주말", "currentIcon": null, "recommended": {"type": "lucide", "icon": "calendar-days"}},
+      {"name": "휴일", "currentIcon": null, "recommended": {"type": "lucide", "icon": "calendar-check"}}
+    ],
+    "school-environment": [
+      {"name": "배정초", "currentIcon": null, "recommended": {"type": "lucide", "icon": "school"}},
+      {"name": "중학교", "currentIcon": null, "recommended": {"type": "lucide", "icon": "book-open"}},
+      {"name": "고등학교", "currentIcon": null, "recommended": {"type": "lucide", "icon": "graduation-cap"}}
+    ],
+    "academy": [
+      {"name": "입시/보습", "currentIcon": null, "recommended": {"type": "lucide", "icon": "book-open-check"}},
+      {"name": "영어", "currentIcon": null, "recommended": {"type": "lucide", "icon": "languages"}},
+      {"name": "수학", "currentIcon": null, "recommended": {"type": "lucide", "icon": "sigma"}},
+      {"name": "중국어", "currentIcon": null, "recommended": {"type": "lucide", "icon": "languages"}},
+      {"name": "일본어", "currentIcon": null, "recommended": {"type": "lucide", "icon": "languages"}},
+      {"name": "예체능", "currentIcon": null, "recommended": {"type": "lucide", "icon": "palette"}},
+      {"name": "독서실", "currentIcon": null, "recommended": {"type": "lucide", "icon": "library"}},
+      {"name": "직업/자격", "currentIcon": null, "recommended": {"type": "lucide", "icon": "briefcase-business"}},
+      {"name": "기타", "currentIcon": null, "recommended": {"type": "lucide", "icon": "circle-question-mark"}}
+    ],
+    "cctv": [
+      {"name": "생활방범", "currentIcon": "🛡", "recommended": {"type": "lucide", "icon": "shield-check"}},
+      {"name": "어린이보호", "currentIcon": "🧒", "recommended": {"type": "lucide", "icon": "school"}},
+      {"name": "교통/단속", "currentIcon": "🚦", "recommended": {"type": "lucide", "icon": "traffic-cone"}},
+      {"name": "시설안전", "currentIcon": "🏢", "recommended": {"type": "lucide", "icon": "building-2"}},
+      {"name": "기타", "currentIcon": "📹", "recommended": {"type": "lucide", "icon": "cctv"}}
+    ],
+    "fire-station": [
+      {"name": "안전센터", "currentIcon": null, "recommended": {"type": "lucide", "icon": "siren"}},
+      {"name": "구조대", "currentIcon": null, "recommended": {"type": "lucide", "icon": "life-buoy"}},
+      {"name": "기타", "currentIcon": null, "recommended": {"type": "lucide", "icon": "flame"}}
+    ],
+    "culture": [
+      {"name": "공연/행사", "currentIcon": null, "recommended": {"type": "lucide", "icon": "drama"}},
+      {"name": "전시/관람", "currentIcon": null, "recommended": {"type": "lucide", "icon": "images"}},
+      {"name": "체육", "currentIcon": null, "recommended": {"type": "lucide", "icon": "dumbbell"}},
+      {"name": "키즈", "currentIcon": null, "recommended": {"type": "lucide", "icon": "baby"}},
+      {"name": "체험", "currentIcon": null, "recommended": {"type": "lucide", "icon": "sparkles"}},
+      {"name": "클래스", "currentIcon": null, "recommended": {"type": "lucide", "icon": "presentation"}},
+      {"name": "자연/공원", "currentIcon": null, "recommended": {"type": "lucide", "icon": "trees"}},
+      {"name": "기타", "currentIcon": null, "recommended": {"type": "lucide", "icon": "circle-question-mark"}}
+    ],
+    "commercial": [
+      {"name": "골목", "currentIcon": null, "recommended": {"type": "lucide", "icon": "map"}},
+      {"name": "대형상권", "currentIcon": null, "recommended": {"type": "lucide", "icon": "building-2"}},
+      {"name": "시장", "currentIcon": null, "recommended": {"type": "lucide", "icon": "store"}},
+      {"name": "관광특구", "currentIcon": null, "recommended": {"type": "lucide", "icon": "landmark"}}
+    ],
+    "shopping": [
+      {"name": "백화점", "currentIcon": null, "recommended": {"type": "lucide", "icon": "building-2"}},
+      {"name": "쇼핑몰", "currentIcon": null, "recommended": {"type": "lucide", "icon": "shopping-bag"}},
+      {"name": "전문점", "currentIcon": null, "recommended": {"type": "lucide", "icon": "tag"}},
+      {"name": "시장", "currentIcon": null, "recommended": {"type": "lucide", "icon": "store"}},
+      {"name": "기타쇼핑", "currentIcon": null, "recommended": {"type": "lucide", "icon": "circle-question-mark"}}
+    ],
+    "nightlife": [
+      {"name": "룸살롱", "currentIcon": null, "recommended": {"type": "lucide", "icon": "wine"}},
+      {"name": "바/주점", "currentIcon": null, "recommended": {"type": "lucide", "icon": "beer"}},
+      {"name": "클럽/나이트", "currentIcon": null, "recommended": {"type": "lucide", "icon": "music-2"}},
+      {"name": "기타", "currentIcon": null, "recommended": {"type": "lucide", "icon": "martini"}}
+    ],
+    "park": [
+      {"name": "일반공원", "currentIcon": "🌳", "recommended": {"type": "lucide", "icon": "trees"}},
+      {"name": "한강공원", "currentIcon": "🌊", "recommended": {"type": "lucide", "icon": "droplets"}},
+      {"name": "대형공원", "currentIcon": "🌳", "recommended": {"type": "lucide", "icon": "tree-pine"}}
+    ]
+  },
+  "brandSubtypes": {
+    "cafe": [
+      {"name": "스타벅스", "currentDisplay": "스타벅스", "logoFile": "static/icons/brands/starbucks.svg", "sourcePriority": ["official", "simple-icons:starbucks", "monogram"]},
+      {"name": "투썸플레이스", "currentDisplay": "투썸", "logoFile": "static/icons/brands/twosome-place.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "메가MGC", "currentDisplay": "메가MGC", "logoFile": "static/icons/brands/mega-mgc.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "컴포즈커피", "currentDisplay": "컴포즈", "logoFile": "static/icons/brands/compose-coffee.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "이디야", "currentDisplay": "이디야", "logoFile": "static/icons/brands/ediya.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "빽다방", "currentDisplay": "빽다방", "logoFile": "static/icons/brands/paiks-coffee.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "할리스", "currentDisplay": "할리스", "logoFile": "static/icons/brands/hollys.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "커피빈", "currentDisplay": "커피빈", "logoFile": "static/icons/brands/coffee-bean.svg", "sourcePriority": ["official", "simple-icons:thecoffeebeanandtealeaf", "monogram"]},
+      {"name": "폴바셋", "currentDisplay": "폴바셋", "logoFile": "static/icons/brands/paul-bassett.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "엔제리너스", "currentDisplay": "엔제리너스", "logoFile": "static/icons/brands/angelinus.svg", "sourcePriority": ["official", "monogram"]}
+    ],
+    "convenience": [
+      {"name": "CU", "currentDisplay": "CU", "logoFile": "static/icons/brands/cu.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "GS25", "currentDisplay": "GS25", "logoFile": "static/icons/brands/gs25.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "세븐일레븐", "currentDisplay": "세븐일레븐", "logoFile": "static/icons/brands/7-eleven.svg", "sourcePriority": ["official", "simple-icons:7eleven", "monogram"]},
+      {"name": "이마트24", "currentDisplay": "이마트24", "logoFile": "static/icons/brands/emart24.svg", "sourcePriority": ["official", "monogram"]}
+    ],
+    "mart": [
+      {"name": "이마트", "currentDisplay": "이마트", "logoFile": "static/icons/brands/emart.svg", "sourcePriority": ["official", "simple-icons:emart", "monogram"]},
+      {"name": "홈플러스", "currentDisplay": "홈플러스", "logoFile": "static/icons/brands/homeplus.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "롯데마트", "currentDisplay": "롯데마트", "logoFile": "static/icons/brands/lotte-mart.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "코스트코", "currentDisplay": "코스트코", "logoFile": "static/icons/brands/costco.svg", "sourcePriority": ["official", "simple-icons:costco", "monogram"]},
+      {"name": "트레이더스", "currentDisplay": "트레이더스", "logoFile": "static/icons/brands/traders.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "이마트에브리데이", "currentDisplay": "이마트에브리데이", "logoFile": "static/icons/brands/emart-everyday.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "홈플러스익스프레스", "currentDisplay": "홈플러스익스프레스", "logoFile": "static/icons/brands/homeplus-express.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "롯데슈퍼프레시", "currentDisplay": "롯데슈퍼/프레시", "logoFile": "static/icons/brands/lotte-super-fresh.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "노브랜드", "currentDisplay": "노브랜드", "logoFile": "static/icons/brands/no-brand.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "GS더프레시", "currentDisplay": "GS더프레시", "logoFile": "static/icons/brands/gs-the-fresh.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "하나로마트", "currentDisplay": "하나로마트", "logoFile": "static/icons/brands/hanaro-mart.svg", "sourcePriority": ["official", "monogram"]}
+    ],
+    "pharmacy": [
+      {"name": "W스토어", "currentDisplay": "W스토어", "logoFile": "static/icons/brands/w-store.svg", "sourcePriority": ["official", "monogram"]},
+      {"name": "약국", "currentDisplay": "약국", "recommended": {"type": "lucide", "icon": "pill"}}
+    ]
+  },
+  "explorePage": {
+    "filterSections": [
+      {"key": "region", "label": "지역", "currentIcon": "📍", "recommended": {"type": "lucide", "icon": "map-pin"}},
+      {"key": "education", "label": "교육", "currentIcon": "🏫", "recommended": {"type": "lucide", "icon": "graduation-cap"}},
+      {"key": "area_price", "label": "면적·가격", "currentIcon": "📐", "recommended": {"type": "lucide", "icon": "ruler"}},
+      {"key": "household", "label": "세대수", "currentIcon": "🏢", "recommended": {"type": "lucide", "icon": "building-2"}},
+      {"key": "price", "label": "가격", "currentIcon": "💰", "recommended": {"type": "lucide", "icon": "wallet"}},
+      {"key": "subway", "label": "지하철", "currentIcon": "🚇", "recommended": {"type": "lucide", "icon": "train-front"}},
+      {"key": "bus", "label": "버스", "currentIcon": "🚍", "recommended": {"type": "lucide", "icon": "bus-front"}},
+      {"key": "lifestyle", "label": "생활 인프라", "currentIcon": "🏪", "recommended": {"type": "lucide", "icon": "store"}}
+    ],
+    "scenarioCards": [
+      {"key": "region_household", "currentIcon": "📍", "recommended": {"type": "lucide", "icon": "map-pin"}},
+      {"key": "education_addon", "currentIcon": "📚", "recommended": {"type": "lucide", "icon": "book-open-check"}},
+      {"key": "budget_area", "currentIcon": "💰", "recommended": {"type": "lucide", "icon": "wallet"}}
+    ],
+    "matchedFeatureChips": [
+      {"pattern": "유흥시설 없음", "currentIcon": "🍺", "recommended": {"type": "lucide", "icon": "moon", "modifier": "no-nightlife"}},
+      {"pattern": "배정초/중고등학교", "currentIcon": "🏫", "recommended": {"type": "lucide", "icon": "school"}},
+      {"pattern": "세대수", "currentIcon": "🏢", "recommended": {"type": "lucide", "icon": "building-2"}},
+      {"pattern": "가격", "currentIcon": "💰", "recommended": {"type": "lucide", "icon": "wallet"}},
+      {"pattern": "버스", "currentIcon": "🚌", "recommended": {"type": "lucide", "icon": "bus-front"}},
+      {"pattern": "생활 인프라 우선순위", "currentIcon": "category_config_icon", "recommended": {"type": "use_category_mapping"}}
+    ]
+  },
+  "resultPage": {
+    "mapGroupToggles": [
+      {"key": "transport", "currentIcon": "🚇", "recommended": {"type": "lucide", "icon": "train-front"}},
+      {"key": "convenience", "currentIcon": "🏪", "recommended": {"type": "lucide", "icon": "store"}},
+      {"key": "education", "currentIcon": "🎓", "recommended": {"type": "lucide", "icon": "graduation-cap"}},
+      {"key": "culture", "currentIcon": "🎭", "recommended": {"type": "lucide", "icon": "drama"}},
+      {"key": "safety", "currentIcon": "🛡", "recommended": {"type": "lucide", "icon": "shield-check"}},
+      {"key": "commerce", "currentIcon": "🛍️", "recommended": {"type": "lucide", "icon": "building-2"}},
+      {"key": "ev", "currentIcon": "⚡", "recommended": {"type": "lucide", "icon": "plug-zap"}},
+      {"key": "reset", "currentIcon": "📍", "recommended": {"type": "lucide", "icon": "locate-fixed"}}
+    ],
+    "complexInfoStrip": [
+      {"key": "assigned_school", "currentIcon": "🏫", "recommended": {"type": "lucide", "icon": "school"}},
+      {"key": "households", "currentIcon": "🏢", "recommended": {"type": "lucide", "icon": "building-2"}},
+      {"key": "builder", "currentIcon": "🏗", "recommended": {"type": "lucide", "icon": "hard-hat"}},
+      {"key": "approval_year", "currentIcon": "📅", "recommended": {"type": "lucide", "icon": "calendar"}},
+      {"key": "parking", "currentIcon": "🚗", "recommended": {"type": "lucide", "icon": "car-front"}},
+      {"key": "area_mix", "currentIcon": "📐", "recommended": {"type": "lucide", "icon": "ruler"}}
+    ],
+    "heroActions": [
+      {"key": "back", "currentIcon": "←", "recommended": {"type": "lucide", "icon": "arrow-left"}},
+      {"key": "compare", "currentIcon": "⚖", "recommended": {"type": "lucide", "icon": "scale"}},
+      {"key": "download_excel", "currentIcon": "⬇", "recommended": {"type": "lucide", "icon": "download"}}
+    ],
+    "mapMarkerFixes": [
+      {
+        "issue": "bus-baseline category uses 🚌 in iconMap while labels often contain 🚍",
+        "recommendation": "Use one icon source and strip any known currentIcon before rendering marker text."
+      },
+      {
+        "issue": "academy category uses ✏️ in iconMap while map POI labels are built with 🏫",
+        "recommendation": "Use category mapping only; keep POI labels icon-free."
+      },
+      {
+        "issue": "shopping alternates between 🛍️ and 🛍",
+        "recommendation": "Normalize to category icon key instead of string replace."
+      }
+    ]
+  },
+  "confirmationChecklist": [
+    "Confirm Lucide as the generic icon system.",
+    "Confirm official local SVG logos for brand chips.",
+    "Decide whether brand chips show full logo, symbol-only logo, or logo plus text.",
+    "Decide whether map markers should use category icons only or brand logos for branded POIs.",
+    "Verify all candidate Lucide icon names before implementation.",
+    "Verify trademark and brand asset usage before adding logo files."
+  ]
+}

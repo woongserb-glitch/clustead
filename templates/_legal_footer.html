@@ -1,51 +1,51 @@
 {# 공통 법적 푸터 — 면책 고지 + 데이터 출처표기 + 기준일.
    외부 공개 필수 요소. 점수가 표시되는 모든 페이지(result/compare/explore/home)에 포함한다.
    데이터 재빌드(re-bake) 시 아래 '데이터 기준' 날짜를 갱신할 것. #}
-<footer class="livefit-legal-footer">
-  <div class="livefit-legal-inner">
-    <p class="livefit-legal-disclaimer">
-      본 서비스의 생활점수·순위는 공개 데이터를 가공한 <strong>참고용 정보</strong>이며,
-      서울시 단지 간 상대평가(100점 만점)입니다. 부동산 매매·임대·투자 판단의 근거로 사용할 수 없으며,
+<footer class="clustead-legal-footer">
+  <div class="clustead-legal-inner">
+    <p class="clustead-legal-disclaimer">
+      본 서비스의 생활환경 등급·순위는 공개 데이터를 가공한 <strong>참고용 정보</strong>이며,
+      서울시 단지 간 상대평가 등급(S~D)입니다. 부동산 매매·임대·투자 판단의 근거로 사용할 수 없으며,
       실제 거래·계약 전 반드시 공식 자료와 현장 확인을 거치시기 바랍니다.
       수치는 수집 시점 기준이며 실제와 다를 수 있습니다.
     </p>
-    <p class="livefit-legal-sources">
+    <p class="clustead-legal-sources">
       <span>데이터 기준: 2026년 6월 (정기 갱신)</span>
-      <span class="livefit-legal-sep">·</span>
+      <span class="clustead-legal-sep">·</span>
       <span>출처: 국토교통부 실거래가 공개시스템, 서울 열린데이터광장, 공공데이터포털(data.go.kr)</span>
-      <span class="livefit-legal-sep">·</span>
+      <span class="clustead-legal-sep">·</span>
       <span>지도·장소 ⓒ Kakao</span>
     </p>
   </div>
 </footer>
 <style>
-  .livefit-legal-footer {
+  .clustead-legal-footer {
     margin-top: 48px;
     padding: 24px 16px;
     border-top: 1px solid rgba(128, 128, 128, 0.25);
     background: rgba(0, 0, 0, 0.03);
     font-family: system-ui, -apple-system, 'Malgun Gothic', sans-serif;
   }
-  .livefit-legal-inner {
+  .clustead-legal-inner {
     max-width: 980px;
     margin: 0 auto;
   }
-  .livefit-legal-disclaimer {
+  .clustead-legal-disclaimer {
     margin: 0 0 8px;
     font-size: 12px;
     line-height: 1.7;
     color: #6b7280;
   }
-  .livefit-legal-disclaimer strong { color: #4b5563; }
-  .livefit-legal-sources {
+  .clustead-legal-disclaimer strong { color: #4b5563; }
+  .clustead-legal-sources {
     margin: 0;
     font-size: 11px;
     line-height: 1.6;
     color: #9aa1ac;
   }
-  .livefit-legal-sep { margin: 0 6px; opacity: 0.5; }
+  .clustead-legal-sep { margin: 0 6px; opacity: 0.5; }
   @media (max-width: 600px) {
-    .livefit-legal-sep { display: none; }
-    .livefit-legal-sources span { display: block; }
+    .clustead-legal-sep { display: none; }
+    .clustead-legal-sources span { display: block; }
   }
 </style>

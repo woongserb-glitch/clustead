@@ -163,7 +163,7 @@
             <div class="section-head">
                 <div>
                     <div class="compare-section-title-row">
-                        <h2>카테고리별 점수 비교</h2>
+                        <h2>카테고리별 비교</h2>
                         <div class="compare-win-tally">
                             <span class="tally-a {% if comparison.win_a > comparison.win_b %}tally-lead{% endif %}">{{ comparison.win_a }}</span>
                             <em>카테고리 우위</em>
@@ -177,6 +177,40 @@
                 <strong>{{ apt_a.name }}</strong>
                 <strong>{{ apt_b.name }}</strong>
             </div>
+
+            {# 모바일 압축 뷰: 카테고리별 등급을 한 줄짜리 표로. 데스크톱에선 CSS로 숨김.
+               (카드 18장 세로 스택 → 14,000px 문제를 한 화면 수준으로 압축) #}
+            <table class="compare-table compare-grade-table">
+                <thead>
+                    <tr class="compare-info-head">
+                        <th><span>카테고리</span></th>
+                        <th><span>{{ apt_a.name }}</span></th>
+                        <th><span>{{ apt_b.name }}</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in comparison.rows %}
+                    <tr>
+                        <th class="compare-row-label">{{ row.label }}</th>
+                        <td class="{% if row.winner == 'a' %}compare-grade-win{% endif %}">
+                            {% if row.a.grade %}
+                            <span class="grade-badge grade-{{ row.a.grade|lower }}">{{ row.a.grade }}</span>
+                            {% else %}
+                            <span class="compare-grade-na">·</span>
+                            {% endif %}
+                        </td>
+                        <td class="{% if row.winner == 'b' %}compare-grade-win{% endif %}">
+                            {% if row.b.grade %}
+                            <span class="grade-badge grade-{{ row.b.grade|lower }}">{{ row.b.grade }}</span>
+                            {% else %}
+                            <span class="compare-grade-na">·</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
             <div class="compare-card-pairs">
                 {% for row in comparison.rows %}
                 <div class="compare-card-pair">
@@ -185,7 +219,7 @@
                 </div>
                 {% endfor %}
             </div>
-            <p class="filter-note">※ 구 백분위는 단지마다 기준(자기 구)이 달라 직접 비교가 어렵습니다. 교차지역 비교는 점수·등급·서울 백분위를 기준으로 보세요.</p>
+            <p class="filter-note">※ 교차지역 비교는 카테고리 <b>등급</b>과 <b>우위 표시</b>를 기준으로 보세요.</p>
         </section>
         {% else %}
         <section class="compare-presets">

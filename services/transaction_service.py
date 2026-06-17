@@ -147,9 +147,9 @@ def load_batch_mapping():
     if _BATCH_MAPPING_CACHE is None:
         rows = read_batch_csv(TRANSACTION_MAPPING_PATH)
         _BATCH_MAPPING_CACHE = {
-            str(row.get("livefit_name") or "").strip(): row
+            str(row.get("clustead_name") or row.get("livefit_name") or "").strip(): row
             for row in rows
-            if str(row.get("livefit_name") or "").strip()
+            if str(row.get("clustead_name") or row.get("livefit_name") or "").strip()
         }
     return _BATCH_MAPPING_CACHE
 
@@ -792,7 +792,11 @@ def get_transaction_summary(apartment):
     if batch_summary and batch_summary.get("has_data"):
         return batch_summary
 
-    if os.getenv("LIVEFIT_ENABLE_TRANSACTION_API_FALLBACK", "0").strip() != "1":
+    fallback_enabled = os.getenv(
+        "CLUSTEAD_ENABLE_TRANSACTION_API_FALLBACK",
+        os.getenv("LIVEFIT_ENABLE_TRANSACTION_API_FALLBACK", "0"),
+    )
+    if fallback_enabled.strip() != "1":
         return empty_transaction_summary("molit_batch_data_missing")
 
     service_key = get_public_data_service_key()

@@ -7,7 +7,7 @@ from scripts.baseline_config import (
 
 
 print("=" * 60)
-print("LIVEFIT BASELINE BUILD START")
+print("CLUSTEAD BASELINE BUILD START")
 print("=" * 60)
 
 start_time = time.time()
@@ -61,7 +61,7 @@ total_elapsed = round(
     2
 )
 
-print("LIVEFIT BASELINE BUILD COMPLETE")
+print("CLUSTEAD BASELINE BUILD COMPLETE")
 
 print(f"[SUCCESS COUNT] {success_count}")
 print(f"[FAIL COUNT] {fail_count}")

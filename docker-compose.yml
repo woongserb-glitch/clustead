@@ -1,17 +1,17 @@
-# LiveFit 배포 — 소규모 외부 공개(A안) / OCI Ubuntu VPS 1대
+# Clustead 배포 — 소규모 외부 공개(A안) / OCI Ubuntu VPS 1대
 # app(gunicorn) 은 외부에 직접 노출하지 않고 nginx 만 80(/443)을 공개한다.
 services:
   app:
     build: .
-    image: livefit-app
+    image: clustead-app
     restart: unless-stopped
     env_file: .env
     environment:
       # nginx 뒤에 있으므로 ProxyFix 활성 → 레이트리밋이 실제 클라이언트 IP 기준으로 동작.
-      - LIVEFIT_TRUST_PROXY=1
+      - CLUSTEAD_TRUST_PROXY=1
       - WEB_CONCURRENCY=2
       # 다중 워커에서 레이트리밋을 전역 일치시키려면 Redis 사용(미설정 시 워커별 카운트):
-      # - LIVEFIT_RATELIMIT_STORAGE=redis://redis:6379
+      # - CLUSTEAD_RATELIMIT_STORAGE=redis://redis:6379
     volumes:
       # 1.4GB 데이터(호스트). Kakao 캐시 write 때문에 read-write.
       - ./data:/app/data
@@ -35,8 +35,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # 부트스트랩(HTTP)은 livefit.conf, 인증서 발급 후 livefit-ssl.conf 로 교체(DEPLOY.md §7).
-      - ./deploy/nginx/livefit.conf:/etc/nginx/conf.d/default.conf:ro
+      # 부트스트랩(HTTP)은 clustead.conf, 인증서 발급 후 clustead-ssl.conf 로 교체(DEPLOY.md §7).
+      - ./deploy/nginx/clustead.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/certbot/conf:/etc/letsencrypt:ro
       - ./deploy/certbot/www:/var/www/certbot:ro
 

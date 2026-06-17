@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="1832" viewBox="0 0 1220 1832">
+  <style>
+    .bg { fill: #f8fafc; }
+    .title { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
+    .subtitle { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 14px; fill: #64748b; }
+    .section { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 19px; font-weight: 800; fill: #111827; }
+    .label { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 16px; font-weight: 800; fill: #111827; }
+    .meta { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #64748b; }
+    .tiny { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 10px; fill: #64748b; }
+    .emoji { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; font-size: 23px; }
+    .mono { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #64748b; }
+  </style>
+  <rect class="bg" width="100%" height="100%" />
+  <text class="title" x="44" y="52">Brand Chip Logo Preview</text>
+  <text class="subtitle" x="44" y="78">현재 이모지/표기와 추천 Lucide 또는 브랜드 로고 방향을 한눈에 보는 확정 전 미리보기입니다.</text>
+  
+    <text class="section" x="44" y="112">브랜드 서브타입칩 로고 대상</text>
+    <text class="meta" x="329" y="112">실제 로고 파일 확보 전: 브랜드 컬러 플레이스홀더와 저장 경로 확인용</text><text class="section" x="44" y="144">cafe</text>
+    <g>
+      <rect x="44" y="164" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="182" width="54" height="54" rx="16" fill="#00704a" opacity="0.92" />
+      <text x="89" y="216" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">스타벅</text>
+      <text class="label" x="130" y="200">스타벅스</text>
+      <text class="meta" x="130" y="222">cafe · official</text>
+      <text class="mono" x="62" y="260">static/icons/brands/starbucks.svg</text>
+    </g>
+    <g>
+      <rect x="418" y="164" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="436" y="182" width="54" height="54" rx="16" fill="#d31145" opacity="0.92" />
+      <text x="463" y="216" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">투썸</text>
+      <text class="label" x="504" y="200">투썸</text>
+      <text class="meta" x="504" y="222">cafe · official</text>
+      <text class="mono" x="436" y="260">static/icons/brands/twosome-place.svg</text>
+    </g>
+    <g>
+      <rect x="792" y="164" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="810" y="182" width="54" height="54" rx="16" fill="#f7c600" opacity="0.72" />
+      <text x="837" y="216" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">메가M</text>
+      <text class="label" x="878" y="200">메가MGC</text>
+      <text class="meta" x="878" y="222">cafe · official</text>
+      <text class="mono" x="810" y="260">static/icons/brands/mega-mgc.svg</text>
+    </g>
+    <g>
+      <rect x="44" y="292" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="310" width="54" height="54" rx="16" fill="#f3c300" opacity="0.92" />
+      <text x="89" y="344" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">컴포즈</text>
+      <text class="label" x="130" y="328">컴포즈</text>
+      <text class="meta" x="130" y="350">cafe · official</text>
+      <text class="mono" x="62" y="388">static/icons/brands/compose-coffee.svg</text>
+    </g>
+    <g>
+      <rect x="418" y="292" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="436" y="310" width="54" height="54" rx="16" fill="#243b86" opacity="0.92" />
+      <text x="463" y="344" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">이디야</text>
+      <text class="label" x="504" y="328">이디야</text>
+      <text class="meta" x="504" y="350">cafe · official</text>
+      <text class="mono" x="436" y="388">static/icons/brands/ediya.svg</text>
+    </g>
+    <g>
+      <rect x="792" y="292" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="810" y="310" width="54" height="54" rx="16" fill="#ffe100" opacity="0.72" />
+      <text x="837" y="344" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">빽다방</text>
+      <text class="label" x="878" y="328">빽다방</text>
+      <text class="meta" x="878" y="350">cafe · official</text>
+      <text class="mono" x="810" y="388">static/icons/brands/paiks-coffee.svg</text>
+    </g>
+    <g>
+      <rect x="44" y="420" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="438" width="54" height="54" rx="16" fill="#b5121b" opacity="0.92" />
+      <text x="89" y="472" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">할리스</text>
+      <text class="label" x="130" y="456">할리스</text>
+      <text class="meta" x="130" y="478">cafe · official</text>
+      <text class="mono" x="62" y="516">static/icons/brands/hollys.svg</text>
+    </g>
+    <g>
+      <rect x="418" y="420" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="436" y="438" width="54" height="54" rx="16" fill="#3a1f5d" opacity="0.92" />
+      <text x="463" y="472" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">커피빈</text>
+      <text class="label" x="504" y="456">커피빈</text>
+      <text class="meta" x="504" y="478">cafe · official</text>
+      <text class="mono" x="436" y="516">static/icons/brands/coffee-bean.svg</text>
+    </g>
+    <g>
+      <rect x="792" y="420" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="810" y="438" width="54" height="54" rx="16" fill="#111827" opacity="0.92" />
+      <text x="837" y="472" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">폴바셋</text>
+      <text class="label" x="878" y="456">폴바셋</text>
+      <text class="meta" x="878" y="478">cafe · official</text>
+      <text class="mono" x="810" y="516">static/icons/brands/paul-bassett.svg</text>
+    </g>
+    <g>
+      <rect x="44" y="548" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="566" width="54" height="54" rx="16" fill="#c7152b" opacity="0.92" />
+      <text x="89" y="600" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">엔제리</text>
+      <text class="label" x="130" y="584">엔제리너스</text>
+      <text class="meta" x="130" y="606">cafe · official</text>
+      <text class="mono" x="62" y="644">static/icons/brands/angelinus.svg</text>
+    </g><text class="section" x="44" y="724">convenience</text>
+    <g>
+      <rect x="44" y="744" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="762" width="54" height="54" rx="16" fill="#642f8f" opacity="0.92" />
+      <text x="89" y="796" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">CU</text>
+      <text class="label" x="130" y="780">CU</text>
+      <text class="meta" x="130" y="802">convenience · official</text>
+      <text class="mono" x="62" y="840">static/icons/brands/cu.svg</text>
+    </g>
+    <g>
+      <rect x="418" y="744" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="436" y="762" width="54" height="54" rx="16" fill="#0072ce" opacity="0.92" />
+      <text x="463" y="796" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">GS2</text>
+      <text class="label" x="504" y="780">GS25</text>
+      <text class="meta" x="504" y="802">convenience · official</text>
+      <text class="mono" x="436" y="840">static/icons/brands/gs25.svg</text>
+    </g>
+    <g>
+      <rect x="792" y="744" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="810" y="762" width="54" height="54" rx="16" fill="#008061" opacity="0.92" />
+      <text x="837" y="796" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">세븐일</text>
+      <text class="label" x="878" y="780">세븐일레븐</text>
+      <text class="meta" x="878" y="802">convenience · official</text>
+      <text class="mono" x="810" y="840">static/icons/brands/7-eleven.svg</text>
+    </g>
+    <g>
+      <rect x="44" y="872" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="890" width="54" height="54" rx="16" fill="#ffd200" opacity="0.72" />
+      <text x="89" y="924" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">이마트</text>
+      <text class="label" x="130" y="908">이마트24</text>
+      <text class="meta" x="130" y="930">convenience · official</text>
+      <text class="mono" x="62" y="968">static/icons/brands/emart24.svg</text>
+    </g><text class="section" x="44" y="1048">mart</text>
+    <g>
+      <rect x="44" y="1068" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="1086" width="54" height="54" rx="16" fill="#f4c400" opacity="0.92" />
+      <text x="89" y="1120" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">이마트</text>
+      <text class="label" x="130" y="1104">이마트</text>
+      <text class="meta" x="130" y="1126">mart · official</text>
+      <text class="mono" x="62" y="1164">static/icons/brands/emart.svg</text>
+    </g>
+    <g>
+      <rect x="418" y="1068" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="436" y="1086" width="54" height="54" rx="16" fill="#e31b23" opacity="0.92" />
+      <text x="463" y="1120" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">홈플러</text>
+      <text class="label" x="504" y="1104">홈플러스</text>
+      <text class="meta" x="504" y="1126">mart · official</text>
+      <text class="mono" x="436" y="1164">static/icons/brands/homeplus.svg</text>
+    </g>
+    <g>
+      <rect x="792" y="1068" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="810" y="1086" width="54" height="54" rx="16" fill="#d71920" opacity="0.92" />
+      <text x="837" y="1120" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">롯데마</text>
+      <text class="label" x="878" y="1104">롯데마트</text>
+      <text class="meta" x="878" y="1126">mart · official</text>
+      <text class="mono" x="810" y="1164">static/icons/brands/lotte-mart.svg</text>
+    </g>
+    <g>
+      <rect x="44" y="1196" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="1214" width="54" height="54" rx="16" fill="#005daa" opacity="0.92" />
+      <text x="89" y="1248" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">코스트</text>
+      <text class="label" x="130" y="1232">코스트코</text>
+      <text class="meta" x="130" y="1254">mart · official</text>
+      <text class="mono" x="62" y="1292">static/icons/brands/costco.svg</text>
+    </g>
+    <g>
+      <rect x="418" y="1196" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="436" y="1214" width="54" height="54" rx="16" fill="#f6c800" opacity="0.72" />
+      <text x="463" y="1248" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">트레이</text>
+      <text class="label" x="504" y="1232">트레이더스</text>
+      <text class="meta" x="504" y="1254">mart · official</text>
+      <text class="mono" x="436" y="1292">static/icons/brands/traders.svg</text>
+    </g>
+    <g>
+      <rect x="792" y="1196" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="810" y="1214" width="54" height="54" rx="16" fill="#f4c400" opacity="0.92" />
+      <text x="837" y="1248" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">이마트</text>
+      <text class="label" x="878" y="1232">이마트에브리데이</text>
+      <text class="meta" x="878" y="1254">mart · official</text>
+      <text class="mono" x="810" y="1292">static/icons/brands/emart-everyday.svg</text>
+    </g>
+    <g>
+      <rect x="44" y="1324" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="1342" width="54" height="54" rx="16" fill="#e31b23" opacity="0.92" />
+      <text x="89" y="1376" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">홈플러</text>
+      <text class="label" x="130" y="1360">홈플러스익스프레스</text>
+      <text class="meta" x="130" y="1382">mart · official</text>
+      <text class="mono" x="62" y="1420">static/icons/brands/homeplus-express.svg</text>
+    </g>
+    <g>
+      <rect x="418" y="1324" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="436" y="1342" width="54" height="54" rx="16" fill="#d71920" opacity="0.92" />
+      <text x="463" y="1376" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">롯데슈</text>
+      <text class="label" x="504" y="1360">롯데슈퍼/프레시</text>
+      <text class="meta" x="504" y="1382">mart · official</text>
+      <text class="mono" x="436" y="1420">static/icons/brands/lotte-super-fresh.svg</text>
+    </g>
+    <g>
+      <rect x="792" y="1324" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="810" y="1342" width="54" height="54" rx="16" fill="#f4c400" opacity="0.72" />
+      <text x="837" y="1376" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">노브랜</text>
+      <text class="label" x="878" y="1360">노브랜드</text>
+      <text class="meta" x="878" y="1382">mart · official</text>
+      <text class="mono" x="810" y="1420">static/icons/brands/no-brand.svg</text>
+    </g>
+    <g>
+      <rect x="44" y="1452" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="1470" width="54" height="54" rx="16" fill="#00a84f" opacity="0.92" />
+      <text x="89" y="1504" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">GS더</text>
+      <text class="label" x="130" y="1488">GS더프레시</text>
+      <text class="meta" x="130" y="1510">mart · official</text>
+      <text class="mono" x="62" y="1548">static/icons/brands/gs-the-fresh.svg</text>
+    </g>
+    <g>
+      <rect x="418" y="1452" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="436" y="1470" width="54" height="54" rx="16" fill="#009a44" opacity="0.92" />
+      <text x="463" y="1504" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">하나로</text>
+      <text class="label" x="504" y="1488">하나로마트</text>
+      <text class="meta" x="504" y="1510">mart · official</text>
+      <text class="mono" x="436" y="1548">static/icons/brands/hanaro-mart.svg</text>
+    </g><text class="section" x="44" y="1628">pharmacy</text>
+    <g>
+      <rect x="44" y="1648" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="62" y="1666" width="54" height="54" rx="16" fill="#7c3aed" opacity="0.92" />
+      <text x="89" y="1700" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Malgun Gothic, Segoe UI, Arial">W스토</text>
+      <text class="label" x="130" y="1684">W스토어</text>
+      <text class="meta" x="130" y="1706">pharmacy · official</text>
+      <text class="mono" x="62" y="1744">static/icons/brands/w-store.svg</text>
+    </g>
+    <g>
+      <rect x="418" y="1648" width="354" height="112" rx="14" fill="#ffffff" stroke="#e2e8f0" />
+      <rect x="436" y="1666" width="54" height="54" rx="16" fill="#16a34a" opacity="0.92" />
+      
+    <g transform="translate(451 1681) scale(1)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /><path d="m8.5 8.5 7 7" />
+    </g>
+      <text class="label" x="504" y="1684">약국</text>
+      <text class="meta" x="504" y="1706">pharmacy · lucide</text>
+      <text class="mono" x="436" y="1744">generic lucide</text>
+    </g>
+</svg>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clustead Analytics</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f7fb;
+            --panel: #ffffff;
+            --text: #172033;
+            --muted: #667085;
+            --line: #d8dee9;
+            --accent: #2563eb;
+            --accent-soft: #e8f0ff;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 14px;
+        }
+        main { width: min(1280px, calc(100% - 32px)); margin: 24px auto 48px; }
+        h1 { margin: 0 0 8px; font-size: 24px; }
+        h2 { margin: 0 0 12px; font-size: 16px; }
+        .notice, .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+        .notice { padding: 14px 16px; margin-bottom: 16px; }
+        .toolbar {
+            display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+            padding: 12px 16px; margin-bottom: 16px;
+        }
+        .toolbar .spacer { flex: 1 1 auto; }
+        .range-link {
+            display: inline-flex; align-items: center; height: 34px; padding: 0 14px;
+            border: 1px solid var(--line); border-radius: 999px; background: #fff;
+            color: var(--text); text-decoration: none; font-weight: 700; font-size: 13px;
+        }
+        .range-link.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .kpi-grid {
+            display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px; margin-bottom: 16px;
+        }
+        .kpi {
+            background: var(--panel); border: 1px solid var(--line);
+            border-radius: 10px; padding: 16px;
+        }
+        .kpi .label { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+        .kpi .value { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .kpi .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+        .grid-2 {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;
+        }
+        section.panel { overflow: hidden; margin-bottom: 16px; }
+        .panel-head {
+            display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+            padding: 14px 16px; border-bottom: 1px solid var(--line); background: #fbfcff;
+        }
+        .panel-head p { margin: 0; color: var(--muted); font-size: 12px; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        th, td {
+            padding: 8px 14px; border-bottom: 1px solid var(--line);
+            text-align: left; vertical-align: middle; line-height: 1.3;
+        }
+        th { color: var(--muted); background: #fbfcff; font-size: 12px; font-weight: 700; }
+        td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
+        td.combo { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 12px;
+            max-width: 520px; overflow-wrap: anywhere; }
+        tr:hover td { background: #f9fbff; }
+        .empty { color: var(--muted); }
+        .bar {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .bar .track {
+            flex: 1 1 auto; height: 8px; border-radius: 999px; background: var(--accent-soft);
+            overflow: hidden; min-width: 60px;
+        }
+        .bar .fill { height: 100%; background: var(--accent); border-radius: 999px; }
+        .bar .num { flex: 0 0 auto; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; }
+        .trend {
+            display: flex; align-items: flex-end; gap: 3px; height: 120px;
+            padding: 16px; overflow-x: auto;
+        }
+        .trend .col {
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            flex: 0 0 auto;
+        }
+        .trend .stack {
+            width: 14px; background: var(--accent); border-radius: 3px 3px 0 0;
+            min-height: 2px;
+        }
+        .trend .cap { font-size: 10px; color: var(--muted); transform: rotate(0deg); white-space: nowrap; }
+        @media (max-width: 980px) {
+            .kpi-grid { grid-template-columns: 1fr 1fr; }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <section class="notice">
+        <h1>Clustead Analytics</h1>
+        <p><strong>관리자용 사용자 행동 분석.</strong> 익명 해시 기반(IP 원문 미저장) · KST 기준 일별 집계.</p>
+        {% if not data.available %}
+            <p class="empty">아직 수집된 이벤트가 없습니다. (서비스 가동 후 방문/검색이 발생하면 표시됩니다.)</p>
+        {% endif %}
+    </section>
+
+    {% set qs = ('&admin_token=' ~ admin_token) if admin_token else '' %}
+    <div class="toolbar panel">
+        <strong style="margin-right:6px;">기간</strong>
+        {% for d, lbl in [(7,'최근 7일'), (30,'최근 30일'), (90,'최근 90일'), (0,'전체')] %}
+            <a class="range-link {% if selected_days == d %}active{% endif %}"
+               href="/admin/analytics?days={{ d }}{{ qs }}">{{ lbl }}</a>
+        {% endfor %}
+        <span class="spacer"></span>
+        <a class="range-link" href="/admin/ranking-debug{% if admin_token %}?admin_token={{ admin_token }}{% endif %}">Ranking Debug →</a>
+    </div>
+
+    <section class="kpi-grid">
+        <div class="kpi">
+            <div class="label">방문(page view)</div>
+            <div class="value">{{ '{:,}'.format(data.kpi.page_views) }}</div>
+        </div>
+        <div class="kpi">
+            <div class="label">순방문자(해시 distinct)</div>
+            <div class="value">{{ '{:,}'.format(data.kpi.unique_visitors) }}</div>
+            <div class="sub">일일 솔트 회전 — 당일 기준 추정</div>
+        </div>
+        <div class="kpi">
+            <div class="label">아파트 조회(result)</div>
+            <div class="value">{{ '{:,}'.format(data.kpi.result_views) }}</div>
+        </div>
+        <div class="kpi">
+            <div class="label">탐색 검색(explore)</div>
+            <div class="value">{{ '{:,}'.format(data.kpi.explore_searches) }}</div>
+        </div>
+    </section>
+
+    {% if data.daily %}
+    {% set max_pv = (data.daily | map(attribute='page_views') | max) or 1 %}
+    <section class="panel">
+        <div class="panel-head">
+            <h2>일별 방문 추이</h2>
+            <p>막대=방문수 · 캡션=순방문자 / 검색수</p>
+        </div>
+        <div class="trend">
+            {% for row in data.daily %}
+            <div class="col" title="{{ row.day }} · 방문 {{ row.page_views }} · 순방문자 {{ row.unique_visitors }} · 검색 {{ row.searches }}">
+                <div class="stack" style="height: {{ (row.page_views / max_pv * 88) | round(0, 'ceil') | int }}px;"></div>
+                <div class="cap">{{ row.day[5:] }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <div class="grid-2">
+        <section class="panel" style="margin-bottom:0;">
+            <div class="panel-head">
+                <h2>자주 검색된 아파트</h2>
+                <p>result_view 기준 Top {{ data.top_apartments|length }}</p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>#</th><th>아파트</th><th>구</th><th class="number">조회</th><th class="number">방문자</th></tr></thead>
+                    <tbody>
+                    {% set amax = (data.top_apartments[0].count if data.top_apartments else 1) %}
+                    {% for r in data.top_apartments %}
+                        <tr>
+                            <td class="number">{{ loop.index }}</td>
+                            <td>{{ r.apartment }}</td>
+                            <td>{{ r.gu or '-' }}</td>
+                            <td class="number">
+                                <span class="bar"><span class="track"><span class="fill" style="width: {{ (r.count / amax * 100) | round(0) | int }}%"></span></span><span class="num">{{ r.count }}</span></span>
+                            </td>
+                            <td class="number">{{ r.visitors }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="empty">데이터 없음</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-bottom:0;">
+            <div class="panel-head">
+                <h2>진입경로 분포</h2>
+                <p>result_view의 src</p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>경로(src)</th><th class="number">건수</th><th>비중</th></tr></thead>
+                    <tbody>
+                    {% set smax = (data.src_dist[0].count if data.src_dist else 1) %}
+                    {% for r in data.src_dist %}
+                        <tr>
+                            <td>{{ r.src }}</td>
+                            <td class="number">{{ r.count }}</td>
+                            <td><span class="bar"><span class="track"><span class="fill" style="width: {{ (r.count / smax * 100) | round(0) | int }}%"></span></span></span></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="empty">데이터 없음</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="panel-head" style="border-top:1px solid var(--line);">
+                <h2>탐색 결과 규모</h2>
+                <p>필터가 너무 좁은지 진단</p>
+            </div>
+            <div style="padding: 12px 16px; color: var(--muted);">
+                검색 {{ data.explore_sizes.searches }}건 · 평균 결과
+                <strong style="color:var(--text)">{{ data.explore_sizes.avg_results if data.explore_sizes.avg_results is not none else '-' }}</strong>개 ·
+                0건 결과
+                <strong style="color:var(--text)">{{ data.explore_sizes.zero_result_count }}</strong>건
+                {% if data.explore_sizes.zero_result_pct is not none %}({{ data.explore_sizes.zero_result_pct }}%){% endif %}
+            </div>
+        </section>
+    </div>
+
+    <section class="panel">
+        <div class="panel-head">
+            <h2>자주 쓰인 가중치 조합</h2>
+            <p>result_view · 기본값(3) 아닌 가중치만 정규화</p>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>#</th><th>조합(combo_key)</th><th class="number">사용</th><th class="number">방문자</th></tr></thead>
+                <tbody>
+                {% for r in data.top_weight_combos %}
+                    <tr>
+                        <td class="number">{{ loop.index }}</td>
+                        <td class="combo">{{ r.combo_key }}</td>
+                        <td class="number">{{ r.count }}</td>
+                        <td class="number">{{ r.visitors }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="4" class="empty">데이터 없음</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head">
+            <h2>자주 쓰인 검색 필터 조합</h2>
+            <p>explore_search · 활성 필터만 정규화</p>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>#</th><th>조합(combo_key)</th><th class="number">사용</th><th class="number">방문자</th><th class="number">평균 결과</th></tr></thead>
+                <tbody>
+                {% for r in data.top_filter_combos %}
+                    <tr>
+                        <td class="number">{{ loop.index }}</td>
+                        <td class="combo">{{ r.combo_key }}</td>
+                        <td class="number">{{ r.count }}</td>
+                        <td class="number">{{ r.visitors }}</td>
+                        <td class="number">{{ r.avg_results if r.avg_results is not none else '-' }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5" class="empty">데이터 없음</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+</body>
+</html>

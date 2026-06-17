@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1190" height="1532" viewBox="0 0 1190 1532">
+  <style>
+    .bg { fill: #f8fafc; }
+    .title { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 32px; font-weight: 900; fill: #0f172a; }
+    .subtitle { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 15px; fill: #475569; }
+    .h2 { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 21px; font-weight: 900; fill: #111827; }
+    .desc { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 13px; fill: #64748b; }
+    .label { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 16px; font-weight: 800; fill: #111827; }
+    .small { font-family: "Malgun Gothic", "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #475569; }
+    .tiny { font-family: "Segoe UI", Arial, sans-serif; font-size: 10px; fill: #64748b; }
+    .emoji { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; }
+  </style>
+  <rect class="bg" width="100%" height="100%" />
+  <text class="title" x="48" y="54">Icon Style Directions</text>
+  <text class="subtitle" x="48" y="82">얇은 라인 아이콘이 밋밋해 보이는 문제를 기준으로, 더 눈에 들어오는 시각 방향을 비교합니다.</text>
+  
+    <rect x="48" y="112" width="1094" height="254" rx="20" fill="#ffffff" stroke="#e2e8f0" />
+    <text class="h2" x="72" y="148">A. Clean Line</text>
+    <text class="desc" x="72" y="170">현재 2단계 미리보기와 가까운 방향입니다. 정돈감은 좋지만, 화면에서 힘이 약하고 기존 이모지보다 덜 즐거워 보입니다.</text>
+    <rect x="1026" y="134" width="86" height="28" rx="14" fill="#dcfce7" /><text x="1069" y="153" text-anchor="middle" font-family="Malgun Gothic, Segoe UI, Arial" font-size="12" font-weight="800" fill="#15803d">보류</text>
+  
+    <g>
+      <rect x="74" y="202" width="178" height="86" rx="16" fill="#ffffff" stroke="#e5e7eb" />
+      <rect x="90" y="216" width="40" height="40" rx="12" fill="#2563eb" opacity="0.12" />
+      
+    <g transform="translate(98 224) scale(1)" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 3.1V7a4 4 0 0 0 8 0V3.1" /><path d="m9 15-1-1" /><path d="m15 15 1-1" /><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z" /><path d="m8 19-2 3" /><path d="m16 19 2 3" />
+    </g>
+      <text class="label" x="142" y="239">지하철역</text>
+      <text class="tiny" x="142" y="260">train-front</text>
+    </g>
+    <g>
+      <rect x="250" y="202" width="178" height="86" rx="16" fill="#ffffff" stroke="#e5e7eb" />
+      <rect x="266" y="216" width="40" height="40" rx="12" fill="#2563eb" opacity="0.12" />
+      
+    <g transform="translate(274 224) scale(1)" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" />
+    </g>
+      <text class="label" x="318" y="239">버스</text>
+      <text class="tiny" x="318" y="260">bus-front</text>
+    </g>
+    <g>
+      <rect x="426" y="202" width="178" height="86" rx="16" fill="#ffffff" stroke="#e5e7eb" />
+      <rect x="442" y="216" width="40" height="40" rx="12" fill="#16a34a" opacity="0.12" />
+      
+    <g transform="translate(450 224) scale(1)" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" /><path d="M6 2v2" />
+    </g>
+      <text class="label" x="494" y="239">카페</text>
+      <text class="tiny" x="494" y="260">coffee</text>
+    </g>
+    <g>
+      <rect x="602" y="202" width="178" height="86" rx="16" fill="#ffffff" stroke="#e5e7eb" />
+      <rect x="618" y="216" width="40" height="40" rx="12" fill="#e11d48" opacity="0.12" />
+      
+    <g transform="translate(626 224) scale(1)" fill="none" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 7v4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M14 9h-4" /><path d="M18 11h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h2" /><path d="M18 21V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16" />
+    </g>
+      <text class="label" x="670" y="239">병원</text>
+      <text class="tiny" x="670" y="260">hospital</text>
+    </g>
+    <g>
+      <rect x="778" y="202" width="178" height="86" rx="16" fill="#ffffff" stroke="#e5e7eb" />
+      <rect x="794" y="216" width="40" height="40" rx="12" fill="#4f46e5" opacity="0.12" />
+      
+    <g transform="translate(802 224) scale(1)" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 21V7" /><path d="m16 12 2 2 4-4" /><path d="M22 6V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4 4 4 0 0 0-4-4H3a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h6a3 3 0 0 1 3 3 3 3 0 0 1 3-3h6a1 1 0 0 0 1-1v-1.3" />
+    </g>
+      <text class="label" x="846" y="239">학원</text>
+      <text class="tiny" x="846" y="260">book-open-check</text>
+    </g>
+    <g>
+      <rect x="954" y="202" width="178" height="86" rx="16" fill="#ffffff" stroke="#e5e7eb" />
+      <rect x="970" y="216" width="40" height="40" rx="12" fill="#475569" opacity="0.12" />
+      
+    <g transform="translate(978 224) scale(1)" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16.75 12h3.632a1 1 0 0 1 .894 1.447l-2.034 4.069a1 1 0 0 1-1.708.134l-2.124-2.97" /><path d="M17.106 9.053a1 1 0 0 1 .447 1.341l-3.106 6.211a1 1 0 0 1-1.342.447L3.61 12.3a2.92 2.92 0 0 1-1.3-3.91L3.69 5.6a2.92 2.92 0 0 1 3.92-1.3z" /><path d="M2 19h3.76a2 2 0 0 0 1.8-1.1L9 15" /><path d="M2 21v-4" /><path d="M7 9h.01" />
+    </g>
+      <text class="label" x="1022" y="239">CCTV</text>
+      <text class="tiny" x="1022" y="260">cctv</text>
+    </g>
+    <rect x="48" y="392" width="1094" height="290" rx="20" fill="#ffffff" stroke="#e2e8f0" />
+    <text class="h2" x="72" y="428">B. Bold App Badge</text>
+    <text class="desc" x="72" y="450">추천 1순위입니다. Lucide는 유지하되 솔리드 컬러 배지와 굵은 흰색 선으로 바꿔 기존보다 명확하고 앱답게 보이게 합니다.</text>
+    <rect x="1026" y="414" width="86" height="28" rx="14" fill="#dcfce7" /><text x="1069" y="433" text-anchor="middle" font-family="Malgun Gothic, Segoe UI, Arial" font-size="12" font-weight="800" fill="#15803d">추천</text>
+  
+    <g>
+      <rect x="74" y="482" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="90" y="495" width="46" height="46" rx="15" fill="#2563eb" />
+      
+    <g transform="translate(101 506) scale(1)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 3.1V7a4 4 0 0 0 8 0V3.1" /><path d="m9 15-1-1" /><path d="m15 15 1-1" /><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z" /><path d="m8 19-2 3" /><path d="m16 19 2 3" />
+    </g>
+      <text class="label" x="150" y="518">지하철역</text>
+      <rect x="150" y="531" width="58" height="5" rx="2.5" fill="#2563eb" opacity="0.32" />
+    </g>
+    <g>
+      <rect x="250" y="482" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="266" y="495" width="46" height="46" rx="15" fill="#2563eb" />
+      
+    <g transform="translate(277 506) scale(1)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" />
+    </g>
+      <text class="label" x="326" y="518">버스</text>
+      <rect x="326" y="531" width="58" height="5" rx="2.5" fill="#2563eb" opacity="0.32" />
+    </g>
+    <g>
+      <rect x="426" y="482" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="442" y="495" width="46" height="46" rx="15" fill="#16a34a" />
+      
+    <g transform="translate(453 506) scale(1)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" /><path d="M6 2v2" />
+    </g>
+      <text class="label" x="502" y="518">카페</text>
+      <rect x="502" y="531" width="58" height="5" rx="2.5" fill="#16a34a" opacity="0.32" />
+    </g>
+    <g>
+      <rect x="602" y="482" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="618" y="495" width="46" height="46" rx="15" fill="#e11d48" />
+      
+    <g transform="translate(629 506) scale(1)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 7v4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M14 9h-4" /><path d="M18 11h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h2" /><path d="M18 21V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16" />
+    </g>
+      <text class="label" x="678" y="518">병원</text>
+      <rect x="678" y="531" width="58" height="5" rx="2.5" fill="#e11d48" opacity="0.32" />
+    </g>
+    <g>
+      <rect x="778" y="482" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="794" y="495" width="46" height="46" rx="15" fill="#4f46e5" />
+      
+    <g transform="translate(805 506) scale(1)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 21V7" /><path d="m16 12 2 2 4-4" /><path d="M22 6V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4 4 4 0 0 0-4-4H3a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h6a3 3 0 0 1 3 3 3 3 0 0 1 3-3h6a1 1 0 0 0 1-1v-1.3" />
+    </g>
+      <text class="label" x="854" y="518">학원</text>
+      <rect x="854" y="531" width="58" height="5" rx="2.5" fill="#4f46e5" opacity="0.32" />
+    </g>
+    <g>
+      <rect x="954" y="482" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="970" y="495" width="46" height="46" rx="15" fill="#475569" />
+      
+    <g transform="translate(981 506) scale(1)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16.75 12h3.632a1 1 0 0 1 .894 1.447l-2.034 4.069a1 1 0 0 1-1.708.134l-2.124-2.97" /><path d="M17.106 9.053a1 1 0 0 1 .447 1.341l-3.106 6.211a1 1 0 0 1-1.342.447L3.61 12.3a2.92 2.92 0 0 1-1.3-3.91L3.69 5.6a2.92 2.92 0 0 1 3.92-1.3z" /><path d="M2 19h3.76a2 2 0 0 0 1.8-1.1L9 15" /><path d="M2 21v-4" /><path d="M7 9h.01" />
+    </g>
+      <text class="label" x="1030" y="518">CCTV</text>
+      <rect x="1030" y="531" width="58" height="5" rx="2.5" fill="#475569" opacity="0.32" />
+    </g>
+      <g>
+        <rect x="78" y="596" width="118" height="40" rx="20" fill="#2563eb" />
+        
+    <g transform="translate(91 606) scale(0.8333333333333334)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" />
+    </g>
+        <text x="121" y="622" font-family="Malgun Gothic, Segoe UI, Arial" font-size="14" font-weight="800" fill="#ffffff">간선</text>
+      </g>
+      <g>
+        <rect x="256" y="596" width="118" height="40" rx="20" fill="#e11d48" />
+        
+    <g transform="translate(269 606) scale(0.8333333333333334)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 11v1a10 10 0 1 1-9-10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" x2="9.01" y1="9" y2="9" /><line x1="15" x2="15.01" y1="9" y2="9" /><path d="M16 5h6" /><path d="M19 2v6" />
+    </g>
+        <text x="299" y="622" font-family="Malgun Gothic, Segoe UI, Arial" font-size="14" font-weight="800" fill="#ffffff">치과</text>
+      </g>
+      <g>
+        <rect x="434" y="596" width="149" height="40" rx="20" fill="#4f46e5" />
+        
+    <g transform="translate(447 606) scale(0.8333333333333334)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 21V7" /><path d="m16 12 2 2 4-4" /><path d="M22 6V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4 4 4 0 0 0-4-4H3a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h6a3 3 0 0 1 3 3 3 3 0 0 1 3-3h6a1 1 0 0 0 1-1v-1.3" />
+    </g>
+        <text x="477" y="622" font-family="Malgun Gothic, Segoe UI, Arial" font-size="14" font-weight="800" fill="#ffffff">입시/보습</text>
+      </g>
+      <g>
+        <rect x="612" y="596" width="134" height="40" rx="20" fill="#0891b2" />
+        
+    <g transform="translate(625 606) scale(0.8333333333333334)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z" /><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97" />
+    </g>
+        <text x="655" y="622" font-family="Malgun Gothic, Segoe UI, Arial" font-size="14" font-weight="800" fill="#ffffff">한강공원</text>
+      </g>
+      <g>
+        <rect x="790" y="596" width="118" height="40" rx="20" fill="#475569" />
+        
+    <g transform="translate(803 606) scale(0.8333333333333334)" fill="none" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" />
+    </g>
+        <text x="833" y="622" font-family="Malgun Gothic, Segoe UI, Arial" font-size="14" font-weight="800" fill="#ffffff">기타</text>
+      </g>
+    <rect x="48" y="708" width="1094" height="300" rx="20" fill="#ffffff" stroke="#e2e8f0" />
+    <text class="h2" x="72" y="744">C. Emoji Hybrid</text>
+    <text class="desc" x="72" y="766">기존 감성은 살리고, 배지/크기/톤만 통일합니다. 친근함은 가장 좋지만 OS별 이모지 차이가 생길 수 있습니다.</text>
+    <rect x="1026" y="730" width="86" height="28" rx="14" fill="#dcfce7" /><text x="1069" y="749" text-anchor="middle" font-family="Malgun Gothic, Segoe UI, Arial" font-size="12" font-weight="800" fill="#15803d">대안</text>
+  
+    <g>
+      <rect x="74" y="798" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="90" y="811" width="46" height="46" rx="23" fill="#2563eb" opacity="0.12" />
+      <text class="emoji" x="113" y="844" text-anchor="middle" font-size="25">🚇</text>
+      <text class="label" x="150" y="834">지하철역</text>
+      <text class="small" x="150" y="856">emoji normalized</text>
+    </g>
+    <g>
+      <rect x="250" y="798" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="266" y="811" width="46" height="46" rx="23" fill="#2563eb" opacity="0.12" />
+      <text class="emoji" x="289" y="844" text-anchor="middle" font-size="25">🚌</text>
+      <text class="label" x="326" y="834">버스</text>
+      <text class="small" x="326" y="856">emoji normalized</text>
+    </g>
+    <g>
+      <rect x="426" y="798" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="442" y="811" width="46" height="46" rx="23" fill="#16a34a" opacity="0.12" />
+      <text class="emoji" x="465" y="844" text-anchor="middle" font-size="25">☕</text>
+      <text class="label" x="502" y="834">카페</text>
+      <text class="small" x="502" y="856">emoji normalized</text>
+    </g>
+    <g>
+      <rect x="602" y="798" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="618" y="811" width="46" height="46" rx="23" fill="#e11d48" opacity="0.12" />
+      <text class="emoji" x="641" y="844" text-anchor="middle" font-size="25">🏥</text>
+      <text class="label" x="678" y="834">병원</text>
+      <text class="small" x="678" y="856">emoji normalized</text>
+    </g>
+    <g>
+      <rect x="778" y="798" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="794" y="811" width="46" height="46" rx="23" fill="#4f46e5" opacity="0.12" />
+      <text class="emoji" x="817" y="844" text-anchor="middle" font-size="25">📚</text>
+      <text class="label" x="854" y="834">학원</text>
+      <text class="small" x="854" y="856">emoji normalized</text>
+    </g>
+    <g>
+      <rect x="954" y="798" width="178" height="86" rx="16" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="970" y="811" width="46" height="46" rx="23" fill="#475569" opacity="0.12" />
+      <text class="emoji" x="993" y="844" text-anchor="middle" font-size="25">📹</text>
+      <text class="label" x="1030" y="834">CCTV</text>
+      <text class="small" x="1030" y="856">emoji normalized</text>
+    </g>
+      <g>
+        <rect x="78" y="914" width="118" height="40" rx="20" fill="#ffffff" stroke="#2563eb" stroke-opacity="0.34" />
+        <circle cx="100" cy="934" r="14" fill="#2563eb" opacity="0.12" />
+        <text class="emoji" x="100" y="940" text-anchor="middle" font-size="17">B</text>
+        <text class="label" x="122" y="940" font-size="14">간선</text>
+      </g>
+      <g>
+        <rect x="256" y="914" width="118" height="40" rx="20" fill="#ffffff" stroke="#e11d48" stroke-opacity="0.34" />
+        <circle cx="278" cy="934" r="14" fill="#e11d48" opacity="0.12" />
+        <text class="emoji" x="278" y="940" text-anchor="middle" font-size="17">🦷</text>
+        <text class="label" x="300" y="940" font-size="14">치과</text>
+      </g>
+      <g>
+        <rect x="434" y="914" width="149" height="40" rx="20" fill="#ffffff" stroke="#4f46e5" stroke-opacity="0.34" />
+        <circle cx="456" cy="934" r="14" fill="#4f46e5" opacity="0.12" />
+        <text class="emoji" x="456" y="940" text-anchor="middle" font-size="17">📚</text>
+        <text class="label" x="478" y="940" font-size="14">입시/보습</text>
+      </g>
+      <g>
+        <rect x="612" y="914" width="134" height="40" rx="20" fill="#ffffff" stroke="#0891b2" stroke-opacity="0.34" />
+        <circle cx="634" cy="934" r="14" fill="#0891b2" opacity="0.12" />
+        <text class="emoji" x="634" y="940" text-anchor="middle" font-size="17">🌊</text>
+        <text class="label" x="656" y="940" font-size="14">한강공원</text>
+      </g>
+      <g>
+        <rect x="790" y="914" width="118" height="40" rx="20" fill="#ffffff" stroke="#475569" stroke-opacity="0.34" />
+        <circle cx="812" cy="934" r="14" fill="#475569" opacity="0.12" />
+        <text class="emoji" x="812" y="940" text-anchor="middle" font-size="17">?</text>
+        <text class="label" x="834" y="940" font-size="14">기타</text>
+      </g>
+    <rect x="48" y="1034" width="1094" height="312" rx="20" fill="#ffffff" stroke="#e2e8f0" />
+    <text class="h2" x="72" y="1070">D. Map / Brand Forward</text>
+    <text class="desc" x="72" y="1092">Result 지도와 브랜드칩은 별도 규칙을 쓰는 편이 낫습니다. 카테고리 마커는 굵게, 브랜드칩은 로고/워드마크 우선으로 갑니다.</text>
+    <rect x="1026" y="1056" width="86" height="28" rx="14" fill="#dcfce7" /><text x="1069" y="1075" text-anchor="middle" font-family="Malgun Gothic, Segoe UI, Arial" font-size="12" font-weight="800" fill="#15803d">혼합 추천</text>
+  
+    <g>
+      <path d="M114 1124c-15.5 0-28 12.5-28 28 0 21 28 48 28 48s28-27 28-48c0-15.5-12.5-28-28-28Z" fill="#2563eb" />
+      <circle cx="114" cy="1152" r="18" fill="#ffffff" opacity="0.94" />
+      
+    <g transform="translate(104 1142) scale(0.8333333333333334)" fill="none" stroke="#2563eb" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 3.1V7a4 4 0 0 0 8 0V3.1" /><path d="m9 15-1-1" /><path d="m15 15 1-1" /><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z" /><path d="m8 19-2 3" /><path d="m16 19 2 3" />
+    </g>
+      <text class="small" x="114" y="1220" text-anchor="middle">지하철역</text>
+    </g>
+    <g>
+      <path d="M234 1124c-15.5 0-28 12.5-28 28 0 21 28 48 28 48s28-27 28-48c0-15.5-12.5-28-28-28Z" fill="#2563eb" />
+      <circle cx="234" cy="1152" r="18" fill="#ffffff" opacity="0.94" />
+      
+    <g transform="translate(224 1142) scale(0.8333333333333334)" fill="none" stroke="#2563eb" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" />
+    </g>
+      <text class="small" x="234" y="1220" text-anchor="middle">버스</text>
+    </g>
+    <g>
+      <path d="M354 1124c-15.5 0-28 12.5-28 28 0 21 28 48 28 48s28-27 28-48c0-15.5-12.5-28-28-28Z" fill="#16a34a" />
+      <circle cx="354" cy="1152" r="18" fill="#ffffff" opacity="0.94" />
+      
+    <g transform="translate(344 1142) scale(0.8333333333333334)" fill="none" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" /><path d="M6 2v2" />
+    </g>
+      <text class="small" x="354" y="1220" text-anchor="middle">카페</text>
+    </g>
+    <g>
+      <path d="M474 1124c-15.5 0-28 12.5-28 28 0 21 28 48 28 48s28-27 28-48c0-15.5-12.5-28-28-28Z" fill="#e11d48" />
+      <circle cx="474" cy="1152" r="18" fill="#ffffff" opacity="0.94" />
+      
+    <g transform="translate(464 1142) scale(0.8333333333333334)" fill="none" stroke="#e11d48" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 7v4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M14 9h-4" /><path d="M18 11h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h2" /><path d="M18 21V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16" />
+    </g>
+      <text class="small" x="474" y="1220" text-anchor="middle">병원</text>
+    </g>
+    <g>
+      <path d="M594 1124c-15.5 0-28 12.5-28 28 0 21 28 48 28 48s28-27 28-48c0-15.5-12.5-28-28-28Z" fill="#4f46e5" />
+      <circle cx="594" cy="1152" r="18" fill="#ffffff" opacity="0.94" />
+      
+    <g transform="translate(584 1142) scale(0.8333333333333334)" fill="none" stroke="#4f46e5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 21V7" /><path d="m16 12 2 2 4-4" /><path d="M22 6V4a1 1 0 0 0-1-1h-5a4 4 0 0 0-4 4 4 4 0 0 0-4-4H3a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h6a3 3 0 0 1 3 3 3 3 0 0 1 3-3h6a1 1 0 0 0 1-1v-1.3" />
+    </g>
+      <text class="small" x="594" y="1220" text-anchor="middle">학원</text>
+    </g>
+    <g>
+      <rect x="690" y="1118" width="132" height="44" rx="22" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="696" y="1124" width="46" height="32" rx="16" fill="#00704a" />
+      <text x="719" y="1145" text-anchor="middle" font-family="Malgun Gothic, Segoe UI, Arial" font-size="10" font-weight="900" fill="#ffffff">STAR</text>
+      <text class="label" x="750" y="1146" font-size="14">스타벅스</text>
+    </g>
+    <g>
+      <rect x="880" y="1118" width="132" height="44" rx="22" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="886" y="1124" width="46" height="32" rx="16" fill="#642f8f" />
+      <text x="909" y="1145" text-anchor="middle" font-family="Malgun Gothic, Segoe UI, Arial" font-size="13" font-weight="900" fill="#ffffff">CU</text>
+      <text class="label" x="940" y="1146" font-size="14">CU</text>
+    </g>
+    <g>
+      <rect x="690" y="1180" width="132" height="44" rx="22" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="696" y="1186" width="46" height="32" rx="16" fill="#0072ce" />
+      <text x="719" y="1207" text-anchor="middle" font-family="Malgun Gothic, Segoe UI, Arial" font-size="10" font-weight="900" fill="#ffffff">GS25</text>
+      <text class="label" x="750" y="1208" font-size="14">GS25</text>
+    </g>
+    <g>
+      <rect x="880" y="1180" width="132" height="44" rx="22" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="886" y="1186" width="46" height="32" rx="16" fill="#f4c400" />
+      <text x="909" y="1207" text-anchor="middle" font-family="Malgun Gothic, Segoe UI, Arial" font-size="13" font-weight="900" fill="#111827">e</text>
+      <text class="label" x="940" y="1208" font-size="14">이마트</text>
+    </g>
+    <g>
+      <rect x="690" y="1242" width="132" height="44" rx="22" fill="#ffffff" stroke="#dbe4ee" />
+      <rect x="696" y="1248" width="46" height="32" rx="16" fill="#005daa" />
+      <text x="719" y="1269" text-anchor="middle" font-family="Malgun Gothic, Segoe UI, Arial" font-size="10" font-weight="900" fill="#ffffff">COST</text>
+      <text class="label" x="750" y="1270" font-size="14">코스트코</text>
+    </g>
+  <rect x="48" y="1374" width="1094" height="118" rx="20" fill="#0f172a" />
+  <text x="78" y="1412" font-family="Malgun Gothic, Segoe UI, Arial" font-size="20" font-weight="900" fill="#ffffff">제안 결론</text>
+  <text x="78" y="1444" font-family="Malgun Gothic, Segoe UI, Arial" font-size="15" fill="#cbd5e1">Explore/Result 일반 아이콘은 B. Bold App Badge, 서브타입칩은 B의 작은 칩 버전, 브랜드 서브타입은 D의 로고 우선형을 추천합니다.</text>
+  <text x="78" y="1472" font-family="Malgun Gothic, Segoe UI, Arial" font-size="15" fill="#cbd5e1">즉, Lucide 이름 검증은 유지하되 실제 표현은 얇은 라인이 아니라 굵은 컬러 배지로 가는 편이 기존보다 확실히 낫습니다.</text>
+
+</svg>

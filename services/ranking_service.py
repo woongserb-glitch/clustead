@@ -41,6 +41,11 @@ RANKING_SOURCES = {
     "cctv": ("cctv", "cctv_baseline_data"),
 }
 
+# Home/Explore 랭킹이 실제로 사용하는 baseline metric(config) 키 집합 = 단일 기준.
+# ranking-debug 화면도 이 집합만 노출해 Home/Explore 와 metric 기준을 일치시킨다.
+# (park/school_zone 처럼 BASELINE_METRIC_CONFIG 엔 있으나 랭킹 브리지에 없는 metric은 제외)
+RANKING_METRIC_KEYS = {config_key for config_key, _data_attr in RANKING_SOURCES.values()}
+
 _APARTMENT_INDEX_CACHE = None
 
 

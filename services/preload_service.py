@@ -4,7 +4,12 @@ import re
 import os
 import pandas as pd
 
-PRELOAD_VERBOSE = os.getenv("LIVEFIT_PRELOAD_VERBOSE", "0") == "1"
+
+def clustead_env(key, default=""):
+    return os.getenv(f"CLUSTEAD_{key}", os.getenv(f"LIVEFIT_{key}", default))
+
+
+PRELOAD_VERBOSE = clustead_env("PRELOAD_VERBOSE", "0") == "1"
 
 
 def preload_log(*args):
