@@ -15,6 +15,7 @@ from services.ranking_service import (
 import os
 from pathlib import Path
 from urllib.parse import quote, urlencode
+from xml.sax.saxutils import escape as xml_escape
 
 try:
     from dotenv import load_dotenv
@@ -163,6 +164,51 @@ def debug_log(*args):
         print(*args)
 
 
+SITE_BASE_URL = (clustead_env("SITE_URL", "https://clustead.com").strip().rstrip("/")
+                 or "https://clustead.com")
+DEFAULT_OG_IMAGE_PATH = "/static/brand/og-clustead.svg"
+DEFAULT_META_DESCRIPTION = (
+    "서울 아파트의 교통, 교육, 의료, 편의, 안전 생활 인프라를 데이터 기반으로 비교하고 "
+    "내 삶에 맞는 단지를 찾아보세요."
+)
+
+
+def _absolute_url(path="/", params=None):
+    path = "/" + str(path or "/").lstrip("/")
+    suffix = f"?{urlencode(params)}" if params else ""
+    return f"{SITE_BASE_URL}{path}{suffix}"
+
+
+def _truncate_meta(text, limit=155):
+    text = re.sub(r"\s+", " ", clean_text(text)).strip()
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 1)].rstrip() + "…"
+
+
+def build_home_json_ld():
+    return [
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Clustead",
+            "url": _absolute_url("/"),
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": f"{_absolute_url('/result')}?apartment={{search_term_string}}",
+                "query-input": "required name=search_term_string",
+            },
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Clustead",
+            "url": _absolute_url("/"),
+            "logo": _absolute_url("/static/brand/clustead-mark.svg"),
+        },
+    ]
+
+
 # ── 배포 보안 (외부 공개) ───────────────────────────────────────────────
 # Werkzeug 디버거는 임의 코드 실행(RCE) 경로다. 명시적 opt-in일 때만 켜고
 # 기본은 OFF. 로깅용 CLUSTEAD_DEBUG와 분리해 실수로 켜지지 않게 한다.
@@ -186,7 +232,11 @@ def _require_admin():
 @app.context_processor
 def _inject_template_globals():
     """모든 템플릿 공통 주입. GA4 측정ID(CLUSTEAD_GA4_ID) 설정 시에만 gtag 로드."""
-    return {"ga4_id": os.getenv("CLUSTEAD_GA4_ID", "")}
+    return {
+        "ga4_id": os.getenv("CLUSTEAD_GA4_ID", ""),
+        "site_url": SITE_BASE_URL,
+        "og_image_url": _absolute_url(DEFAULT_OG_IMAGE_PATH),
+    }
 
 
 _ERROR_PAGE = (
@@ -227,6 +277,58 @@ def healthz():
     # 로드밸런서/Docker 헬스체크용. 데이터 적재 완료(부팅 워밍업 후)에만 200.
     ready = bool(apartment_data)
     return jsonify({"status": "ok" if ready else "loading"}), (200 if ready else 503)
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    body = "\n".join([
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /admin/",
+        "Disallow: /api/",
+        "Disallow: /healthz",
+        "Disallow: /result/export.xlsx",
+        "",
+        f"Sitemap: {_absolute_url('/sitemap.xml')}",
+        "",
+    ])
+    return Response(body, mimetype="text/plain; charset=utf-8")
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    urls = [
+        {"loc": _absolute_url("/"), "changefreq": "weekly", "priority": "1.0"},
+        {"loc": _absolute_url("/explore"), "changefreq": "weekly", "priority": "0.8"},
+        {"loc": _absolute_url("/compare"), "changefreq": "monthly", "priority": "0.5"},
+    ]
+
+    seen = {item["loc"] for item in urls}
+    for apt in apartment_data:
+        view = _build_apartment_view(apt)
+        name = clean_text(view.get("name", ""))
+        if not name:
+            continue
+        loc = _absolute_url("/result", _result_identity_params(view))
+        if loc in seen:
+            continue
+        seen.add(loc)
+        urls.append({"loc": loc, "changefreq": "monthly", "priority": "0.7"})
+
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for item in urls:
+        lines.extend([
+            "  <url>",
+            f"    <loc>{xml_escape(item['loc'])}</loc>",
+            f"    <changefreq>{item['changefreq']}</changefreq>",
+            f"    <priority>{item['priority']}</priority>",
+            "  </url>",
+        ])
+    lines.append("</urlset>")
+    return Response("\n".join(lines), mimetype="application/xml; charset=utf-8")
 
 
 PREFERENCE_KEYS = [
@@ -4201,6 +4303,111 @@ def make_result_url(apartment_name, preferences, gu="", dong="", src="home", sha
     return "/result?" + urlencode(params)
 
 
+def _result_identity_params(apartment):
+    params = {"apartment": clean_text(apartment.get("name", ""))}
+    district = clean_text(apartment.get("district", "") or apartment.get("gu", ""))
+    dong = clean_text(apartment.get("dong", ""))
+    if district:
+        params["gu"] = district
+    if dong:
+        params["dong"] = dong
+    return params
+
+
+def build_result_seo(apartment, complex_info, insight, category_summaries):
+    name = clean_text(apartment.get("name", ""))
+    district = clean_text(apartment.get("district", "") or apartment.get("gu", ""))
+    dong = clean_text(apartment.get("dong", ""))
+    location = " ".join(part for part in [district, dong] if part)
+    title = f"{name} 생활환경 분석 | Clustead" if name else "아파트 생활환경 분석 | Clustead"
+
+    highlights = []
+    if complex_info.get("nearest_subway"):
+        nearest_subway = re.sub(r"^[^\w가-힣]+", "", clean_text(complex_info.get("nearest_subway"))).strip()
+        highlights.append(f"최근접 지하철 {nearest_subway}")
+    if complex_info.get("school"):
+        highlights.append(f"대표 배정초 {clean_text(complex_info.get('school'))}")
+    if complex_info.get("households"):
+        households = clean_text(complex_info.get("households"))
+        highlights.append(households if "세대" in households else f"{households}세대")
+
+    strong_categories = [
+        clean_text(summary.get("label", ""))
+        for summary in (category_summaries or [])
+        if summary.get("grade") in {"S", "A"} and clean_text(summary.get("label", ""))
+    ][:2]
+    if strong_categories:
+        highlights.append("강점 " + ", ".join(strong_categories))
+
+    description_base = (
+        f"{name} {location}의 교통, 교육, 의료, 편의, 안전 생활 인프라를 "
+        "서울시 상대평가로 확인하세요."
+    ).strip()
+    if highlights:
+        description_base += " " + " · ".join(highlights[:3]) + "."
+    elif insight and insight.get("summary"):
+        description_base += " " + clean_text(insight.get("summary"))
+
+    canonical_url = _absolute_url("/result", _result_identity_params(apartment))
+    address = clean_text(apartment.get("road_address", "")) or location
+    lat = parse_optional_float(apartment.get("lat"))
+    lng = parse_optional_float(apartment.get("lng"))
+
+    place = {
+        "@context": "https://schema.org",
+        "@type": "Place",
+        "name": name,
+        "url": canonical_url,
+        "description": _truncate_meta(description_base, 300),
+        "address": {
+            "@type": "PostalAddress",
+            "addressCountry": "KR",
+            "addressLocality": "서울특별시",
+            "addressRegion": district,
+            "streetAddress": address,
+        },
+    }
+    if lat is not None and lng is not None:
+        place["geo"] = {
+            "@type": "GeoCoordinates",
+            "latitude": lat,
+            "longitude": lng,
+        }
+
+    breadcrumb = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Clustead",
+                "item": _absolute_url("/"),
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "서울 아파트 탐색",
+                "item": _absolute_url("/explore"),
+            },
+            {
+                "@type": "ListItem",
+                "position": 3,
+                "name": name,
+                "item": canonical_url,
+            },
+        ],
+    }
+
+    return {
+        "title": title,
+        "description": _truncate_meta(description_base),
+        "canonical_url": canonical_url,
+        "og_image_url": _absolute_url(DEFAULT_OG_IMAGE_PATH),
+        "json_ld": [place, breadcrumb],
+    }
+
+
 def normalize_source_label(source):
     source = clean_text(source)
     if not source:
@@ -4458,7 +4665,11 @@ def home():
         user_agent=request.headers.get("User-Agent"),
         path=request.path,
     )
-    return render_template("index.html", home_config=home_config)
+    return render_template(
+        "index.html",
+        home_config=home_config,
+        home_json_ld=build_home_json_ld(),
+    )
 
 
 @app.route("/admin/ranking-debug")
@@ -6303,9 +6514,11 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
 
     # 카테고리 상세 카드를 가치판단 중요도 순으로 정렬(지하철·버스·교육·학원 …).
     category_summaries = sort_category_summaries(category_summaries)
+    seo = build_result_seo(apartment, complex_info, insight, category_summaries)
 
     return {
         "apartment": apartment,
+        "seo": seo,
         "scores": scores,
         "preferences": preferences,
         "entry_src": entry_src,

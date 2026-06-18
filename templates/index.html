@@ -19,16 +19,21 @@
     </script>
     <title>Clustead — 내 삶에 맞는 서울 아파트</title>
     <meta name="description" content="집값·브랜드가 아니라 실제 누리는 생활 인프라(교통·의료·교육·편의·안전)를 서울시 상대평가로 점수화. Cluster + Stead, Clustead.">
+    <link rel="canonical" href="{{ site_url }}/">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Clustead">
     <meta property="og:title" content="Clustead — 내 삶에 맞는 서울 아파트">
     <meta property="og:description" content="집값이 아니라 생활 인프라로 보는 서울 아파트. 교통·의료·교육·편의·안전을 서울시 상대평가로 점수화.">
-    <meta property="og:url" content="https://clustead.com/">
-    <meta property="og:image" content="https://clustead.com/static/brand/og-clustead.svg">
+    <meta property="og:url" content="{{ site_url }}/">
+    <meta property="og:image" content="{{ og_image_url }}">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Clustead — 내 삶에 맞는 서울 아파트">
+    <meta name="twitter:description" content="집값이 아니라 생활 인프라로 보는 서울 아파트. 교통·의료·교육·편의·안전을 서울시 상대평가로 점수화.">
+    <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}?v=35">
+    <script type="application/ld+json">{{ home_json_ld | tojson | safe }}</script>
     {% include "_analytics_head.html" %}
 </head>
 

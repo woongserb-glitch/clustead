@@ -15,6 +15,7 @@ Or with pytest:   pytest tests/test_correctness.py
 
 import os
 import sys
+from itertools import islice
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -211,7 +212,7 @@ def integ_ranking_matches_baked_scores():
     col = score_column(cfg["primary_metric"])
 
     checked = 0
-    for row in P.nightlife_baseline_data[:50]:
+    for row in islice(P.nightlife_baseline_data, 50):
         key = (row.get("name"), row.get("gu"), row.get("dong"))
         baked = R.to_number(row.get(col))
         entry = idx.get(key)
@@ -317,6 +318,44 @@ def integ_subway_station_filter_500m():
     assert radius_case is not None, "expected a station-beyond-500m apartment (radius lock)"
     near = app._apartment_station_names(radius_case)
     assert near < wide_station_names(radius_case)  # 500m 셋은 넓은 셋의 진부분집합
+
+
+def integ_seo_crawl_endpoints():
+    app = _app()
+    client = app.app.test_client()
+
+    robots = client.get("/robots.txt")
+    assert robots.status_code == 200
+    robots_text = robots.get_data(as_text=True)
+    assert "User-agent: *" in robots_text
+    assert "Disallow: /admin/" in robots_text
+    assert "Sitemap: https://clustead.com/sitemap.xml" in robots_text
+
+    sitemap = client.get("/sitemap.xml")
+    assert sitemap.status_code == 200
+    sitemap_text = sitemap.get_data(as_text=True)
+    assert sitemap_text.startswith('<?xml version="1.0" encoding="UTF-8"?>')
+    assert "<loc>https://clustead.com/</loc>" in sitemap_text
+    assert "https://clustead.com/result?apartment=" in sitemap_text
+    assert "&amp;gu=" in sitemap_text
+
+
+def integ_result_page_has_seo_meta():
+    app = _app()
+    apt = next(a for a in app.apartment_data if a.get("name") and a.get("gu") and a.get("dong"))
+    client = app.app.test_client()
+
+    response = client.get("/result", query_string={
+        "apartment": apt.get("name"),
+        "gu": apt.get("gu"),
+        "dong": apt.get("dong"),
+    })
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "생활환경 분석 | Clustead" in html
+    assert '<meta name="description"' in html
+    assert '<link rel="canonical" href="https://clustead.com/result?apartment=' in html
+    assert '<script type="application/ld+json">' in html
 
 
 # --------------------------------------------------------------------------
