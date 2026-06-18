@@ -1,0 +1,12 @@
+{# Google Analytics 4 (gtag.js). CLUSTEAD_GA4_ID 환경변수가 설정된 경우에만 로드한다.
+   미설정 시 아무것도 출력하지 않으므로 개발/미설정 환경에 영향 없음.
+   측정ID는 app.py context_processor(ga4_id)로 주입. #}
+{% if ga4_id %}
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ ga4_id }}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '{{ ga4_id }}');
+</script>
+{% endif %}

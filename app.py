@@ -183,6 +183,12 @@ def _require_admin():
     abort(404)
 
 
+@app.context_processor
+def _inject_template_globals():
+    """모든 템플릿 공통 주입. GA4 측정ID(CLUSTEAD_GA4_ID) 설정 시에만 gtag 로드."""
+    return {"ga4_id": os.getenv("CLUSTEAD_GA4_ID", "")}
+
+
 _ERROR_PAGE = (
     "<!doctype html><html lang=ko><head><meta charset=utf-8>"
     "<meta name=viewport content='width=device-width,initial-scale=1'>"
