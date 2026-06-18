@@ -1,5 +1,6 @@
 const quickButtons = document.querySelectorAll(".quick-search button");
 const searchInput = document.querySelector(".search-row input");
+const EXPLORE_RESULTS_HASH = "explore-results";
 
 function showPageLoading() {
     const overlay = document.getElementById("homeLoadingOverlay");
@@ -142,12 +143,39 @@ function setupExploreLoading() {
         if (window.ClusteadShare) {
             const encoded = window.ClusteadShare.encodeFilters(collectExploreFormFilters(form));
             if (encoded) {
-                window.location.href = `/explore?q=${encoded}`;
+                const hash = isMobileViewport() ? `#${EXPLORE_RESULTS_HASH}` : "";
+                window.location.href = `/explore?q=${encoded}${hash}`;
                 return;
             }
         }
+        if (isMobileViewport()) {
+            form.action = `/explore#${EXPLORE_RESULTS_HASH}`;
+        }
         form.submit();
     });
+}
+
+function isMobileViewport() {
+    return window.matchMedia && window.matchMedia("(max-width: 760px)").matches;
+}
+
+function setupExploreResultAnchor() {
+    if (window.location.hash !== `#${EXPLORE_RESULTS_HASH}`) return;
+
+    const target = document.getElementById(EXPLORE_RESULTS_HASH);
+    if (!target) return;
+
+    window.setTimeout(() => {
+        target.scrollIntoView({
+            block: "start",
+            behavior: isMobileViewport() ? "smooth" : "auto",
+        });
+        try {
+            target.focus({ preventScroll: true });
+        } catch (error) {
+            target.focus();
+        }
+    }, 80);
 }
 
 quickButtons.forEach((button) => {
@@ -261,7 +289,7 @@ function selectAutocompleteItem(input, item) {
     const form = input.closest("form");
     // Carry the exact (gu, dong) so /result resolves the right complex when
     // apartment names collide across Seoul.
-    if (form) {
+    if (form && input.dataset.autocomplete === "apartments") {
         setHiddenField(form, "gu", item.dataset.gu || "");
         setHiddenField(form, "dong", item.dataset.dong || "");
     }
@@ -341,7 +369,19 @@ function renderAutocompleteItems(input, menu, items) {
             <strong>${item.label || item.value || ""}</strong>
             ${item.meta ? `<span>${item.meta}</span>` : ""}
         `;
-        button.addEventListener("click", () => {
+        let selectedOnPointer = false;
+        button.addEventListener("pointerdown", (event) => {
+            if (event.button && event.button !== 0) return;
+            event.preventDefault();
+            selectedOnPointer = true;
+            selectAutocompleteItem(input, button);
+        });
+        button.addEventListener("click", (event) => {
+            event.preventDefault();
+            if (selectedOnPointer) {
+                selectedOnPointer = false;
+                return;
+            }
             selectAutocompleteItem(input, button);
         });
         menu.appendChild(button);
@@ -504,6 +544,11 @@ async function ensureKnownAutocomplete(input) {
             // 아파트는 이름이 충돌하므로 식별용 gu/dong도 함께 보관(있을 때만).
             if (exact.gu !== undefined) input.dataset.selectedGu = exact.gu || "";
             if (exact.dong !== undefined) input.dataset.selectedDong = exact.dong || "";
+            if (input.dataset.autocomplete === "apartments") {
+                const form = input.closest("form");
+                setHiddenField(form, "gu", exact.gu || "");
+                setHiddenField(form, "dong", exact.dong || "");
+            }
             return true;
         }
     } catch (error) {
@@ -536,6 +581,10 @@ async function ensureKnownApartment(form) {
         if (exact) {
             input.dataset.selectedValue = exact.value;
             input.value = exact.value;
+            input.dataset.selectedGu = exact.gu || "";
+            input.dataset.selectedDong = exact.dong || "";
+            setHiddenField(form, "gu", exact.gu || "");
+            setHiddenField(form, "dong", exact.dong || "");
             return true;
         }
     } catch (error) {
@@ -1017,6 +1066,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPriceTypeToggle();
     setupExploreStateSharing();
     setupExploreLoading();
+    setupExploreResultAnchor();
     setupCompareForm();
 
     const detailCards = document.querySelectorAll(".detail-card");

@@ -7,7 +7,7 @@
     <title>Explore | Clustead</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260618-mobile">
     {% include "_analytics_head.html" %}
 </head>
 
@@ -35,6 +35,22 @@
             </h1>
             <p>지역, 학교, 지하철, 버스, 병원, 대형마트, 실거래가까지<br>원하는 조건을 직접 조합해 찾아보세요.</p>
         </header>
+
+        <section class="explore-mobile-name-search" aria-label="아파트명 검색">
+            <form action="/result" method="get" class="explore-name-search-form" data-apartment-search-form data-show-loading="true">
+                <div class="explore-name-search-copy">
+                    <strong>아파트명으로 바로 검색</strong>
+                    <span>단지명을 알고 있다면 결과 페이지로 바로 이동합니다.</span>
+                </div>
+                <div class="explore-name-search-row">
+                    <div class="autocomplete-field">
+                        <input type="text" name="apartment" placeholder="예: 헬리오시티" autocomplete="off" data-autocomplete="apartments" data-require-known="true" aria-label="아파트명 검색">
+                    </div>
+                    <input type="hidden" name="src" value="explore">
+                    <button type="submit">검색</button>
+                </div>
+            </form>
+        </section>
 
         <main class="tool-layout">
             <section class="tool-filter-card">
@@ -196,7 +212,7 @@
                 </script>
             </section>
 
-            <section class="tool-results-card">
+            <section class="tool-results-card" id="explore-results" data-explore-results tabindex="-1">
                 {% if has_active_filters %}
                 <div class="section-head">
                     <div>
@@ -277,7 +293,7 @@
     </div>
     {% include "_legal_footer.html" %}
     <script src="{{ url_for('static', filename='share.js') }}?v=1"></script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}?v=20260618-mobile"></script>
 </body>
 
 </html>
