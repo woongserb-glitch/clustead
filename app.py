@@ -5638,6 +5638,14 @@ def _subtype_lookup(category):
 _DERIVED_STATS_CACHE = {}
 
 
+_BASELINE_DATA_BY_FILENAME = {
+    "medical_baseline.csv": medical_baseline_data,
+    "culture_baseline.csv": culture_baseline_data,
+    "hangang_baseline.csv": hangang_baseline_data,
+    "nightlife_baseline.csv": nightlife_baseline_data,
+}
+
+
 def _raise_csv_field_limit():
     limit = sys.maxsize
     while True:
@@ -5680,10 +5688,15 @@ def _big_park_nearest_lookup():
     return _DERIVED_STATS_CACHE["big_park"]
 
 
-def _derived_category_stats(kind):
+def _derived_category_stats(kind, subtypes=None):
     """{(name,gu,dong): {subtype: (count, nearest_distance|None)}} for derived 우선순위
     categories (의료/문화/공원). 캐시."""
-    if kind in _DERIVED_STATS_CACHE:
+    all_subtypes = tuple(SUBTYPE_SEARCH_CONFIG[kind]["subtypes"])
+    requested_subtypes = tuple(subtypes or all_subtypes)
+    cache_key = kind if requested_subtypes == all_subtypes else (kind, tuple(sorted(requested_subtypes)))
+    if cache_key in _DERIVED_STATS_CACHE:
+        return _DERIVED_STATS_CACHE[cache_key]
+    if cache_key != kind and kind in _DERIVED_STATS_CACHE:
         return _DERIVED_STATS_CACHE[kind]
     _raise_csv_field_limit()
     result = {}
@@ -5692,76 +5705,96 @@ def _derived_category_stats(kind):
         # 소아과/산부인과는 도보권(500m) 전체 카운트 컬럼(정확). 응급실(1km)·종합병원(5km)은
         # 차량 이동 시설이라 각자 반경 baked 컬럼 사용. 최근접 거리는 json에서 보강.
         # 진료과 500m 카운트 컬럼이 아직 없는(재빌드 전) CSV는 json 집계로 폴백.
+        medical_subtypes = SUBTYPE_SEARCH_CONFIG["medical"]["subtypes"]
+        emergency_label, superior_label = medical_subtypes[0], medical_subtypes[1]
+        clinic_subtypes = tuple(medical_subtypes[2:4])
+        clinic_requested = tuple(sub for sub in clinic_subtypes if sub in requested_subtypes)
+        columns = ["name", "gu", "dong"]
+        if emergency_label in requested_subtypes:
+            columns.extend(["emergency_count_1km", "nearest_emergency_distance"])
+        if superior_label in requested_subtypes:
+            columns.extend(["superior_hospital_count_5km", "nearest_superior_hospital_distance"])
+        if clinic_requested:
+            columns.append("medical_items_json")
+            columns.extend(f"{sub}_count_500m" for sub in clinic_requested)
         try:
-            with open("data/baseline/medical_baseline.csv", encoding="utf-8-sig", newline="") as file:
-                for row in csv.DictReader(file):
-                    stats = {
-                        "응급실": (to_int(row.get("emergency_count_1km"), 0),
-                                 parse_optional_float(row.get("nearest_emergency_distance"))),
-                        "종합병원": (to_int(row.get("superior_hospital_count_5km"), 0),
-                                  parse_optional_float(row.get("nearest_superior_hospital_distance"))),
-                    }
+            for row in iter_baseline_columns(medical_baseline_data, columns):
+                stats = {}
+                if emergency_label in requested_subtypes:
+                    stats[emergency_label] = (
+                        to_int(row.get("emergency_count_1km"), 0),
+                        parse_optional_float(row.get("nearest_emergency_distance")),
+                    )
+                if superior_label in requested_subtypes:
+                    stats[superior_label] = (
+                        to_int(row.get("superior_hospital_count_5km"), 0),
+                        parse_optional_float(row.get("nearest_superior_hospital_distance")),
+                    )
+                if clinic_requested:
                     try:
                         items = json.loads(row.get("medical_items_json", "[]") or "[]")
                     except Exception:
                         items = []
-                    for sub in ("소아과", "산부인과"):
-                        near, json_cnt = None, 0
-                        for item in items:
-                            if clean_text(item.get("subtype", "")) == sub:
-                                dist = parse_optional_float(item.get("distance"))
-                                if dist is not None and dist <= 500:
-                                    json_cnt += 1
-                                    if near is None or dist < near:
-                                        near = dist
-                        col_val = row.get(f"{sub}_count_500m")
-                        count = to_int(col_val, 0) if (col_val not in (None, "")) else json_cnt
-                        stats[sub] = (count, near)
-                    result[_csv_key(row)] = stats
+                else:
+                    items = []
+                for sub in clinic_requested:
+                    near, json_cnt = None, 0
+                    for item in items:
+                        if clean_text(item.get("subtype", "")) == sub:
+                            dist = parse_optional_float(item.get("distance"))
+                            if dist is not None and dist <= 500:
+                                json_cnt += 1
+                                if near is None or dist < near:
+                                    near = dist
+                    col_val = row.get(f"{sub}_count_500m")
+                    count = to_int(col_val, 0) if (col_val not in (None, "")) else json_cnt
+                    stats[sub] = (count, near)
+                result[_csv_key(row)] = stats
         except Exception:
             pass
 
     elif kind == "culture":
-        colmap = {"공연": "performance_count", "전시": "exhibition_count",
-                  "체육": "sports_count", "키즈": "kids_count", "체험": "experience_count"}
+        all_colmap = dict(zip(
+            SUBTYPE_SEARCH_CONFIG["culture"]["subtypes"],
+            ("performance_count", "exhibition_count", "sports_count", "kids_count", "experience_count"),
+        ))
+        colmap = {label: col for label, col in all_colmap.items() if label in requested_subtypes}
+        columns = ["name", "gu", "dong", "nearest_culture_distance"] + list(colmap.values())
         try:
-            with open("data/baseline/culture_baseline.csv", encoding="utf-8-sig", newline="") as file:
-                for row in csv.DictReader(file):
-                    near = parse_optional_float(row.get("nearest_culture_distance"))
-                    result[_csv_key(row)] = {
-                        label: (to_int(row.get(col), 0), near) for label, col in colmap.items()
-                    }
+            for row in iter_baseline_columns(culture_baseline_data, columns):
+                near = parse_optional_float(row.get("nearest_culture_distance"))
+                result[_csv_key(row)] = {
+                    label: (to_int(row.get(col), 0), near) for label, col in colmap.items()
+                }
         except Exception:
             pass
 
     elif kind == "park":
-        park_dist = {}
-        try:
-            with open("data/baseline/park_baseline.csv", encoding="utf-8-sig", newline="") as file:
-                for row in csv.DictReader(file):
-                    park_dist[_csv_key(row)] = parse_optional_float(row.get("park_distance"))
-        except Exception:
-            pass
-        hangang_dist = {}
-        try:
-            with open("data/baseline/hangang_baseline.csv", encoding="utf-8-sig", newline="") as file:
-                for row in csv.DictReader(file):
-                    hangang_dist[_csv_key(row)] = parse_optional_float(row.get("nearest_hangang_distance"))
-        except Exception:
-            pass
-        big = _big_park_nearest_lookup()
+        regular_park, hangang_park, big_park = SUBTYPE_SEARCH_CONFIG["park"]["subtypes"]
+        park_dist = (
+            _baseline_metric_lookup("park_distance", "park_baseline.csv", "park_distance")
+            if regular_park in requested_subtypes else {}
+        )
+        hangang_dist = (
+            _baseline_metric_lookup("hangang_nearest_distance", "hangang_baseline.csv", "nearest_hangang_distance")
+            if hangang_park in requested_subtypes else {}
+        )
+        big = _big_park_nearest_lookup() if big_park in requested_subtypes else {}
         keys = set(park_dist) | set(hangang_dist) | set(big)
         for key in keys:
             pdist = park_dist.get(key)
             hdist = hangang_dist.get(key)
             bdist = big.get(key)
-            result[key] = {
-                "일반공원": (1 if (pdist is not None and pdist <= 1000) else 0, pdist),
-                "한강공원": (1 if (hdist is not None and hdist <= 3000) else 0, hdist),
-                "대형공원": (1 if (bdist is not None and bdist <= 3000) else 0, bdist),
-            }
+            stats = {}
+            if regular_park in requested_subtypes:
+                stats[regular_park] = (1 if (pdist is not None and pdist <= 1000) else 0, pdist)
+            if hangang_park in requested_subtypes:
+                stats[hangang_park] = (1 if (hdist is not None and hdist <= 3000) else 0, hdist)
+            if big_park in requested_subtypes:
+                stats[big_park] = (1 if (bdist is not None and bdist <= 3000) else 0, bdist)
+            result[key] = stats
 
-    _DERIVED_STATS_CACHE[kind] = result
+    _DERIVED_STATS_CACHE[cache_key] = result
     return result
 
 
@@ -6172,21 +6205,22 @@ def _representative_area_lookup():
 def _baseline_metric_lookup(cache_key, filename, column):
     """{(name,gu,dong): float|None} for one baseline column, cached per process."""
     if cache_key not in _EXPLORE_LOOKUP_CACHE:
-        limit = sys.maxsize
-        while True:
-            try:
-                csv.field_size_limit(limit)
-                break
-            except OverflowError:
-                limit = int(limit / 10)
         lookup = {}
-        try:
-            with open(f"data/baseline/{filename}", encoding="utf-8-sig", newline="") as file:
-                for row in csv.DictReader(file):
-                    key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
-                    lookup[key] = parse_optional_float(row.get(column))
-        except Exception:
-            pass
+        baseline_data = _BASELINE_DATA_BY_FILENAME.get(filename)
+        if baseline_data is not None:
+            try:
+                for row in iter_baseline_columns(baseline_data, ["name", "gu", "dong", column]):
+                    lookup[_csv_key(row)] = parse_optional_float(row.get(column))
+            except Exception:
+                pass
+        else:
+            _raise_csv_field_limit()
+            try:
+                with open(f"data/baseline/{filename}", encoding="utf-8-sig", newline="") as file:
+                    for row in csv.DictReader(file):
+                        lookup[_csv_key(row)] = parse_optional_float(row.get(column))
+            except Exception:
+                pass
         _EXPLORE_LOOKUP_CACHE[cache_key] = lookup
     return _EXPLORE_LOOKUP_CACHE[cache_key]
 
@@ -6323,6 +6357,22 @@ def build_explore_results(filters, limit=10, share_q=""):
     priority_specs = [(category, subtype, SUBTYPE_SEARCH_CONFIG[category]) for category, subtype in priorities]
     has_priority_sort = bool(priority_specs)
     academy_subtypes = _academy_subtype_lookup() if any(category == "academy" for category, _, _ in priority_specs) else {}
+    nightlife_counts = (
+        _baseline_metric_lookup("nightlife500", "nightlife_baseline.csv", "nightlife_count_500m")
+        if no_nightlife else {}
+    )
+    medical_emergency_distances = (
+        _baseline_metric_lookup("medical_nearest_emergency", "medical_baseline.csv", "nearest_emergency_distance")
+        if not has_priority_sort else {}
+    )
+    requested_derived_subtypes = {}
+    for _category, subtype, cfg in priority_specs:
+        if cfg.get("derived"):
+            requested_derived_subtypes.setdefault(cfg["derived"], set()).add(subtype)
+    derived_stats_by_kind = {
+        kind: _derived_category_stats(kind, tuple(subtypes))
+        for kind, subtypes in requested_derived_subtypes.items()
+    }
     needs_subway_lookup = bool(line_filter or station_filter or not has_priority_sort)
     preferences = get_preferences()
 
@@ -6332,6 +6382,7 @@ def build_explore_results(filters, limit=10, share_q=""):
         name = clean_text(apartment.get("name", ""))
         gu = clean_text(apartment.get("gu", ""))
         dong = clean_text(apartment.get("dong", ""))
+        apartment_key = (name, gu, dong)
 
         if gu_filter and gu_filter != gu:
             continue
@@ -6363,9 +6414,7 @@ def build_explore_results(filters, limit=10, share_q=""):
 
         # 유흥시설 없음: 500m 내 유흥시설이 0곳인 단지만
         if no_nightlife:
-            nightlife_count = _baseline_metric_lookup(
-                "nightlife500", "nightlife_baseline.csv", "nightlife_count_500m"
-            ).get((name, gu, dong))
+            nightlife_count = nightlife_counts.get(apartment_key)
             if nightlife_count is None or nightlife_count > 0:
                 continue
             matched.append("🍺 반경 500m이내 유흥시설 없음")
@@ -6458,7 +6507,7 @@ def build_explore_results(filters, limit=10, share_q=""):
                         matched.append(f"{cfg['icon']} {subtype} {count}곳")
                     continue
                 if cfg.get("derived"):
-                    stats = _derived_category_stats(cfg["derived"]).get((name, gu, dong)) or {}
+                    stats = derived_stats_by_kind.get(cfg["derived"], {}).get(apartment_key) or {}
                     count, nearest = stats.get(subtype, (0, None))
                 else:
                     row = _subtype_lookup(category).get((name, gu, dong)) or {}
@@ -6483,8 +6532,12 @@ def build_explore_results(filters, limit=10, share_q=""):
             if subway_distance is not None and subway_distance <= 800:
                 score += 1
 
-            medical = get_indexed_baseline_row(medical_baseline_index, name, gu, dong) or {}
-            if insight_to_number(medical.get("nearest_emergency_distance")) is not None:
+            if apartment_key in medical_emergency_distances:
+                nearest_emergency_distance = medical_emergency_distances.get(apartment_key)
+            else:
+                medical = get_indexed_baseline_row(medical_baseline_index, name, gu, dong) or {}
+                nearest_emergency_distance = insight_to_number(medical.get("nearest_emergency_distance"))
+            if nearest_emergency_distance is not None:
                 score += 1
 
         results.append({
@@ -7473,6 +7526,11 @@ def _warm_explore_caches():
     start = time.perf_counter()
     try:
         with app.test_request_context("/explore"):
+            _derived_category_stats("medical")
+            _derived_category_stats("culture")
+            _derived_category_stats("park")
+            _baseline_metric_lookup("nightlife500", "nightlife_baseline.csv", "nightlife_count_500m")
+            _baseline_metric_lookup("medical_nearest_emergency", "medical_baseline.csv", "nearest_emergency_distance")
             build_explore_scenarios()
         print(f"[WARMUP] explore scenarios {(time.perf_counter() - start) * 1000:.0f}ms 완료")
     except Exception as exc:
