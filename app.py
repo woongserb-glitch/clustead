@@ -311,6 +311,17 @@ def sitemap_xml():
     ]
 
     seen = {item["loc"] for item in urls}
+    for gu, dong in iter_area_scopes():
+        loc = area_landing_url(gu, dong)
+        if loc in seen:
+            continue
+        seen.add(loc)
+        urls.append({
+            "loc": loc,
+            "changefreq": "weekly",
+            "priority": "0.75" if not dong else "0.65",
+        })
+
     for apt in apartment_data:
         view = _build_apartment_view(apt)
         name = clean_text(view.get("name", ""))
@@ -4557,6 +4568,321 @@ def compute_domain_profile(category_scores):
     return {"representative": representative, "domains": domains}
 
 
+def _plain_domain_label(label):
+    return re.sub(r"^[^\w가-힣]+", "", clean_text(label)).strip()
+
+
+def _area_rank_text(score):
+    score = parse_optional_float(score) or 0
+    if score >= 80:
+        return "서울 기준 상위권"
+    if score >= 65:
+        return "서울 기준 우수"
+    if score >= 50:
+        return "서울 평균 이상"
+    if score >= 35:
+        return "서울 평균권"
+    return "보완 여지"
+
+
+def _weighted_domain_score(domains):
+    weighted_sum = 0.0
+    weight_total = 0.0
+    for domain in domains or []:
+        score = parse_optional_float(domain.get("score"))
+        if score is None:
+            continue
+        weight = DOMAIN_WEIGHTS.get(domain.get("key"), 1.0)
+        weighted_sum += score * weight
+        weight_total += weight
+    return round(weighted_sum / weight_total) if weight_total else 0
+
+
+def area_landing_path(gu, dong=None):
+    gu = quote(clean_text(gu), safe="")
+    dong = clean_text(dong)
+    if dong:
+        return f"/area/{gu}/{quote(dong, safe='')}"
+    return f"/area/{gu}"
+
+
+def area_landing_url(gu, dong=None):
+    return _absolute_url(area_landing_path(gu, dong))
+
+
+def iter_area_scopes():
+    gu_map = {}
+    for apt in apartment_data:
+        gu = clean_text(apt.get("gu", ""))
+        dong = clean_text(apt.get("dong", ""))
+        if not gu:
+            continue
+        gu_map.setdefault(gu, set())
+        if dong:
+            gu_map[gu].add(dong)
+
+    for gu in sorted(gu_map):
+        yield gu, None
+        for dong in sorted(gu_map[gu]):
+            yield gu, dong
+
+
+def _area_apartment_rows(gu, dong=None):
+    gu = clean_text(gu)
+    dong = clean_text(dong)
+    rows = []
+    for apt in apartment_data:
+        if clean_text(apt.get("gu", "")) != gu:
+            continue
+        if dong and clean_text(apt.get("dong", "")) != dong:
+            continue
+        rows.append(apt)
+    return rows
+
+
+def _area_domain_summary(rows):
+    index = build_apartment_index()
+    domain_scores = {key: [] for key in DOMAIN_ORDER}
+    representatives = []
+    scored_count = 0
+
+    for apt in rows:
+        key = (apt.get("name"), apt.get("gu"), apt.get("dong"))
+        ranking = index.get(key)
+        if not ranking:
+            continue
+        profile = compute_domain_profile(ranking.get("category_scores"))
+        domains = profile.get("domains") or []
+        if domains:
+            scored_count += 1
+        if profile.get("representative"):
+            representatives.append(profile["representative"])
+        for domain in domains:
+            domain_scores.setdefault(domain["key"], []).append(domain["score"])
+
+    domains = []
+    for domain_key in DOMAIN_ORDER:
+        values = domain_scores.get(domain_key) or []
+        meta = DOMAIN_META.get(domain_key)
+        if not values or not meta:
+            continue
+        score = round(sum(values) / len(values))
+        domains.append({
+            "key": domain_key,
+            "label": meta["label"],
+            "plain_label": _plain_domain_label(meta["label"]),
+            "description": meta.get("description", ""),
+            "score": score,
+            "grade": _score_to_grade(score),
+            "rank_text": _area_rank_text(score),
+            "sample_count": len(values),
+        })
+
+    representative = _weighted_domain_score(domains)
+    if not representative and representatives:
+        representative = round(sum(representatives) / len(representatives))
+
+    return {
+        "representative": representative,
+        "representative_grade": _score_to_grade(representative),
+        "domains": domains,
+        "scored_count": scored_count,
+    }
+
+
+def _area_recommendations(rows, limit=8):
+    index = build_apartment_index()
+    recommendations = []
+    for apt in rows:
+        key = (apt.get("name"), apt.get("gu"), apt.get("dong"))
+        ranking = index.get(key)
+        if not ranking:
+            continue
+        profile = compute_domain_profile(ranking.get("category_scores"))
+        representative = profile.get("representative") or 0
+        domains = sorted(
+            profile.get("domains") or [],
+            key=lambda item: item.get("score", 0),
+            reverse=True,
+        )
+        recommendations.append({
+            "name": apt.get("name"),
+            "gu": apt.get("gu"),
+            "dong": apt.get("dong"),
+            "score": representative,
+            "grade": _score_to_grade(representative),
+            "url": apartment_detail_path(apt.get("name"), apt.get("gu"), apt.get("dong")),
+            "meta": _rep_area_meta(key),
+            "domain_chips": [
+                f"{_plain_domain_label(domain['label'])} {domain['grade']}"
+                for domain in domains[:3]
+            ],
+        })
+
+    recommendations.sort(
+        key=lambda item: (-item["score"], clean_text(item["gu"]), clean_text(item["dong"]), clean_text(item["name"]))
+    )
+    return recommendations[:limit]
+
+
+def _area_child_summaries(gu, limit=12):
+    children = []
+    dongs = sorted({
+        clean_text(apt.get("dong", ""))
+        for apt in apartment_data
+        if clean_text(apt.get("gu", "")) == clean_text(gu) and clean_text(apt.get("dong", ""))
+    })
+    for dong in dongs:
+        rows = _area_apartment_rows(gu, dong)
+        domain_summary = _area_domain_summary(rows)
+        domains = sorted(
+            domain_summary.get("domains") or [],
+            key=lambda item: item.get("score", 0),
+            reverse=True,
+        )
+        children.append({
+            "label": dong,
+            "url": area_landing_path(gu, dong),
+            "apartment_count": len(rows),
+            "score": domain_summary.get("representative", 0),
+            "grade": domain_summary.get("representative_grade", "D"),
+            "top_domain": domains[0] if domains else None,
+        })
+
+    children.sort(key=lambda item: (-item["score"], item["label"]))
+    return children[:limit]
+
+
+def _area_sibling_summaries(gu, current_dong, limit=10):
+    return [
+        child for child in _area_child_summaries(gu, limit=100)
+        if child["label"] != clean_text(current_dong)
+    ][:limit]
+
+
+def _build_area_features(scope_label, domains):
+    ordered = sorted(domains or [], key=lambda item: item.get("score", 0), reverse=True)
+    strengths = ordered[:3]
+    lower = [
+        domain for domain in sorted(domains or [], key=lambda item: item.get("score", 0))
+        if domain.get("score", 0) < 50
+    ][:1]
+
+    if strengths:
+        names = [domain["plain_label"] for domain in strengths[:2]]
+        summary = f"{scope_label}은 {join_korean_list(names)} 인프라가 상대적으로 돋보이는 생활권입니다."
+    else:
+        summary = f"{scope_label}의 생활 인프라 데이터를 집계하고 있습니다."
+
+    cards = []
+    for domain in strengths:
+        cards.append({
+            "label": domain["label"],
+            "title": f"{domain['plain_label']} {domain['rank_text']}",
+            "body": f"지역 평균 {domain['score']}점, {domain['grade']}등급으로 집계됐습니다.",
+            "tone": "strong",
+        })
+    for domain in lower:
+        cards.append({
+            "label": domain["label"],
+            "title": f"{domain['plain_label']}은 직접 확인 권장",
+            "body": f"지역 평균 {domain['score']}점으로 단지별 편차를 함께 보는 편이 좋습니다.",
+            "tone": "caution",
+        })
+
+    return {"summary": summary, "cards": cards[:4]}
+
+
+def build_area_landing_context(gu, dong=None):
+    gu = clean_text(gu)
+    dong = clean_text(dong)
+    rows = _area_apartment_rows(gu, dong)
+    if not gu or not rows:
+        return None
+
+    scope_label = f"{gu} {dong}".strip()
+    domain_summary = _area_domain_summary(rows)
+    features = _build_area_features(scope_label, domain_summary["domains"])
+    recommendations = _area_recommendations(rows)
+    is_dong = bool(dong)
+    children = _area_sibling_summaries(gu, dong) if is_dong else _area_child_summaries(gu)
+    child_title = f"{gu} 다른 동 보기" if is_dong else f"{gu} 동별 생활권"
+
+    canonical_url = area_landing_url(gu, dong if is_dong else None)
+    title = f"{scope_label} 아파트 생활환경 | Clustead"
+    description = _truncate_meta(
+        f"{scope_label} 아파트의 교통, 교육, 생활편의, 의료, 안전 평균점수와 추천 단지를 확인하세요. "
+        f"{len(rows)}개 단지를 서울시 상대평가 데이터로 집계했습니다."
+    )
+
+    item_list = {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": f"{scope_label} 추천 아파트",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": idx,
+                "name": item["name"],
+                "url": _absolute_url(item["url"]),
+            }
+            for idx, item in enumerate(recommendations[:5], start=1)
+        ],
+    }
+    breadcrumb_items = [
+        {"@type": "ListItem", "position": 1, "name": "Clustead", "item": _absolute_url("/")},
+        {"@type": "ListItem", "position": 2, "name": gu, "item": area_landing_url(gu)},
+    ]
+    if is_dong:
+        breadcrumb_items.append({
+            "@type": "ListItem",
+            "position": 3,
+            "name": dong,
+            "item": canonical_url,
+        })
+
+    return {
+        "area": {
+            "gu": gu,
+            "dong": dong,
+            "scope_label": scope_label,
+            "is_dong": is_dong,
+            "apartment_count": len(rows),
+            "scored_count": domain_summary["scored_count"],
+            "representative": domain_summary["representative"],
+            "representative_grade": domain_summary["representative_grade"],
+            "summary": features["summary"],
+        },
+        "seo": {
+            "title": title,
+            "description": description,
+            "canonical_url": canonical_url,
+            "og_image_url": _absolute_url(DEFAULT_OG_IMAGE_PATH),
+            "json_ld": [
+                {
+                    "@context": "https://schema.org",
+                    "@type": "CollectionPage",
+                    "name": title,
+                    "url": canonical_url,
+                    "description": description,
+                },
+                {
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": breadcrumb_items,
+                },
+                item_list,
+            ],
+        },
+        "domains": domain_summary["domains"],
+        "feature_cards": features["cards"],
+        "recommendations": recommendations,
+        "child_areas": children,
+        "child_title": child_title,
+        "parent_area_url": area_landing_path(gu) if is_dong else "",
+    }
+
+
 def _rep_area_meta(apartment_key):
     """추천 카드 보조줄 — '전용 {대표평형} · 최근 {최근매매가}' 또는 거래없음."""
     rep = _representative_area_lookup().get(apartment_key)
@@ -4700,6 +5026,27 @@ def home():
         home_config=home_config,
         home_json_ld=build_home_json_ld(),
     )
+
+
+@app.route("/area/<gu>")
+@app.route("/area/<gu>/<dong>")
+def area_landing(gu, dong=None):
+    context = build_area_landing_context(gu, dong)
+    if context is None:
+        return render_template("index.html"), 404
+    analytics_service.track(
+        "area_view",
+        ip=get_remote_address(),
+        user_agent=request.headers.get("User-Agent"),
+        path=request.path,
+        combo_key=f"area:{context['area']['scope_label']}",
+        combo={
+            "gu": context["area"]["gu"],
+            "dong": context["area"]["dong"],
+            "apartment_count": context["area"]["apartment_count"],
+        },
+    )
+    return render_template("area.html", **context)
 
 
 @app.route("/admin/ranking-debug")

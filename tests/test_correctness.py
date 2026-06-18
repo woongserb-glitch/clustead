@@ -336,6 +336,7 @@ def integ_seo_crawl_endpoints():
     sitemap_text = sitemap.get_data(as_text=True)
     assert sitemap_text.startswith('<?xml version="1.0" encoding="UTF-8"?>')
     assert "<loc>https://clustead.com/</loc>" in sitemap_text
+    assert "https://clustead.com/area/" in sitemap_text
     assert "https://clustead.com/apartments/" in sitemap_text
     assert "https://clustead.com/result?apartment=" not in sitemap_text
 
@@ -365,6 +366,27 @@ def integ_result_page_has_seo_meta():
     assert clean_response.status_code == 200
     clean_html = clean_response.get_data(as_text=True)
     assert '<link rel="canonical" href="https://clustead.com/apartments/' in clean_html
+
+
+def integ_area_pages_have_seo_and_recommendations():
+    app = _app()
+    apt = next(a for a in app.apartment_data if a.get("name") and a.get("gu") and a.get("dong"))
+    client = app.app.test_client()
+
+    gu_response = client.get(app.area_landing_path(apt.get("gu")))
+    assert gu_response.status_code == 200
+    gu_html = gu_response.get_data(as_text=True)
+    assert f"{apt.get('gu')} 아파트 생활환경" in gu_html
+    assert '<link rel="canonical" href="https://clustead.com/area/' in gu_html
+    assert "도메인 평균점수" in gu_html
+    assert "추천 단지" in gu_html
+    assert '<script type="application/ld+json">' in gu_html
+
+    dong_response = client.get(app.area_landing_path(apt.get("gu"), apt.get("dong")))
+    assert dong_response.status_code == 200
+    dong_html = dong_response.get_data(as_text=True)
+    assert f"{apt.get('gu')} {apt.get('dong')} 아파트 생활환경" in dong_html
+    assert '<link rel="canonical" href="https://clustead.com/area/' in dong_html
 
 
 # --------------------------------------------------------------------------
