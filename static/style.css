@@ -4272,6 +4272,11 @@ body:not(.home-page) #resultLoadingOverlay {
     align-items: start;
 }
 
+.area-hub-layout {
+    display: grid;
+    gap: 16px;
+}
+
 .area-main,
 .area-side {
     display: grid;
@@ -4448,6 +4453,82 @@ body:not(.home-page) #resultLoadingOverlay {
     text-decoration: none;
     font-size: 13px;
     font-weight: 900;
+}
+
+.area-gu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.area-gu-card {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #e6edf5;
+    border-radius: 13px;
+    background: #ffffff;
+}
+
+.area-gu-card-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 9px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.area-gu-card-main strong {
+    display: block;
+    color: #111827;
+    font-size: 15px;
+    font-weight: 950;
+}
+
+.area-gu-card-main span {
+    display: block;
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.area-gu-card-main > b {
+    color: #0f172a;
+    font-size: 21px;
+    font-weight: 950;
+}
+
+.area-gu-domain-strip,
+.area-gu-dong-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.area-gu-domain-strip span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.area-gu-dong-links a {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.area-gu-dong-links a:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
 }
 
 .empty-state {
@@ -5382,7 +5463,8 @@ body:not(.home-page) #resultLoadingOverlay {
     .area-stat-grid,
     .area-layout,
     .area-feature-grid,
-    .area-domain-grid {
+    .area-domain-grid,
+    .area-gu-grid {
         grid-template-columns: 1fr;
     }
 

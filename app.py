@@ -308,6 +308,7 @@ def sitemap_xml():
         {"loc": _absolute_url("/"), "changefreq": "weekly", "priority": "1.0"},
         {"loc": _absolute_url("/explore"), "changefreq": "weekly", "priority": "0.8"},
         {"loc": _absolute_url("/compare"), "changefreq": "monthly", "priority": "0.5"},
+        {"loc": area_index_url(), "changefreq": "weekly", "priority": "0.85"},
     ]
 
     seen = {item["loc"] for item in urls}
@@ -4606,6 +4607,14 @@ def area_landing_path(gu, dong=None):
     return f"/area/{gu}"
 
 
+def area_index_path():
+    return "/area"
+
+
+def area_index_url():
+    return _absolute_url(area_index_path())
+
+
 def area_landing_url(gu, dong=None):
     return _absolute_url(area_landing_path(gu, dong))
 
@@ -4791,6 +4800,136 @@ def _build_area_features(scope_label, domains):
         })
 
     return {"summary": summary, "cards": cards[:4]}
+
+
+def build_area_index_context():
+    gu_names = sorted({
+        clean_text(apt.get("gu", ""))
+        for apt in apartment_data
+        if clean_text(apt.get("gu", ""))
+    })
+    gu_cards = []
+    total_apartments = 0
+    scored_total = 0
+    domain_totals = {key: [] for key in DOMAIN_ORDER}
+
+    for gu in gu_names:
+        rows = _area_apartment_rows(gu)
+        total_apartments += len(rows)
+        domain_summary = _area_domain_summary(rows)
+        scored_total += domain_summary.get("scored_count", 0)
+        for domain in domain_summary.get("domains") or []:
+            domain_totals.setdefault(domain["key"], []).append(domain["score"])
+
+        top_domains = sorted(
+            domain_summary.get("domains") or [],
+            key=lambda item: item.get("score", 0),
+            reverse=True,
+        )[:3]
+        child_areas = _area_child_summaries(gu, limit=3)
+        gu_cards.append({
+            "label": gu,
+            "url": area_landing_path(gu),
+            "apartment_count": len(rows),
+            "score": domain_summary.get("representative", 0),
+            "grade": domain_summary.get("representative_grade", "D"),
+            "top_domains": top_domains,
+            "child_areas": child_areas,
+        })
+
+    gu_cards.sort(key=lambda item: (-item["score"], item["label"]))
+
+    hub_domains = []
+    for domain_key in DOMAIN_ORDER:
+        values = domain_totals.get(domain_key) or []
+        meta = DOMAIN_META.get(domain_key)
+        if not values or not meta:
+            continue
+        score = round(sum(values) / len(values))
+        hub_domains.append({
+            "key": domain_key,
+            "label": meta["label"],
+            "plain_label": _plain_domain_label(meta["label"]),
+            "description": meta.get("description", ""),
+            "score": score,
+            "grade": _score_to_grade(score),
+        })
+
+    strongest = sorted(hub_domains, key=lambda item: item.get("score", 0), reverse=True)[:3]
+    feature_summary = (
+        "서울 전체 지역 랜딩에서 구별 생활 인프라와 추천 단지를 한 번에 비교할 수 있습니다."
+    )
+    if strongest:
+        feature_summary = (
+            f"서울 전체 기준으로 {join_korean_list([item['plain_label'] for item in strongest[:2]])} "
+            "인프라가 상대적으로 강하게 집계됩니다."
+        )
+
+    title = "서울 아파트 지역별 생활환경 | Clustead"
+    description = _truncate_meta(
+        f"서울 {len(gu_cards)}개 구의 아파트 생활환경 평균점수, 도메인별 강점, 추천 단지와 동별 랜딩 페이지를 한 곳에서 확인하세요."
+    )
+    canonical_url = area_index_url()
+    item_list = {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": "서울 지역별 아파트 생활환경",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": idx,
+                "name": card["label"],
+                "url": _absolute_url(card["url"]),
+            }
+            for idx, card in enumerate(gu_cards, start=1)
+        ],
+    }
+
+    return {
+        "area_index": {
+            "gu_count": len(gu_cards),
+            "apartment_count": total_apartments,
+            "scored_count": scored_total,
+            "summary": feature_summary,
+        },
+        "seo": {
+            "title": title,
+            "description": description,
+            "canonical_url": canonical_url,
+            "og_image_url": _absolute_url(DEFAULT_OG_IMAGE_PATH),
+            "json_ld": [
+                {
+                    "@context": "https://schema.org",
+                    "@type": "CollectionPage",
+                    "name": title,
+                    "url": canonical_url,
+                    "description": description,
+                },
+                {
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        {
+                            "@type": "ListItem",
+                            "position": 1,
+                            "name": "Clustead",
+                            "item": _absolute_url("/"),
+                        },
+                        {
+                            "@type": "ListItem",
+                            "position": 2,
+                            "name": "서울 지역별 생활환경",
+                            "item": canonical_url,
+                        },
+                    ],
+                },
+                item_list,
+            ],
+        },
+        "gu_cards": gu_cards,
+        "hub_domains": hub_domains,
+        "strongest_areas": gu_cards[:5],
+    }
 
 
 def build_area_landing_context(gu, dong=None):
@@ -5026,6 +5165,23 @@ def home():
         home_config=home_config,
         home_json_ld=build_home_json_ld(),
     )
+
+
+@app.route("/area")
+def area_index():
+    context = build_area_index_context()
+    analytics_service.track(
+        "area_index_view",
+        ip=get_remote_address(),
+        user_agent=request.headers.get("User-Agent"),
+        path=request.path,
+        combo_key="area:index",
+        combo={
+            "gu_count": context["area_index"]["gu_count"],
+            "apartment_count": context["area_index"]["apartment_count"],
+        },
+    )
+    return render_template("area_index.html", **context)
 
 
 @app.route("/area/<gu>")

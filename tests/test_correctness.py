@@ -336,6 +336,7 @@ def integ_seo_crawl_endpoints():
     sitemap_text = sitemap.get_data(as_text=True)
     assert sitemap_text.startswith('<?xml version="1.0" encoding="UTF-8"?>')
     assert "<loc>https://clustead.com/</loc>" in sitemap_text
+    assert "<loc>https://clustead.com/area</loc>" in sitemap_text
     assert "https://clustead.com/area/" in sitemap_text
     assert "https://clustead.com/apartments/" in sitemap_text
     assert "https://clustead.com/result?apartment=" not in sitemap_text
@@ -372,6 +373,14 @@ def integ_area_pages_have_seo_and_recommendations():
     app = _app()
     apt = next(a for a in app.apartment_data if a.get("name") and a.get("gu") and a.get("dong"))
     client = app.app.test_client()
+
+    hub_response = client.get("/area")
+    assert hub_response.status_code == 200
+    hub_html = hub_response.get_data(as_text=True)
+    assert "서울 아파트 지역별 생활환경" in hub_html
+    assert '<link rel="canonical" href="https://clustead.com/area"' in hub_html
+    assert "지역별 추천 허브" in hub_html
+    assert '<script type="application/ld+json">' in hub_html
 
     gu_response = client.get(app.area_landing_path(apt.get("gu")))
     assert gu_response.status_code == 200

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ seo.title }}</title>
+    <meta name="description" content="{{ seo.description }}">
+    <link rel="canonical" href="{{ seo.canonical_url }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Clustead">
+    <meta property="og:title" content="{{ seo.title }}">
+    <meta property="og:description" content="{{ seo.description }}">
+    <meta property="og:url" content="{{ seo.canonical_url }}">
+    <meta property="og:image" content="{{ seo.og_image_url }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ seo.title }}">
+    <meta name="twitter:description" content="{{ seo.description }}">
+    <meta name="twitter:image" content="{{ seo.og_image_url }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260618-area-hub">
+    <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
+    {% include "_analytics_head.html" %}
+</head>
+
+<body>
+    <div class="page area-page">
+        <header class="tool-hero area-hero">
+            <div class="area-breadcrumb">
+                <a href="/">홈</a>
+                <span>/</span>
+                <b>지역별 생활환경</b>
+            </div>
+            <div class="top-label">CLUSTEAD AREA</div>
+            <h1>서울 아파트 지역별 생활환경</h1>
+            <p>{{ area_index.summary }}</p>
+
+            <div class="area-stat-grid area-hub-stat-grid">
+                <div class="area-stat">
+                    <span>서울 자치구</span>
+                    <strong>{{ area_index.gu_count }}</strong>
+                </div>
+                <div class="area-stat">
+                    <span>분석 단지</span>
+                    <strong>{{ area_index.apartment_count }}</strong>
+                </div>
+                <div class="area-stat">
+                    <span>점수 보유 단지</span>
+                    <strong>{{ area_index.scored_count }}</strong>
+                </div>
+            </div>
+        </header>
+
+        <main class="area-hub-layout">
+            <section class="tool-results-card">
+                <div class="section-head">
+                    <div>
+                        <h2>서울 생활 인프라 평균</h2>
+                        <p>각 구 평균을 다시 묶은 도메인별 서울 지역 평균입니다.</p>
+                    </div>
+                </div>
+                <div class="area-domain-grid area-hub-domain-grid">
+                    {% for domain in hub_domains %}
+                    <article class="area-domain-card">
+                        <div>
+                            <strong>{{ domain.label }}</strong>
+                            <span>{{ domain.description }}</span>
+                        </div>
+                        <b>{{ domain.score }}</b>
+                        <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="tool-results-card">
+                <div class="section-head">
+                    <div>
+                        <h2>지역별 추천 허브</h2>
+                        <p>대표점수가 높은 순서로 서울 자치구를 정렬했습니다.</p>
+                    </div>
+                </div>
+                <div class="area-gu-grid">
+                    {% for gu in gu_cards %}
+                    <article class="area-gu-card">
+                        <a class="area-gu-card-main" href="{{ gu.url }}">
+                            <div>
+                                <strong>{{ gu.label }}</strong>
+                                <span>{{ gu.apartment_count }}개 단지</span>
+                            </div>
+                            <b>{{ gu.score }}</b>
+                            <em class="domain-grade grade-{{ gu.grade }}">{{ gu.grade }}</em>
+                        </a>
+                        <div class="area-gu-domain-strip">
+                            {% for domain in gu.top_domains %}
+                            <span>{{ domain.plain_label }} {{ domain.grade }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="area-gu-dong-links">
+                            {% for dong in gu.child_areas %}
+                            <a href="{{ dong.url }}">{{ dong.label }}</a>
+                            {% endfor %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+
+</html>
