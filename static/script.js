@@ -273,6 +273,20 @@ function setHiddenField(form, name, value) {
     field.value = value || "";
 }
 
+function clearAutocompleteIdentity(input) {
+    input.dataset.selectedValue = "";
+    input.dataset.selectedGu = "";
+    input.dataset.selectedDong = "";
+
+    if (input.dataset.autocomplete !== "apartments" || input.dataset.identityPrefix) {
+        return;
+    }
+
+    const form = input.closest("form");
+    setHiddenField(form, "gu", "");
+    setHiddenField(form, "dong", "");
+}
+
 function selectAutocompleteItem(input, item) {
     if (!item) return false;
 
@@ -289,7 +303,7 @@ function selectAutocompleteItem(input, item) {
     const form = input.closest("form");
     // Carry the exact (gu, dong) so /result resolves the right complex when
     // apartment names collide across Seoul.
-    if (form && input.dataset.autocomplete === "apartments") {
+    if (form && input.dataset.autocomplete === "apartments" && !input.dataset.identityPrefix) {
         setHiddenField(form, "gu", item.dataset.gu || "");
         setHiddenField(form, "dong", item.dataset.dong || "");
     }
@@ -369,21 +383,19 @@ function renderAutocompleteItems(input, menu, items) {
             <strong>${item.label || item.value || ""}</strong>
             ${item.meta ? `<span>${item.meta}</span>` : ""}
         `;
-        let selectedOnPointer = false;
-        button.addEventListener("pointerdown", (event) => {
-            if (event.button && event.button !== 0) return;
-            event.preventDefault();
-            selectedOnPointer = true;
+        let selectionCommitted = false;
+        const selectFromPress = (event) => {
+            if ((event.type === "pointerdown" || event.type === "mousedown") && event.button > 0) return;
+            if (event.cancelable) event.preventDefault();
+            event.stopPropagation();
+            if (selectionCommitted) return;
+            selectionCommitted = true;
             selectAutocompleteItem(input, button);
-        });
-        button.addEventListener("click", (event) => {
-            event.preventDefault();
-            if (selectedOnPointer) {
-                selectedOnPointer = false;
-                return;
-            }
-            selectAutocompleteItem(input, button);
-        });
+        };
+        button.addEventListener("touchstart", selectFromPress, { passive: false });
+        button.addEventListener("pointerdown", selectFromPress);
+        button.addEventListener("mousedown", selectFromPress);
+        button.addEventListener("click", selectFromPress);
         menu.appendChild(button);
     });
 
@@ -436,13 +448,7 @@ function setupAutocomplete() {
         const debouncedFetch = debounce(() => fetchAutocompleteItems(input));
 
         input.addEventListener("input", () => {
-            input.dataset.selectedValue = "";
-            input.dataset.selectedGu = "";
-            input.dataset.selectedDong = "";
-            // Drop any stale exact-match identity once the text is edited.
-            const form = input.closest("form");
-            setHiddenField(form, "gu", "");
-            setHiddenField(form, "dong", "");
+            clearAutocompleteIdentity(input);
             debouncedFetch();
         });
 
@@ -544,7 +550,7 @@ async function ensureKnownAutocomplete(input) {
             // 아파트는 이름이 충돌하므로 식별용 gu/dong도 함께 보관(있을 때만).
             if (exact.gu !== undefined) input.dataset.selectedGu = exact.gu || "";
             if (exact.dong !== undefined) input.dataset.selectedDong = exact.dong || "";
-            if (input.dataset.autocomplete === "apartments") {
+            if (input.dataset.autocomplete === "apartments" && !input.dataset.identityPrefix) {
                 const form = input.closest("form");
                 setHiddenField(form, "gu", exact.gu || "");
                 setHiddenField(form, "dong", exact.dong || "");
