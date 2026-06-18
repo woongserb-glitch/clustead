@@ -143,13 +143,17 @@ function setupExploreLoading() {
         if (window.ClusteadShare) {
             const encoded = window.ClusteadShare.encodeFilters(collectExploreFormFilters(form));
             if (encoded) {
-                const hash = isMobileViewport() ? `#${EXPLORE_RESULTS_HASH}` : "";
-                window.location.href = `/explore?q=${encoded}${hash}`;
+                // 공유 상태 동기화(replaceState)가 필터 변경 때마다 주소를 이미
+                // /explore?q=<현재필터> 로 바꿔둔다. 같은 주소로 href를 넣으면 리로드가
+                // 안 돼(=검색 안 됨) 결과가 안 나오므로, 동일하면 reload()로 강제 새로고침.
+                const target = `/explore?q=${encoded}`;
+                if (window.location.pathname + window.location.search === target) {
+                    window.location.reload();
+                } else {
+                    window.location.href = target;
+                }
                 return;
             }
-        }
-        if (isMobileViewport()) {
-            form.action = `/explore#${EXPLORE_RESULTS_HASH}`;
         }
         form.submit();
     });
@@ -159,23 +163,19 @@ function isMobileViewport() {
     return window.matchMedia && window.matchMedia("(max-width: 760px)").matches;
 }
 
-function setupExploreResultAnchor() {
-    if (window.location.hash !== `#${EXPLORE_RESULTS_HASH}`) return;
+function setupExploreResultScroll() {
+    // 모바일에서 '검색 결과 화면'으로 로드됐을 때만 결과 카드로 스크롤한다.
+    // (해시에 의존하지 않음 — 탐색 후/공유링크 진입 모두 결과를 바로 보여줌)
+    if (!isMobileViewport()) return;
 
-    const target = document.getElementById(EXPLORE_RESULTS_HASH);
-    if (!target) return;
+    const card = document.getElementById(EXPLORE_RESULTS_HASH);
+    if (!card) return;
+    // 기본(시나리오) 화면이면 스크롤하지 않는다. 검색 결과/빈결과 화면일 때만.
+    if (card.querySelector(".explore-scenario-list")) return;
 
     window.setTimeout(() => {
-        target.scrollIntoView({
-            block: "start",
-            behavior: isMobileViewport() ? "smooth" : "auto",
-        });
-        try {
-            target.focus({ preventScroll: true });
-        } catch (error) {
-            target.focus();
-        }
-    }, 80);
+        card.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, 60);
 }
 
 quickButtons.forEach((button) => {
@@ -1072,7 +1072,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPriceTypeToggle();
     setupExploreStateSharing();
     setupExploreLoading();
-    setupExploreResultAnchor();
+    setupExploreResultScroll();
     setupCompareForm();
 
     const detailCards = document.querySelectorAll(".detail-card");
