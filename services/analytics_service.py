@@ -26,6 +26,15 @@ _KST = timezone(timedelta(hours=9))
 # 마스터 스위치. 0 이면 완전 무동작(track 은 즉시 return).
 ENABLED = os.getenv("CLUSTEAD_ANALYTICS", "1") == "1"
 
+# 집계에서 제외할 IP(쉼표 구분). 관리자/내부(본인) 자기 방문을 기록 자체에서 뺀다.
+# IP는 저장하지 않는 설계라 사후 필터가 불가능하므로, track 진입에서 스킵한다.
+# 예: CLUSTEAD_ANALYTICS_EXCLUDE_IPS=182.219.79.86,1.2.3.4
+_EXCLUDE_IPS = {
+    ip.strip()
+    for ip in os.getenv("CLUSTEAD_ANALYTICS_EXCLUDE_IPS", "").split(",")
+    if ip.strip()
+}
+
 # DB 경로 — 영속 볼륨(./data:/app/data) 밑에 둬야 컨테이너 재생성에도 생존.
 _DEFAULT_DB = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -161,6 +170,8 @@ def track(event_type, ip=None, user_agent=None, path=None,
     """이벤트 1건 비동기 기록. 절대 예외를 밖으로 던지지 않는다."""
     if not ENABLED:
         return
+    if ip and ip in _EXCLUDE_IPS:
+        return  # 관리자/내부(본인) IP 자기 방문은 집계 제외
     try:
         if not _ensure_started():
             return
