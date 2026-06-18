@@ -236,6 +236,7 @@ def _inject_template_globals():
         "ga4_id": os.getenv("CLUSTEAD_GA4_ID", ""),
         "site_url": SITE_BASE_URL,
         "og_image_url": _absolute_url(DEFAULT_OG_IMAGE_PATH),
+        "naver_site_verification": clustead_env("NAVER_SITE_VERIFICATION", "").strip(),
     }
 
 
