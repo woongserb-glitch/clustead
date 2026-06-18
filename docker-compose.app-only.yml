@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      - WEB_CONCURRENCY=1          # 1GB RAM → 워커 1개(요청 직렬화)
+      - WEB_CONCURRENCY=2          # 워커 2개: /result의 Kakao I/O 대기 중 동시 처리(preload COW로 RAM 거의 안 늘음)
       - CLUSTEAD_TRUST_PROXY=1     # host nginx 뒤 → ProxyFix on(실제 IP/HTTPS 인식)
     volumes:
       - ./data:/app/data           # 1.4GB 데이터 + Kakao 캐시 write(rw)
