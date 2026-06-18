@@ -336,8 +336,8 @@ def integ_seo_crawl_endpoints():
     sitemap_text = sitemap.get_data(as_text=True)
     assert sitemap_text.startswith('<?xml version="1.0" encoding="UTF-8"?>')
     assert "<loc>https://clustead.com/</loc>" in sitemap_text
-    assert "https://clustead.com/result?apartment=" in sitemap_text
-    assert "&amp;gu=" in sitemap_text
+    assert "https://clustead.com/apartments/" in sitemap_text
+    assert "https://clustead.com/result?apartment=" not in sitemap_text
 
 
 def integ_result_page_has_seo_meta():
@@ -354,8 +354,17 @@ def integ_result_page_has_seo_meta():
     html = response.get_data(as_text=True)
     assert "생활환경 분석 | Clustead" in html
     assert '<meta name="description"' in html
-    assert '<link rel="canonical" href="https://clustead.com/result?apartment=' in html
+    assert '<link rel="canonical" href="https://clustead.com/apartments/' in html
     assert '<script type="application/ld+json">' in html
+
+    clean_response = client.get(app.apartment_detail_path(
+        apt.get("name"),
+        apt.get("gu"),
+        apt.get("dong"),
+    ))
+    assert clean_response.status_code == 200
+    clean_html = clean_response.get_data(as_text=True)
+    assert '<link rel="canonical" href="https://clustead.com/apartments/' in clean_html
 
 
 # --------------------------------------------------------------------------

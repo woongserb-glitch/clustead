@@ -179,6 +179,12 @@ def _absolute_url(path="/", params=None):
     return f"{SITE_BASE_URL}{path}{suffix}"
 
 
+def _append_query(path, params=None):
+    params = params or {}
+    suffix = f"?{urlencode(params)}" if params else ""
+    return f"{path}{suffix}"
+
+
 def _truncate_meta(text, limit=155):
     text = re.sub(r"\s+", " ", clean_text(text)).strip()
     if len(text) <= limit:
@@ -310,7 +316,7 @@ def sitemap_xml():
         name = clean_text(view.get("name", ""))
         if not name:
             continue
-        loc = _absolute_url("/result", _result_identity_params(view))
+        loc = apartment_detail_url(view)
         if loc in seen:
             continue
         seen.add(loc)
@@ -4287,12 +4293,11 @@ def get_preferences():
 def make_result_url(apartment_name, preferences, gu="", dong="", src="home", share_q=""):
     # Always carry gu/dong so links resolve the exact complex, not the first
     # name match. Names collide across Seoul (e.g. 신동아아파트 x3).
-    params = {"apartment": apartment_name}
+    apartment_name = clean_text(apartment_name)
+    gu = clean_text(gu)
+    dong = clean_text(dong)
+    params = {}
 
-    if gu:
-        params["gu"] = gu
-    if dong:
-        params["dong"] = dong
     if src:
         params["src"] = src  # 진입경로(home/explore)별 우측 패널 분기
     if share_q:
@@ -4301,7 +4306,16 @@ def make_result_url(apartment_name, preferences, gu="", dong="", src="home", sha
     for key in PREFERENCE_KEYS:
         params[key] = preferences.get(key, 3)
 
-    return "/result?" + urlencode(params)
+    if apartment_name and gu and dong:
+        return _append_query(apartment_detail_path(apartment_name, gu, dong), params)
+
+    fallback_params = {"apartment": apartment_name}
+    if gu:
+        fallback_params["gu"] = gu
+    if dong:
+        fallback_params["dong"] = dong
+    fallback_params.update(params)
+    return "/result?" + urlencode(fallback_params)
 
 
 def _result_identity_params(apartment):
@@ -4313,6 +4327,21 @@ def _result_identity_params(apartment):
     if dong:
         params["dong"] = dong
     return params
+
+
+def apartment_detail_path(apartment_name, gu="", dong=""):
+    name = quote(clean_text(apartment_name), safe="")
+    gu = quote(clean_text(gu), safe="")
+    dong = quote(clean_text(dong), safe="")
+    return f"/apartments/{gu}/{dong}/{name}"
+
+
+def apartment_detail_url(apartment):
+    return _absolute_url(apartment_detail_path(
+        apartment.get("name", ""),
+        apartment.get("district", "") or apartment.get("gu", ""),
+        apartment.get("dong", ""),
+    ))
 
 
 def build_result_seo(apartment, complex_info, insight, category_summaries):
@@ -4349,7 +4378,7 @@ def build_result_seo(apartment, complex_info, insight, category_summaries):
     elif insight and insight.get("summary"):
         description_base += " " + clean_text(insight.get("summary"))
 
-    canonical_url = _absolute_url("/result", _result_identity_params(apartment))
+    canonical_url = apartment_detail_url(apartment)
     address = clean_text(apartment.get("road_address", "")) or location
     lat = parse_optional_float(apartment.get("lat"))
     lng = parse_optional_float(apartment.get("lng"))
@@ -6551,14 +6580,12 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
     }
 
 
-@app.route("/result")
-@limiter.limit("30 per minute")
-def result():
+def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", src=None):
     context = build_result_context(
-        request.args.get("apartment", "헬리오시티"),
-        request.args.get("gu", ""),
-        request.args.get("dong", ""),
-        request.args.get("src"),
+        apartment_name,
+        apartment_gu,
+        apartment_dong,
+        src,
     )
     if context is None:
         return render_template("index.html"), 404
@@ -6568,14 +6595,36 @@ def result():
         ip=get_remote_address(),
         user_agent=request.headers.get("User-Agent"),
         path=request.path,
-        apartment=request.args.get("apartment", "헬리오시티"),
-        apartment_gu=request.args.get("gu", ""),
-        apartment_dong=request.args.get("dong", ""),
-        src=request.args.get("src"),
+        apartment=apartment_name,
+        apartment_gu=apartment_gu,
+        apartment_dong=apartment_dong,
+        src=src,
         combo_key=combo_key,
         combo=combo,
     )
     return render_template("result.html", **context)
+
+
+@app.route("/apartments/<gu>/<dong>/<path:apartment_name>")
+@limiter.limit("30 per minute")
+def apartment_detail(gu, dong, apartment_name):
+    return _render_result_response(
+        apartment_name,
+        gu,
+        dong,
+        request.args.get("src"),
+    )
+
+
+@app.route("/result")
+@limiter.limit("30 per minute")
+def result():
+    return _render_result_response(
+        request.args.get("apartment", "헬리오시티"),
+        request.args.get("gu", ""),
+        request.args.get("dong", ""),
+        request.args.get("src"),
+    )
 
 
 def _xlsx_distance(value):
