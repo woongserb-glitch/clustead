@@ -252,6 +252,20 @@ class _SqliteBaseline:
         return self._row_to_dict(row)
 
 
+def iter_baseline_columns(baseline_data, columns):
+    """Yield baseline rows with only the requested columns when SQLite is active."""
+    table = getattr(baseline_data, "table", None)
+    if _USE_SQLITE_BASELINE and table:
+        quoted_columns = ", ".join(f'"{column}"' for column in columns)
+        cur = _baseline_conn().execute(f'SELECT {quoted_columns} FROM "{table}" ORDER BY rowid')
+        for row in cur:
+            yield parse_csv_row({column: row[column] for column in columns})
+        return
+
+    for row in baseline_data:
+        yield row
+
+
 def _make_baseline(table):
     """DB 있으면 SQLite 백엔드(data·index 동일 객체), 없으면 빈 list/dict 폴백
     (load_* 가 CSV로 채움)."""

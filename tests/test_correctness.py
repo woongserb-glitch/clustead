@@ -369,6 +369,24 @@ def integ_result_page_has_seo_meta():
     assert '<link rel="canonical" href="https://clustead.com/apartments/' in clean_html
 
 
+def integ_explore_academy_priority_returns_results():
+    app = _app()
+    label = app._ACADEMY_TYPE_BY_KEY["exam"]["label"]
+    client = app.app.test_client()
+
+    response = client.get("/explore", query_string={"priority": f"academy:{label}"})
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'class="explore-result-row"' in html
+    assert "/apartments/" in html
+
+    filters = app.normalize_explore_filters({"priority": [f"academy:{label}"]})
+    with app.app.test_request_context("/explore"):
+        results = app.build_explore_results(filters)
+    assert len(results) == 10
+    assert all(row.get("url", "").startswith("/apartments/") for row in results)
+
+
 def integ_area_pages_have_seo_and_recommendations():
     app = _app()
     apt = next(a for a in app.apartment_data if a.get("name") and a.get("gu") and a.get("dong"))

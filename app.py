@@ -88,7 +88,7 @@ from services.preload_service import fire_station_baseline_data, fire_station_ba
 from services.preload_service import shopping_baseline_data, shopping_baseline_index, load_shopping_baseline_data
 from services.preload_service import ev_charger_baseline_data, ev_charger_baseline_index, load_ev_charger_baseline_data
 from services.preload_service import medical_baseline_data, medical_baseline_index, load_medical_baseline_data
-from services.preload_service import get_indexed_baseline_row
+from services.preload_service import get_indexed_baseline_row, iter_baseline_columns
 from services import analytics_service
 from scripts.baseline_metric_config import (
     BASELINE_METRIC_CONFIG,
@@ -6194,19 +6194,12 @@ def _baseline_metric_lookup(cache_key, filename, column):
 def _academy_subtype_lookup():
     """{(name,gu,dong): {subtype_key: count(int)}} — 1km 내 학원 종류별 개수(캐시)."""
     if "academy_subtypes" not in _EXPLORE_LOOKUP_CACHE:
-        limit = sys.maxsize
-        while True:
-            try:
-                csv.field_size_limit(limit)
-                break
-            except OverflowError:
-                limit = int(limit / 10)
         lookup = {}
+        columns = ["name", "gu", "dong"] + [t["column"] for t in EXPLORE_ACADEMY_TYPES]
         try:
-            with open("data/baseline/academy_baseline.csv", encoding="utf-8-sig", newline="") as file:
-                for row in csv.DictReader(file):
-                    key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
-                    lookup[key] = {t["key"]: to_int(row.get(t["column"]), 0) for t in EXPLORE_ACADEMY_TYPES}
+            for row in iter_baseline_columns(academy_baseline_data, columns):
+                key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+                lookup[key] = {t["key"]: to_int(row.get(t["column"]), 0) for t in EXPLORE_ACADEMY_TYPES}
         except Exception:
             pass
         _EXPLORE_LOOKUP_CACHE["academy_subtypes"] = lookup
@@ -6327,6 +6320,12 @@ def build_explore_results(filters, limit=10, share_q=""):
     if school_mh and school_coords is None:
         return []
 
+    priority_specs = [(category, subtype, SUBTYPE_SEARCH_CONFIG[category]) for category, subtype in priorities]
+    has_priority_sort = bool(priority_specs)
+    academy_subtypes = _academy_subtype_lookup() if any(category == "academy" for category, _, _ in priority_specs) else {}
+    needs_subway_lookup = bool(line_filter or station_filter or not has_priority_sort)
+    preferences = get_preferences()
+
     results = []
 
     for apartment in apartment_data:
@@ -6341,7 +6340,10 @@ def build_explore_results(filters, limit=10, share_q=""):
 
         # Explore는 subway/medical만 사용 — 전체 카테고리(mart/convenience/cafe 선형스캔)
         # 를 만드는 get_baseline_rows_for_apartment 대신 인덱스(O(1)) 직접 조회.
-        subway = get_indexed_baseline_row(subway_baseline_index, name, gu, dong) or {}
+        if needs_subway_lookup:
+            subway = get_indexed_baseline_row(subway_baseline_index, name, gu, dong) or {}
+        else:
+            subway = {}
         matched = []
         score = 0
 
@@ -6443,14 +6445,13 @@ def build_explore_results(filters, limit=10, share_q=""):
         # 생활 인프라 우선순위: 순차 AND 필터(서브타입 보유 = 반경 내 개수 >= 1) +
         # 선택순서 정렬키(개수 DESC, 최근접 거리 ASC).
         sort_key = None
-        if priorities:
+        if priority_specs:
             sort_parts = []
             priority_ok = True
-            for category, subtype in priorities:
-                cfg = SUBTYPE_SEARCH_CONFIG[category]
+            for category, subtype, cfg in priority_specs:
                 if category == "academy":
                     academy_key = _ACADEMY_KEY_BY_LABEL.get(subtype, "")
-                    arow = _academy_subtype_lookup().get((name, gu, dong)) or {}
+                    arow = academy_subtypes.get((name, gu, dong)) or {}
                     count = arow.get(academy_key, 0)
                     sort_parts.append(-count)
                     if count > 0:
@@ -6477,13 +6478,14 @@ def build_explore_results(filters, limit=10, share_q=""):
                 continue
             sort_key = tuple(sort_parts)
 
-        subway_distance = insight_to_number(subway.get("subway_distance"))
-        if subway_distance is not None and subway_distance <= 800:
-            score += 1
+        if not has_priority_sort:
+            subway_distance = insight_to_number(subway.get("subway_distance"))
+            if subway_distance is not None and subway_distance <= 800:
+                score += 1
 
-        medical = get_indexed_baseline_row(medical_baseline_index, name, gu, dong) or {}
-        if insight_to_number(medical.get("nearest_emergency_distance")) is not None:
-            score += 1
+            medical = get_indexed_baseline_row(medical_baseline_index, name, gu, dong) or {}
+            if insight_to_number(medical.get("nearest_emergency_distance")) is not None:
+                score += 1
 
         results.append({
             "name": name,
@@ -6492,12 +6494,11 @@ def build_explore_results(filters, limit=10, share_q=""):
             "score": score,
             "sort_key": sort_key,
             "matched_features": matched[:8] or ["생활 균형형"],
-            "url": make_result_url(name, get_preferences(), gu, dong, src="explore", share_q=share_q),
         })
 
     def order_key(item):
         parts = []
-        if priorities:                     # 그 다음 선택 순서 우선순위(개수 DESC, 최근접 ASC)
+        if priority_specs:                 # 그 다음 선택 순서 우선순위(개수 DESC, 최근접 ASC)
             parts.append(item["sort_key"])
         else:
             parts.append(-item["score"])
@@ -6505,7 +6506,10 @@ def build_explore_results(filters, limit=10, share_q=""):
         return tuple(parts)
 
     results.sort(key=order_key)
-    return results[:limit]
+    limited_results = results[:limit]
+    for item in limited_results:
+        item["url"] = make_result_url(item["name"], preferences, item["gu"], item["dong"], src="explore", share_q=share_q)
+    return limited_results
 
 
 # Explore 첫 진입(필터 없음) 시 우측 패널에 노출할 추천 조합 시나리오.
