@@ -118,10 +118,16 @@ def rows_from_xlsx(path):
 
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     worksheet = workbook[workbook.sheetnames[0]]
+    if getattr(worksheet, "max_row", None) == 1 and getattr(worksheet, "max_column", None) == 1:
+        # MOLIT exports sometimes declare only A1 in sheet dimensions.
+        # Reset so openpyxl scans the actual rows before header detection.
+        reset_dimensions = getattr(worksheet, "reset_dimensions", None)
+        if reset_dimensions:
+            reset_dimensions()
     raw_rows = [trim_empty_tail(row) for row in worksheet.iter_rows(values_only=True)]
     header_index = find_header_index(raw_rows)
     if header_index < 0:
-        raise RuntimeError(f"could not detect MOLIT header row: {path}")
+        return rows_from_xlsx_stdlib(path)
 
     headers = [normalize_header(value) for value in raw_rows[header_index]]
     records = []
