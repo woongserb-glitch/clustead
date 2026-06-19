@@ -380,6 +380,30 @@ body:not(.home-page) #resultLoadingOverlay {
     gap: 10px;
 }
 
+.result-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 0 2px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.result-breadcrumb a {
+    color: #6f7480;
+    text-decoration: none;
+}
+
+.result-breadcrumb a:hover {
+    color: #111;
+    text-decoration: underline;
+}
+
+.result-breadcrumb span {
+    color: #b6bcc6;
+}
+
 .back-link {
     display: inline-block;
     margin-bottom: 10px;

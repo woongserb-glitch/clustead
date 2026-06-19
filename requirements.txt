@@ -3,6 +3,8 @@ Flask-Limiter
 python-dotenv
 requests
 openpyxl
+# 단지별 동적 OG(링크 썸네일) PNG 생성용. OG 요청 시에만 사용(지연 임포트).
+Pillow
 # 프로덕션 WSGI 서버(Linux 컨테이너). Windows 개발 환경에선 설치/구동 안 함.
 gunicorn; sys_platform != "win32"
 

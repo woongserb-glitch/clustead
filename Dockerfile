@@ -13,6 +13,11 @@ WORKDIR /app
 # RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
 #     && rm -rf /var/lib/apt/lists/*
 
+# 한글 폰트(나눔고딕) — 단지별 동적 OG 썸네일 렌더링에 필요.
+# services/og_image.py 가 /usr/share/fonts/truetype/nanum/ 를 탐색한다.
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-nanum \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 

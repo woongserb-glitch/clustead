@@ -22,7 +22,7 @@ try:
 except ImportError:
     def load_dotenv(*args, **kwargs):
         return False
-from flask import Flask, Response, abort, jsonify, render_template, request
+from flask import Flask, Response, abort, jsonify, render_template, request, send_file
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -166,7 +166,8 @@ def debug_log(*args):
 
 SITE_BASE_URL = (clustead_env("SITE_URL", "https://clustead.com").strip().rstrip("/")
                  or "https://clustead.com")
-DEFAULT_OG_IMAGE_PATH = "/static/brand/og-clustead.svg"
+# SVG OG는 카카오톡·네이버·페북 링크 미리보기에서 렌더링되지 않으므로 PNG 사용.
+DEFAULT_OG_IMAGE_PATH = "/static/brand/og-clustead.png"
 DEFAULT_META_DESCRIPTION = (
     "서울 아파트의 교통, 교육, 의료, 편의, 안전 생활 인프라를 데이터 기반으로 비교하고 "
     "내 삶에 맞는 단지를 찾아보세요."
@@ -4356,6 +4357,32 @@ def apartment_detail_url(apartment):
     ))
 
 
+def og_apartment_path(apartment):
+    name = quote(clean_text(apartment.get("name", "")), safe="")
+    gu = quote(clean_text(apartment.get("district", "") or apartment.get("gu", "")), safe="")
+    dong = quote(clean_text(apartment.get("dong", "")), safe="")
+    return f"/og/apartments/{gu}/{dong}/{name}"
+
+
+def og_apartment_url(apartment):
+    return _absolute_url(og_apartment_path(apartment))
+
+
+def og_strength_chips(category_summaries, limit=3):
+    """OG 썸네일에 박을 강점 칩(상위 S/A 등급 카테고리). [(label, grade), ...]"""
+    chips = []
+    for summary in category_summaries or []:
+        if summary.get("key") == "school-environment":
+            continue  # result/compare와 동일하게 등급 미표시 카테고리 제외
+        grade = (summary.get("grade") or "").upper()
+        # 라벨 앞 이모지/기호 제거(한글 폰트엔 이모지 글리프가 없어 □로 깨짐).
+        label = re.sub(r"^[^\w가-힣]+", "", clean_text(summary.get("label", ""))).strip()
+        if grade in {"S", "A"} and label:
+            chips.append((label, grade))
+    chips.sort(key=lambda c: 0 if c[1] == "S" else 1)  # S 우선
+    return chips[:limit]
+
+
 def build_result_seo(apartment, complex_info, insight, category_summaries):
     name = clean_text(apartment.get("name", ""))
     district = clean_text(apartment.get("district", "") or apartment.get("gu", ""))
@@ -4441,12 +4468,20 @@ def build_result_seo(apartment, complex_info, insight, category_summaries):
         ],
     }
 
+    # 단지 → 지역(구/동) 랜딩으로 가는 가시적 브레드크럼 링크(내부링크 강화 + UX).
+    breadcrumb_links = []
+    if district:
+        breadcrumb_links.append({"name": district, "url": area_landing_path(district)})
+        if dong:
+            breadcrumb_links.append({"name": dong, "url": area_landing_path(district, dong)})
+
     return {
         "title": title,
         "description": _truncate_meta(description_base),
         "canonical_url": canonical_url,
-        "og_image_url": _absolute_url(DEFAULT_OG_IMAGE_PATH),
+        "og_image_url": og_apartment_url(apartment),
         "json_ld": [place, breadcrumb],
+        "breadcrumb": breadcrumb_links,
     }
 
 
@@ -7174,6 +7209,52 @@ def apartment_detail(gu, dong, apartment_name):
         dong,
         request.args.get("src"),
     )
+
+
+OG_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "og_cache")
+_DEFAULT_OG_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "static", "brand", "og-clustead.png"
+)
+
+
+def _send_og(path):
+    resp = send_file(path, mimetype="image/png")
+    # 크롤러/메신저가 길게 캐시하도록(내용은 필드 해시 파일명이라 안전).
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@app.route("/og/apartments/<gu>/<dong>/<path:apartment_name>")
+@limiter.limit("60 per minute")
+def og_apartment(gu, dong, apartment_name):
+    """단지별 동적 OG 썸네일 PNG. 필드 해시 기준으로 디스크 캐시."""
+    from services import og_image  # 지연 임포트(OG 요청 시에만 Pillow 로드)
+
+    context = build_result_context(apartment_name, gu, dong)
+    if context is None:
+        return _send_og(_DEFAULT_OG_FILE)  # 못 찾으면 기본 브랜드 OG
+
+    apartment = context["apartment"]
+    name = clean_text(apartment.get("name", ""))
+    district = clean_text(apartment.get("district", "") or apartment.get("gu", ""))
+    dong_value = clean_text(apartment.get("dong", ""))
+    location = " ".join(part for part in [district, dong_value] if part)
+    chips = og_strength_chips(context.get("category_summaries"))
+
+    key = og_image.cache_key(name, location, chips)
+    cache_path = os.path.join(OG_CACHE_DIR, f"{key}.png")
+    if not os.path.exists(cache_path):
+        try:
+            os.makedirs(OG_CACHE_DIR, exist_ok=True)
+            png = og_image.render_apartment_og(name, location, chips)
+            tmp = f"{cache_path}.{os.getpid()}.tmp"
+            with open(tmp, "wb") as handle:
+                handle.write(png)
+            os.replace(tmp, cache_path)
+        except Exception as error:  # 렌더/쓰기 실패 시 기본 OG로 폴백(링크는 항상 떠야 함)
+            debug_log("[OG] render failed:", error)
+            return _send_og(_DEFAULT_OG_FILE)
+    return _send_og(cache_path)
 
 
 @app.route("/result")

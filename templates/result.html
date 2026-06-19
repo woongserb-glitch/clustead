@@ -20,7 +20,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260618d">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260618f">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_analytics_head.html" %}
 </head>
@@ -46,6 +46,15 @@
                 </div>
             </div>
             <div class="top-label">CLUSTEAD RESULT</div>
+            {% if seo.breadcrumb %}
+            <nav class="result-breadcrumb" aria-label="위치">
+                <a href="/">홈</a>
+                {% for crumb in seo.breadcrumb %}
+                <span aria-hidden="true">›</span>
+                <a href="{{ crumb.url }}">{{ crumb.name }}</a>
+                {% endfor %}
+            </nav>
+            {% endif %}
             <h1>{{ apartment.name }}</h1>
             <p>
                 {{ apartment.district }} {{ apartment.dong }}
