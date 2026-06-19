@@ -2097,6 +2097,11 @@ def classify_bus_route_type(route_name):
         if route.startswith("6"):
             return "airport"
 
+        # 광역버스는 9000번대(4자리). 일반 4자리 지선 판정보다 먼저 걸러야 한다
+        # (이 순서가 없으면 9401 등 광역이 '지선'으로 오분류됨).
+        if len(route) == 4 and route.startswith("9"):
+            return "express"
+
         if len(route) == 4:
             return "local"
 
