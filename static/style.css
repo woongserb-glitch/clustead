@@ -5347,24 +5347,35 @@ body:not(.home-page) #resultLoadingOverlay {
         font-size: 15px;
     }
 
-    /* 헤더 액션(홈/비교/공유/Excel): 탭 영역 확대 */
+    /* 헤더 액션(다시검색/공유/비교/Excel): 모바일에선 과해 보이지 않게 컴팩트하게 */
     .result-hero-top {
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 6px;
     }
 
     .back-link {
         display: inline-flex;
         align-items: center;
-        min-height: 40px;
+        min-height: 32px;
         margin-bottom: 0;
-        font-size: 14px;
+        font-size: 13px;
+    }
+
+    .result-hero-actions {
+        gap: 6px;
     }
 
     .result-download-btn {
-        min-height: 40px;
+        min-height: 32px;
         margin-bottom: 0;
-        padding: 9px 15px;
+        padding: 5px 10px;
+        font-size: 12px;
+        gap: 4px;
+    }
+
+    /* 긴 라벨은 모바일에서 숨김: "이 단지와 비교"→"비교", "Excel 다운로드"→"Excel" */
+    .btn-label-long {
+        display: none;
     }
 
     /* ── Result 페이지 ─────────────────────────────────────

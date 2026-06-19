@@ -20,7 +20,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260618d">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_analytics_head.html" %}
 </head>
@@ -41,8 +41,8 @@
                 <a class="back-link" href="{% if entry_src == 'explore' and request.args.get('q') %}/explore?q={{ request.args.get('q') }}{% else %}/{% endif %}">← 다시 검색</a>
                 <div class="result-hero-actions">
                     <button type="button" class="result-download-btn result-share-btn" data-share-url>공유하기</button>
-                    <a class="result-download-btn result-compare-btn" href="{{ url_for('compare', a=apartment.name, a_gu=apartment.district, a_dong=apartment.dong) }}">⚖ 이 단지와 비교</a>
-                    <a class="result-download-btn" href="{{ url_for('result_export_xlsx', apartment=apartment.name, gu=apartment.district, dong=apartment.dong) }}">⬇ Excel 다운로드</a>
+                    <a class="result-download-btn result-compare-btn" href="{{ url_for('compare', a=apartment.name, a_gu=apartment.district, a_dong=apartment.dong) }}">⚖ <span class="btn-label-long">이 단지와 </span>비교</a>
+                    <a class="result-download-btn" href="{{ url_for('result_export_xlsx', apartment=apartment.name, gu=apartment.district, dong=apartment.dong) }}">⬇ Excel<span class="btn-label-long"> 다운로드</span></a>
                 </div>
             </div>
             <div class="top-label">CLUSTEAD RESULT</div>
@@ -971,7 +971,7 @@
     {% include "_legal_footer.html" %}
 
     <script src="{{ url_for('static', filename='share.js') }}?v=1"></script>
-    <script src="{{ url_for('static', filename='script.js') }}?v=20260618c"></script>
+    <script src="{{ url_for('static', filename='script.js') }}?v=20260618d"></script>
 
 </body>
 

@@ -140,6 +140,8 @@ function setupExploreLoading() {
             }
         }
         setExploreSubmitFeedback(form, false);
+        // 다음 페이지 로드에서 '결과로 스크롤'하도록 표시(탐색 제출일 때만).
+        try { sessionStorage.setItem(EXPLORE_SCROLL_FLAG, "1"); } catch (error) { /* noop */ }
         if (window.ClusteadShare) {
             const encoded = window.ClusteadShare.encodeFilters(collectExploreFormFilters(form));
             if (encoded) {
@@ -163,19 +165,43 @@ function isMobileViewport() {
     return window.matchMedia && window.matchMedia("(max-width: 760px)").matches;
 }
 
+const EXPLORE_SCROLL_FLAG = "clustead-explore-scroll";
+
 function setupExploreResultScroll() {
-    // 모바일에서 '검색 결과 화면'으로 로드됐을 때만 결과 카드로 스크롤한다.
-    // (해시에 의존하지 않음 — 탐색 후/공유링크 진입 모두 결과를 바로 보여줌)
+    // '탐색하기'로 막 진입했을 때만 결과 카드로 스크롤한다. (result 페이지에서
+    // '다시 검색'으로 돌아오거나 새로고침/공유링크 진입은 최상단을 보여준다)
     if (!isMobileViewport()) return;
+    let flagged = false;
+    try {
+        flagged = sessionStorage.getItem(EXPLORE_SCROLL_FLAG) === "1";
+        sessionStorage.removeItem(EXPLORE_SCROLL_FLAG);
+    } catch (error) { /* sessionStorage 불가 시 스크롤 생략 */ }
+    if (!flagged) return;
 
     const card = document.getElementById(EXPLORE_RESULTS_HASH);
     if (!card) return;
-    // 기본(시나리오) 화면이면 스크롤하지 않는다. 검색 결과/빈결과 화면일 때만.
+    // 기본(시나리오) 화면이면 스킵. 검색 결과/빈결과 화면일 때만.
     if (card.querySelector(".explore-scenario-list")) return;
 
-    window.setTimeout(() => {
-        card.scrollIntoView({ block: "start", behavior: "smooth" });
-    }, 60);
+    // reload(동일 URL 재검색) 시 브라우저 자동 스크롤 복원이 위치를 직전 값(주로 0)
+    // 으로 되돌려, 검색마다 결과 위치가 달라지는 원인이 된다. 이 로드에 한해 복원을
+    // 끄고, 레이아웃이 안정된 뒤 항상 같은 위치(결과 카드 상단)로 고정 스크롤한다.
+    try {
+        if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    } catch (error) { /* noop */ }
+    const scrollToCard = () => card.scrollIntoView({ block: "start", behavior: "auto" });
+    requestAnimationFrame(() => requestAnimationFrame(scrollToCard));
+    window.setTimeout(scrollToCard, 120);
+    window.addEventListener("load", () => {
+        window.setTimeout(() => {
+            scrollToCard();
+            // 이번 로드 스크롤을 고정한 뒤엔 기본 복원 동작을 되돌려, 이후 뒤로가기
+            // 등 일반 내비게이션의 스크롤 복원에는 영향을 주지 않는다.
+            try {
+                if ("scrollRestoration" in history) history.scrollRestoration = "auto";
+            } catch (error) { /* noop */ }
+        }, 0);
+    }, { once: true });
 }
 
 quickButtons.forEach((button) => {
