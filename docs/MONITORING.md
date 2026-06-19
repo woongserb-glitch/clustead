@@ -16,7 +16,7 @@
 | **Nginx 다운** | ✅ 자동(신규) | systemd `Restart=on-failure`(이번에 추가) + 부팅 `enabled` | 외부(전체 다운) |
 | **서버 재부팅** | ✅ 복구(신규) | **`systemctl enable docker`(이번에 수정)** + `restart: unless-stopped` → 부팅 시 컨테이너 자동 기동. nginx도 enabled | 외부(워밍업 ~50초간 502 후 정상) |
 | **메모리 부족(OOM)** | ✅ 격리 | compose `mem_limit: 768m` → 폭주 시 **컨테이너만** OOM-kill, 호스트 보호. 이후 자동재시작 | 서버 스크립트(OOMKilled 플래그/가용메모리), 외부(일시 5xx) |
-| **디스크 부족** | ❌ 수동 | 현재 **95%** — 임박 시 SQLite/로그/캐시 쓰기 실패 → 앱 오류 | **서버 스크립트(디스크 임계 알림)** ← 외부 모니터로는 안 보임 |
+| **디스크 부족** | ❌ 수동 | 현재 **93%**(여유 ~684MB) — 데이터 footprint(transactions 626M+baseline 437M+db 372M)가 9.8G 디스크에 빡빡. 임박 시 SQLite/로그/캐시 쓰기 실패 | **서버 스크립트(디스크 임계 알림)** ← 외부 모니터로는 안 보임 |
 | **Cloudflare 뒤 origin 장애** | 시나리오별 | origin 다운 시 CF가 **522/523/521** 표시. CF 자체 장애는 드묾 | 외부 모니터를 **CF 통과 URL**(`https://clustead.com/...`)로 두면 origin·CF 경로 모두 감시 |
 | **Kakao 지도 키/도메인 문제** | ❌ 수동 | 키 만료·도메인 미등록 시 지도만 안 뜸(사이트는 정상) | 육안/사용자 제보 (외부 모니터 미탐지) |
 
@@ -109,7 +109,7 @@ chmod +x /root/clustead/scripts/server_health_check.sh
 
 **일/주 단위 (대부분 UptimeRobot이 대신함)**
 - [ ] UptimeRobot 대시보드 가동률(uptime %) 확인
-- [ ] 디스크 여유 확인 — 현재 **95%로 빡빡**. `df -h /` 가 90% 넘으면 정리(7-D)
+- [ ] 디스크 여유 확인 — 현재 **93%**(임계 95% 설정). 9.8G로 빡빡해 증설 검토 여지. `df -h /` 모니터링
 
 **배포/데이터 갱신 시**
 - [ ] 재배포 후 `https://clustead.com/healthz` 200·`ok` 확인
@@ -197,6 +197,10 @@ docker ps | grep clustead                         # 자동 기동됐나
 ## 8. 이번 작업으로 적용된 것 (요약)
 - ✅ `systemctl enable docker` — 재부팅 시 컨테이너 자동 기동(이전: disabled → 재부팅 시 수동 복구 필요했음)
 - ✅ nginx `Restart=on-failure` drop-in — nginx 크래시 자가복구
-- ✅ 디스크 정리(97→95%) + 점검 스크립트로 임계 알림 체계
-- ✅ `scripts/server_health_check.sh` + 런북(이 문서)
-- ⬜ (사용자) UptimeRobot 가입·모니터 등록, `/etc/clustead-monitor.env` 웹훅 설정, cron 등록
+- ✅ 디스크 정리: docker prune(215M) + 스테일 raw_backup 스냅샷(195M) 제거 → 97%→**93%**
+- ✅ `scripts/server_health_check.sh` 서버 배포 + **cron 5분 등록 완료** + `/etc/clustead-monitor.env` 생성(임계 디스크 95%/메모리 80MB). 첫 실행 `[OK]` 확인.
+- ✅ 런북(이 문서)
+- ⬜ (사용자) ① UptimeRobot 가입·모니터 2개 등록(4-A), ② `/etc/clustead-monitor.env` 의 `CLUSTEAD_ALERT_WEBHOOK` 에 Slack/Discord 웹훅 채우기(현재 빈 값 → 로그만, 알림 미발송)
+
+> 디스크는 9.8G로 구조적으로 빡빡(데이터 ~1.4GB). 임계 95%로 두어 '추가 증가'만 알린다.
+> 더 늘면 `data/transactions/raw`(193M, master 재빌드용) 정리 또는 디스크 증설 검토.
