@@ -12,6 +12,7 @@ from services.ranking_service import (
     RANKING_METRIC_KEYS,
 )
 
+import functools
 import os
 from pathlib import Path
 from urllib.parse import quote, urlencode
@@ -2108,6 +2109,10 @@ def classify_bus_route_type(route_name):
     return "unknown"
 
 
+# node_id→노선 맵은 정적 bus_route_data(부팅 1회 적재)만으로 결정된다. result 매
+# 요청마다 41,686개 노선을 재집계하던 비용(요청당 ~50ms)을 메모이즈로 제거한다.
+# 반환 dict/set은 get_bus_routes_for_stop 에서 읽기만 한다(변형 없음 → 캐시 안전).
+@functools.lru_cache(maxsize=1)
 def build_bus_route_map():
     route_map = {}
 
@@ -5336,6 +5341,11 @@ def normalize_search_text(value):
     return clean_text(value).replace(" ", "").lower()
 
 
+# 노선→역 인덱스는 정적 baseline 만으로 결정되며 요청 파라미터와 무관하다.
+# explore 매 요청마다 2861행 × json.loads(≈역 5만건 clean_text) 재계산하던 핫스팟
+# (요청당 ~260ms)을 1회 계산 후 메모이즈해 제거한다. (데이터는 부팅 시 1회 적재라
+# 런타임 불변 → 캐시 안전. 반환 dict/리스트는 호출부에서 읽기만 한다.)
+@functools.lru_cache(maxsize=1)
 def get_subway_line_station_index():
     line_map = {}
 
