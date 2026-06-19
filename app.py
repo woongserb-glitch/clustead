@@ -7623,6 +7623,10 @@ def _warm_explore_caches():
             _baseline_metric_lookup("nightlife500", "nightlife_baseline.csv", "nightlife_count_500m")
             _baseline_metric_lookup("medical_nearest_emergency", "medical_baseline.csv", "nearest_emergency_distance")
             build_explore_scenarios()
+            # 정적 lru_cache 사전 채우기: preload_app=True 라 부모에서 채우면 fork
+            # CoW로 전 워커가 상속 → 워커별 첫 요청의 콜드 빌드(~260ms) 제거.
+            get_subway_line_station_index()
+            build_bus_route_map()
         print(f"[WARMUP] explore scenarios {(time.perf_counter() - start) * 1000:.0f}ms 완료")
     except Exception as exc:
         print(f"[WARMUP] explore scenarios 실패: {exc}")
