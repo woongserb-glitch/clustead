@@ -4689,10 +4689,10 @@ body:not(.home-page) #resultLoadingOverlay {
     border-color: #111827;
 }
 
-/* 홈 검색 버튼과 동일한 높이감. */
+/* 같은 행의 검색 입력(52px)과 높이·모서리를 맞춰 버튼이 과하게 커 보이지 않게. */
 .compare-search-grid .compare-submit {
-    height: 62px;
-    border-radius: 14px;
+    height: 52px;
+    border-radius: 15px;
     font-size: 15px;
 }
 
