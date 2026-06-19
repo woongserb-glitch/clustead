@@ -1094,8 +1094,12 @@ def load_bus_stop_data():
             lng = float(row["X좌표"])
 
             bus_stop_data.append({
-                "node_id": str(row.get("노드 ID", "")).strip(),
-                "ars_id": str(row.get("정류소번호", "")).strip(),
+                # 정류장 CSV는 컬럼명과 실제 내용이 뒤바뀌어 있다: '노드 ID' 컬럼엔
+                # ARS 번호(5자리), '정류소번호' 컬럼엔 실제 NODE_ID(9자리)가 들어 있다.
+                # 노선 CSV의 NODE_ID와 조인하려면 '정류소번호'를 node_id로 써야 한다
+                # (이전엔 '노드 ID'를 node_id로 써서 노선 매칭이 0건 → 노선정보 미표시).
+                "node_id": str(row.get("정류소번호", "")).strip(),
+                "ars_id": str(row.get("노드 ID", "")).strip(),
                 "name": str(row.get("정류소명", "")).strip(),
                 "lat": lat,
                 "lng": lng,

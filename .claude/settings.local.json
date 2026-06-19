@@ -45,7 +45,14 @@
       "Bash(sed -i 's/?v=8/?v=9/g' templates/index.html)",
       "Bash(node -e \"new Function\\(require\\('fs'\\).readFileSync\\('static/home.js','utf8'\\)\\)\")",
       "Bash(git stash *)",
-      "Bash(python -m py_compile app.py services/ranking_service.py)"
+      "Bash(python -m py_compile app.py services/ranking_service.py)",
+      "Bash(ssh -i ~/.ssh/clustead_deploy -o ConnectTimeout=30 root@211.188.48.124 'cd /root/clustead && docker compose -f docker-compose.app-only.yml up -d --build 2>&1 | tail -8')",
+      "Bash(ssh -i ~/.ssh/clustead_deploy -o ConnectTimeout=30 root@211.188.48.124 'echo \"=== nanum font in image? ===\"; docker compose -f /root/clustead/docker-compose.app-only.yml exec -T app ls /usr/share/fonts/truetype/nanum/ 2>&1 | head -5; echo \"=== wait app ready ===\"; for i in $\\(seq 1 20\\); do c=$\\(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/healthz\\); if [ \"$c\" = \"200\" ]; then echo \"READY ~$\\(\\(i*4\\)\\)s\"; break; fi; sleep 4; done')",
+      "Bash(curl -s -o .ogtest/prod_og.png -w \"public OG HTTP %{http_code}, type %{content_type}, bytes %{size_download}\\\\n\" \"https://clustead.com/og/apartments/%EC%86%A1%ED%8C%8C%EA%B5%AC/%EA%B0%80%EB%9D%BD%EB%8F%99/%ED%97%AC%EB%A6%AC%EC%98%A4%EC%8B%9C%ED%8B%B0\")",
+      "Bash(curl -s \"https://clustead.com/apartments/%EC%86%A1%ED%8C%8C%EA%B5%AC/%EA%B0%80%EB%9D%BD%EB%8F%99/%ED%97%AC%EB%A6%AC%EC%98%A4%EC%8B%9C%ED%8B%B0\")",
+      "Bash(ssh -i ~/.ssh/clustead_deploy -o ConnectTimeout=25 root@211.188.48.124 'echo \"=== container stats \\(1shot\\) ===\"; docker stats --no-stream --format \"{{.Name}} CPU={{.CPUPerc}} MEM={{.MemUsage}}\" 2>/dev/null; echo \"\"; echo \"=== /result timing \\(warm\\) ===\"; for n in 1 2 3; do curl -s -o /dev/null -w \"  /result attempt$n: %{time_total}s \\(HTTP %{http_code}\\)\\\\n\" \"http://127.0.0.1:8000/result?apartment=%ED%97%AC%EB%A6%AC%EC%98%A4%EC%8B%9C%ED%8B%B0&gu=%EC%86%A1%ED%8C%8C%EA%B5%AC&dong=%EA%B0%80%EB%9D%BD%EB%8F%99\"; done; echo \"\"; echo \"=== /og timing \\(cached vs new\\) ===\"; curl -s -o /dev/null -w \"  /og cached: %{time_total}s\\\\n\" \"http://127.0.0.1:8000/og/apartments/%EC%86%A1%ED%8C%8C%EA%B5%AC/%EA%B0%80%EB%9D%BD%EB%8F%99/%ED%97%AC%EB%A6%AC%EC%98%A4%EC%8B%9C%ED%8B%B0\"')",
+      "Bash(git commit -q -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
