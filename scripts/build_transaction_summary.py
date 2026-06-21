@@ -422,7 +422,6 @@ def build_summary():
     today = date.today()
 
     rows = []
-    detail_index = {}
     detail_manifest = {}
     connected = 0
     for apartment in apartments:
@@ -432,7 +431,6 @@ def build_summary():
             connected += 1
             detail_payload = build_transaction_detail_payload(tx_rows)
             if detail_payload.get("area_tabs"):
-                detail_index[apartment["livefit_name"]] = detail_payload
                 digest = hashlib.sha1(apartment["livefit_name"].encode("utf-8")).hexdigest()[:16]
                 detail_filename = f"{digest}.json"
                 (TRANSACTION_DETAIL_DIR / detail_filename).write_text(
@@ -447,12 +445,11 @@ def build_summary():
         json.dumps(detail_manifest, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
-    TRANSACTION_DETAIL_INDEX_PATH.write_text(
-        json.dumps(detail_index, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
+    # 모놀리식 transaction_detail_index.json 은 단지별 샤드(detail_index/ + manifest)와
+    # 100% 중복이며 폴백 시 통째로 RAM에 올라가던 파일이라 더 이상 생성하지 않는다.
+    # 런타임(transaction_service)은 파일 부재를 graceful 처리하고 샤드만 읽는다.
     print(f"[OK] transaction_summary.csv rows={len(rows)} path={TRANSACTION_SUMMARY_PATH}")
-    print(f"[OK] transaction_detail_index.json apartments={len(detail_index)} path={TRANSACTION_DETAIL_INDEX_PATH}")
+    print(f"[OK] detail shards={len(detail_manifest)} dir={TRANSACTION_DETAIL_DIR}")
     print(f"[OK] apartments_with_transactions={connected} apartments_without_transactions={len(rows) - connected}")
     if not tx_index:
         print("[WARNING] transaction_master.csv is empty or missing; summary was generated with empty transaction metrics.")
