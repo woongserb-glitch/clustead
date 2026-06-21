@@ -1,4 +1,6 @@
 import csv
+import datetime
+import os
 import re
 from collections import Counter
 from pathlib import Path
@@ -22,6 +24,12 @@ from transaction_layer_utils import (
     write_csv,
     year_month_from_date,
 )
+
+
+# 실거래 롤링 연도 컷오프: 최근 데이터만 master에 담아 디스크/드릴다운 RAM을 줄인다.
+# 기본 = 올해-1(예: 2026년 실행 → 2025·2026 유지, 2024 제외). 자동 rawdata 업데이트
+# 때도 빌드가 적용하므로 옛 연도가 다시 살아나지 않는다. 환경변수로 override 가능.
+TX_MIN_YEAR = int(os.getenv("CLUSTEAD_TX_MIN_YEAR", str(datetime.date.today().year - 1)))
 
 
 MASTER_FIELDS = [
@@ -279,6 +287,13 @@ def normalize_row(row, source_file, transaction_type):
 
     date_value = contract_date(row)
     contract_year, contract_month = year_month_from_date(date_value)
+    # 롤링 연도 컷오프 — 최근 N년만 유지(기본 올해-1). 이전 연도 거래는 제외.
+    if contract_year:
+        try:
+            if int(contract_year) < TX_MIN_YEAR:
+                return None
+        except (TypeError, ValueError):
+            pass
     road_address = road_address_for_row(sido, gu, road_name)
     housing_type = clean_text(first_value(row, ("주택유형", "건물용도")))
     if housing_type and housing_type != "아파트":
