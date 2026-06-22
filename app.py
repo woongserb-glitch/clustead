@@ -309,7 +309,7 @@ def add_cdn_cache_headers(resp):
             and _is_cdn_cacheable_path(request.path)
         ):
             resp.headers.setdefault(
-                "Cache-Control", "public, max-age=300, s-maxage=3600"
+                "Cache-Control", "public, max-age=300, s-maxage=86400"
             )
     except Exception:  # 캐시 헤더 실패가 응답 자체를 깨뜨리지 않도록.
         pass

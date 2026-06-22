@@ -115,6 +115,7 @@ chmod +x /root/clustead/scripts/server_health_check.sh
 - [ ] 재배포 후 `https://clustead.com/healthz` 200·`ok` 확인
 - [ ] raw 데이터 갱신은 **전체 체인** 실행: `python scripts/rebuild_data_full.py` → `data/baseline.db` 전송 → 컨테이너 재시작 (enrich/sqlite 누락 방지)
 - [ ] `docker compose ... up -d --build` 후 디스크 잔량 확인(빌드 캐시 누적)
+- [ ] **CF 캐시 Purge** — `/apartments`·`/area`·`/sitemap.xml`은 CF 엣지 캐시(s-maxage=1일). 데이터가 바뀌는 재배포 후엔 반드시 **Cloudflare → Caching → Configuration → Purge Everything**(또는 해당 URL 선택 purge). 안 하면 최대 1일간 옛 데이터 노출. (코드만 바뀐 배포는 캐시 콘텐츠가 동일하므로 생략 가능.)
 
 **정기 점검(월)**
 - [ ] `systemctl is-enabled docker nginx` 둘 다 `enabled` 인지
