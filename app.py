@@ -281,6 +281,41 @@ def handle_429(err):
     ), 429
 
 
+def _is_cdn_cacheable_path(path):
+    """봇 크롤링이 무겁게 반복 요청하는 정적 성격 페이지인가.
+
+    이 페이지들은 로그인/쿠키가 없고 baseline 재배포 전까지 내용이 고정이라
+    CDN/브라우저 캐시가 안전하다. 단 /apartments 상세는 쿼리스트링(가중치 등)에
+    따라 점수가 달라지므로, CF Cache Rule은 반드시 '쿼리스트링 포함' 캐시 키로
+    둬야 한다(CF 기본). 그래야 봇이 긁는 파라미터 없는 URL만 공유 캐시되고
+    사용자 가중치 URL은 각자 캐시돼 틀린 점수가 섞이지 않는다.
+    """
+    return (
+        path == "/sitemap.xml"
+        or path == "/area"
+        or path.startswith("/area/")
+        or path.startswith("/apartments/")
+    )
+
+
+@app.after_request
+def add_cdn_cache_headers(resp):
+    # 200(GET/HEAD)에만 캐시 허용 — 404/500/워밍업 503은 캐시 금지.
+    # max-age=브라우저(재배포 후 빠른 신선화), s-maxage=CF 엣지(부하 오프로드).
+    try:
+        if (
+            request.method in ("GET", "HEAD")
+            and resp.status_code == 200
+            and _is_cdn_cacheable_path(request.path)
+        ):
+            resp.headers.setdefault(
+                "Cache-Control", "public, max-age=300, s-maxage=3600"
+            )
+    except Exception:  # 캐시 헤더 실패가 응답 자체를 깨뜨리지 않도록.
+        pass
+    return resp
+
+
 @app.route("/healthz")
 def healthz():
     # 로드밸런서/Docker 헬스체크용. 데이터 적재 완료(부팅 워밍업 후)에만 200.
