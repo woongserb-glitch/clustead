@@ -295,6 +295,8 @@ def _is_cdn_cacheable_path(path):
         or path == "/area"
         or path.startswith("/area/")
         or path.startswith("/apartments/")
+        or path == "/compare"
+        or path == "/explore"
     )
 
 
@@ -332,6 +334,10 @@ def robots_txt():
         "Disallow: /api/",
         "Disallow: /healthz",
         "Disallow: /result/export.xlsx",
+        # 무거운 도구 페이지(가중치/비교) — 색인 가치 없고 봇 크롤이 워커를 포화시킴.
+        # 검색용 정식 콘텐츠는 /apartments·/area(canonical)로 충분.
+        "Disallow: /compare",
+        "Disallow: /result",
         "",
         f"Sitemap: {_absolute_url('/sitemap.xml')}",
         "",
@@ -7600,6 +7606,7 @@ def latest_compare_transaction_line(transaction_summary, filter_type, amount_key
 
 
 @app.route("/compare")
+@limiter.limit("30 per minute")
 def compare():
     a_name = clean_text(request.args.get("a", ""))
     b_name = clean_text(request.args.get("b", ""))
