@@ -328,6 +328,23 @@ def healthz():
 @app.route("/robots.txt")
 def robots_txt():
     body = "\n".join([
+        # 가치 없는 SEO/스크래퍼 봇 전면 차단 — 수천 개 단지 URL을 1회씩 훑어
+        # (캐시 MISS) 워커를 포화시킴. 사이트엔 색인 이득 없음. robots 준수 확인됨.
+        "User-agent: SemrushBot",
+        "Disallow: /",
+        "",
+        "User-agent: AhrefsBot",
+        "Disallow: /",
+        "",
+        "User-agent: MJ12bot",
+        "Disallow: /",
+        "",
+        "User-agent: DotBot",
+        "Disallow: /",
+        "",
+        "User-agent: BLEXBot",
+        "Disallow: /",
+        "",
         "User-agent: *",
         "Allow: /",
         "Disallow: /admin/",
