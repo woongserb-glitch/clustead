@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import queue
+import re
 import sqlite3
 import threading
 from datetime import datetime, timezone, timedelta
@@ -34,6 +35,30 @@ _EXCLUDE_IPS = {
     for ip in os.getenv("CLUSTEAD_ANALYTICS_EXCLUDE_IPS", "").split(",")
     if ip.strip()
 }
+
+# 봇/크롤러 User-Agent 제외 — 서버측 집계는 origin에 닿은 모든 요청을 세므로,
+# 필터가 없으면 Googlebot·Yeti·ChatGPT-User·UptimeRobot·스캐너 등이 '방문자'로
+# 잡혀 사람 지표가 크게 부풀려진다(IP는 저장 안 해 사후 필터 불가 → track 진입에서 제외).
+# 주의: 한국 인앱 브라우저(naver/daum/kakao/whale)는 사람이므로 제외 목록에 넣지 않는다.
+# 봇 UA는 대부분 'bot'/'crawl'/'spider' 토큰을 포함하고, 나머지는 제품명으로 명시한다.
+_BOT_UA_RE = re.compile(
+    r"bot\b|bot/|crawl|spider|slurp|mediapartners|adsbot|"
+    r"yeti|"  # 네이버 크롤러(인앱 'NAVER'와 구분됨)
+    r"chatgpt|gptbot|oai-search|anthropic|claude|perplexit|"
+    r"applebot|facebookexternal|meta-externalagent|embedly|"
+    r"semrush|ahrefs|mj12|dotbot|blexbot|dataforseo|bytespider|ccbot|"
+    r"zgrab|masscan|censys|expanse|nikto|"
+    r"python-requests|python-httpx|go-http-client|okhttp|libwww|"
+    r"curl/|wget|headlesschrome|phantomjs|scrapy|node-fetch|axios|java/",
+    re.IGNORECASE,
+)
+
+
+def is_bot_user_agent(user_agent):
+    """봇/크롤러/HTTP 클라이언트로 판단되면 True. 빈 UA도 봇으로 취급."""
+    if not user_agent:
+        return True
+    return bool(_BOT_UA_RE.search(user_agent))
 
 # DB 경로 — 영속 볼륨(./data:/app/data) 밑에 둬야 컨테이너 재생성에도 생존.
 _DEFAULT_DB = os.path.join(
@@ -172,6 +197,8 @@ def track(event_type, ip=None, user_agent=None, path=None,
         return
     if ip and ip in _EXCLUDE_IPS:
         return  # 관리자/내부(본인) IP 자기 방문은 집계 제외
+    if is_bot_user_agent(user_agent):
+        return  # 봇/크롤러/HTTP 클라이언트는 사람 지표에서 제외
     try:
         if not _ensure_started():
             return
@@ -229,10 +256,17 @@ def _day_floor(days):
     return (datetime.now(_KST) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
 
 
-def query_analytics(days=30, top=20):
+def day_str(offset=0):
+    """KST 기준 오늘+offset 일의 'YYYY-MM-DD'. 당일=day_str(0), 어제=day_str(-1)."""
+    return (datetime.now(_KST) + timedelta(days=offset)).strftime("%Y-%m-%d")
+
+
+def query_analytics(days=30, top=20, day_from=None, day_to=None):
     """admin/analytics 대시보드용 집계 일괄 조회. 단일 read 커넥션 재사용.
 
     days: 최근 N일(KST, 오늘 포함). 0/None 이면 전체 기간.
+    day_from/day_to: 명시적 날짜 구간('YYYY-MM-DD', 포함). 주어지면 days 대신 사용
+      (예: 어제만 보려면 day_from=day_to=어제). day_to 만으로 상한도 지정 가능.
     반환 dict 구조는 템플릿이 그대로 소비.
     """
     empty = {
@@ -245,9 +279,18 @@ def query_analytics(days=30, top=20):
     conn = _read_connect()
     if conn is None:
         return empty
-    floor = _day_floor(days)
-    where = "WHERE day >= ?" if floor else ""
-    params = (floor,) if floor else ()
+    # 명시적 구간(day_from/day_to) 우선, 없으면 days(최근 N일)로 하한 계산.
+    if day_from is None and day_to is None:
+        day_from = _day_floor(days)
+    conds = []
+    params = ()
+    if day_from:
+        conds.append("day >= ?")
+        params += (day_from,)
+    if day_to:
+        conds.append("day <= ?")
+        params += (day_to,)
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
     try:
         def q(sql, extra=()):
             return conn.execute(sql, params + extra).fetchall()

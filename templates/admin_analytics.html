@@ -118,9 +118,9 @@
     {% set qs = ('&admin_token=' ~ admin_token) if admin_token else '' %}
     <div class="toolbar panel">
         <strong style="margin-right:6px;">기간</strong>
-        {% for d, lbl in [(7,'최근 7일'), (30,'최근 30일'), (90,'최근 90일'), (0,'전체')] %}
-            <a class="range-link {% if selected_days == d %}active{% endif %}"
-               href="/admin/analytics?days={{ d }}{{ qs }}">{{ lbl }}</a>
+        {% for p, lbl in [('today','당일'), ('yesterday','어제'), ('7','최근 7일'), ('30','최근 30일'), ('90','최근 90일'), ('all','전체')] %}
+            <a class="range-link {% if selected_period == p %}active{% endif %}"
+               href="/admin/analytics?period={{ p }}{{ qs }}">{{ lbl }}</a>
         {% endfor %}
         <span class="spacer"></span>
         <a class="range-link" href="/admin/ranking-debug{% if admin_token %}?admin_token={{ admin_token }}{% endif %}">Ranking Debug →</a>

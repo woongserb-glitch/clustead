@@ -5405,17 +5405,29 @@ def admin_ranking_debug():
 @app.route("/admin/analytics")
 def admin_analytics():
     _require_admin()
-    try:
-        days = int(request.args.get("days", "30"))
-    except ValueError:
-        days = 30
-    if days not in (7, 30, 90, 0):
-        days = 30
-    data = analytics_service.query_analytics(days=days)
+    # period 우선(당일/어제 포함). 미지정 시 레거시 ?days= 값을 매핑.
+    period = clean_text(request.args.get("period", ""))
+    if not period:
+        legacy = clean_text(request.args.get("days", "30"))
+        period = {"1": "today", "0": "all"}.get(legacy, legacy)
+    if period not in ("today", "yesterday", "7", "30", "90", "all"):
+        period = "30"
+
+    if period == "today":
+        data = analytics_service.query_analytics(
+            day_from=analytics_service.day_str(0), day_to=analytics_service.day_str(0))
+    elif period == "yesterday":
+        data = analytics_service.query_analytics(
+            day_from=analytics_service.day_str(-1), day_to=analytics_service.day_str(-1))
+    elif period == "all":
+        data = analytics_service.query_analytics(days=0)
+    else:
+        data = analytics_service.query_analytics(days=int(period))
+
     return render_template(
         "admin_analytics.html",
         data=data,
-        selected_days=days,
+        selected_period=period,
         admin_token=request.args.get("admin_token", ""),
     )
 
