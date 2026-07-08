@@ -367,7 +367,6 @@ def sitemap_xml():
     urls = [
         {"loc": _absolute_url("/"), "changefreq": "weekly", "priority": "1.0"},
         {"loc": _absolute_url("/explore"), "changefreq": "weekly", "priority": "0.8"},
-        {"loc": _absolute_url("/compare"), "changefreq": "monthly", "priority": "0.5"},
         {"loc": area_index_url(), "changefreq": "weekly", "priority": "0.85"},
     ]
 
@@ -5050,6 +5049,36 @@ def build_area_landing_context(gu, dong=None):
     children = _area_sibling_summaries(gu, dong) if is_dong else _area_child_summaries(gu)
     child_title = f"{gu} 다른 동 보기" if is_dong else f"{gu} 동별 생활권"
 
+    # 크롤 가능한 전체 단지 디렉터리 — 모든 단지 상세페이지가 최소 1개의 내부 링크를
+    # 받도록 지역 내 전 단지를 <a> 링크로 노출한다(색인 발견성 개선).
+    def _directory_link(apt):
+        return {
+            "name": clean_text(apt.get("name", "")),
+            "url": apartment_detail_path(apt.get("name"), apt.get("gu"), apt.get("dong")),
+        }
+
+    directory_apartments = []
+    directory_groups = []
+    if is_dong:
+        directory_apartments = sorted(
+            (_directory_link(apt) for apt in rows if clean_text(apt.get("name", ""))),
+            key=lambda item: item["name"],
+        )
+    else:
+        grouped = {}
+        for apt in rows:
+            if not clean_text(apt.get("name", "")):
+                continue
+            grouped.setdefault(clean_text(apt.get("dong", "")), []).append(_directory_link(apt))
+        directory_groups = [
+            {
+                "dong": dong_name,
+                "url": area_landing_path(gu, dong_name),
+                "apartments": sorted(items, key=lambda item: item["name"]),
+            }
+            for dong_name, items in sorted(grouped.items())
+        ]
+
     canonical_url = area_landing_url(gu, dong if is_dong else None)
     title = f"{scope_label} 아파트 생활환경 | Clustead"
     description = _truncate_meta(
@@ -5122,6 +5151,8 @@ def build_area_landing_context(gu, dong=None):
         "child_areas": children,
         "child_title": child_title,
         "parent_area_url": area_landing_path(gu) if is_dong else "",
+        "directory_apartments": directory_apartments,
+        "directory_groups": directory_groups,
     }
 
 

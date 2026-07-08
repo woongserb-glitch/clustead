@@ -20,6 +20,19 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260618-area">
+    <style>
+        .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
+        .area-directory a {
+            display: inline-block; padding: 6px 12px; border: 1px solid #e2e8f0;
+            border-radius: 999px; font-size: 14px; color: #15243B; text-decoration: none; background: #fff;
+        }
+        .area-directory a:hover { border-color: #5B8DEF; color: #5B8DEF; }
+        .area-directory-group { margin-bottom: 18px; }
+        .area-directory-group h3 { margin: 0 0 10px; font-size: 15px; }
+        .area-directory-group h3 a { color: #15243B; text-decoration: none; }
+        .area-directory-group h3 a:hover { color: #5B8DEF; }
+        .area-directory-group h3 small { color: #94a3b8; font-weight: 400; margin-left: 6px; }
+    </style>
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_analytics_head.html" %}
 </head>
@@ -127,6 +140,35 @@
                         {% endfor %}
                     </div>
                 </section>
+
+                {% if directory_apartments or directory_groups %}
+                <section class="tool-results-card">
+                    <div class="section-head">
+                        <div>
+                            <h2>{{ area.scope_label }} 전체 단지</h2>
+                            <p>이 지역의 모든 아파트 단지입니다. 단지명을 눌러 생활환경 분석을 확인하세요.</p>
+                        </div>
+                    </div>
+                    {% if directory_apartments %}
+                    <div class="area-directory">
+                        {% for apt in directory_apartments %}
+                        <a href="{{ apt.url }}">{{ apt.name }}</a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    {% for group in directory_groups %}
+                    <div class="area-directory-group">
+                        <h3><a href="{{ group.url }}">{{ group.dong }}</a> <small>{{ group.apartments | length }}개 단지</small></h3>
+                        <div class="area-directory">
+                            {% for apt in group.apartments %}
+                            <a href="{{ apt.url }}">{{ apt.name }}</a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </section>
+                {% endif %}
             </section>
 
             <aside class="area-side">
