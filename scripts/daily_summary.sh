@@ -19,11 +19,28 @@ LOG="${CLUSTEAD_MONITOR_LOG:-/var/log/clustead-monitor.log}"
 CONTAINER="${CLUSTEAD_CONTAINER:-clustead-app-1}"
 
 y=$(date -d 'yesterday' '+%F')
-fails=$(grep "^$y" "$LOG" 2>/dev/null | grep -c 'FAIL')
-checks=$(grep "^$y" "$LOG" 2>/dev/null | grep -cE '\[(OK|FAIL)\]')
+
+# 전날의 '점검 라인'만 추린다. 이 로그에는 매일 09:00 요약 라인도 함께 쌓이는데,
+# 그 문구에 'FAIL' 이라는 낱말이 들어 있어 예전처럼 grep -c 'FAIL' 로 세면 요약
+# 라인까지 +1 로 잘못 잡힌다(2026-07-18 '121/288' 오보의 원인). 반드시 '[FAIL]'
+# 대괄호 형태로, 그리고 점검 라인으로 한정해서 센다.
+day_checks=$(grep "^$y" "$LOG" 2>/dev/null | grep -E '\[(OK|FAIL)\]')
+checks=$(printf '%s' "$day_checks" | grep -cE '\[(OK|FAIL)\]')
+fail_lines=$(printf '%s' "$day_checks" | grep '\[FAIL\]')
+fails=$(printf '%s' "$fail_lines" | grep -c '\[FAIL\]')
+
+# server_health_check.sh 는 healthz/디스크/메모리/컨테이너/OOM 5가지를 하나의
+# FAIL 로 합쳐 기록한다. 사유를 나눠 보고해야 'healthz 장애'로 오해하지 않는다.
+count_reason() { printf '%s' "$fail_lines" | grep -c "$1"; }
+f_health=$(count_reason 'healthz')
+f_disk=$(count_reason '디스크')
+f_mem=$(count_reason 'MB (<')
+f_cont=$(count_reason '미실행')
+f_oom=$(count_reason 'OOMKilled')
+
 wt=$(docker logs --since 24h "$CONTAINER" 2>&1 | grep -c 'WORKER TIMEOUT')
 
-msg="📊 [Clustead] 일일 요약 ${y} — healthz FAIL ${fails}/${checks}회, 워커타임아웃(24h) ${wt}건"
+msg="📊 [Clustead] 일일 요약 ${y} — 점검 ${checks}회 중 이상 ${fails}회 (healthz ${f_health} / 디스크 ${f_disk} / 메모리 ${f_mem} / 컨테이너 ${f_cont} / OOM ${f_oom}), 워커타임아웃(24h) ${wt}건"
 
 ts=$(date '+%F %T')
 echo "${ts} ${msg}" >> "$LOG"
