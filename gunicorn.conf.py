@@ -20,9 +20,15 @@ keepalive = 5
 # 마스터에서 앱(=데이터)을 1회 적재 후 fork. 워커 재활용 시에도 재적재 없음.
 preload_app = True
 
-# 점진적 메모리 증가 방어: 일정 요청마다 워커 재활용(jitter로 동시 재활용 분산).
-max_requests = 1000
-max_requests_jitter = 100
+# 점진적 메모리 증가 방어용 워커 재활용. 0 이면 비활성(gunicorn 기본값).
+#
+# 주의(2026-07-19): 호스트 RAM 이 1GB 뿐이라 앱 메모리 상당량이 스왑에 나가 있다.
+# 이 상태에서 워커를 재활용하면 새 워커가 CoW 페이지를 스왑에서 되읽어야 해
+# 콜드스타트가 매우 길어진다(07-19 01:13 재활용 시 부팅에 52초 소요). preload_app
+# 이라 재활용해도 데이터 재적재 이득은 없고 지연만 생기므로 기본을 0(비활성)으로 둔다.
+# 메모리 누수 징후가 보이면 GUNICORN_MAX_REQUESTS 로 다시 켤 수 있다.
+max_requests = int(os.getenv("GUNICORN_MAX_REQUESTS", "0"))
+max_requests_jitter = int(os.getenv("GUNICORN_MAX_REQUESTS_JITTER", "100")) if max_requests else 0
 
 # 컨테이너 표준출력으로 로깅(docker logs / nginx와 분리).
 accesslog = "-"
