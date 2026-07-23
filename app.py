@@ -2243,9 +2243,9 @@ def build_bus_map_pois(apartment):
         stop_name = str(stop.get("name", "버스정류장")).replace("?", "·")
 
         if route_preview:
-            label = f"🚍 {stop_name} · {route_preview}"
+            label = f"🚌 {stop_name} · {route_preview}"
         else:
-            label = f"🚍 {stop_name}"
+            label = f"🚌 {stop_name}"
 
         bus_pois.append({
             "lat": stop.get("lat"),
@@ -2272,7 +2272,7 @@ def build_bus_category_summary(bus_info):
 
     return {
         "key": "bus-baseline",
-        "label": "🚍 버스 접근성",
+        "label": "🚌 버스 접근성",
         "domain_label": "🚇 교통",
         "score": f"{bus_info.get('route_count', 0)}개",
         "score_class": "score-normal",
@@ -2285,7 +2285,7 @@ def build_bus_category_summary(bus_info):
         "gu_percentile": None,
         "source": "서울시 버스 데이터",
         "nearest_poi": {
-            "label": f"🚍 {bus_info.get('nearest_stop', '')}",
+            "label": f"🚌 {bus_info.get('nearest_stop', '')}",
             "distance": bus_info.get("nearest_distance", ""),
         },
         "subtype_chips": [
@@ -2439,7 +2439,7 @@ def apply_bus_baseline_to_ui(category_summaries, preference_tags, domain_summari
 
     preference_tags.append({
         "key": "bus-baseline",
-        "label": "🚍 버스접근성",
+        "label": "🚌 버스접근성",
         "value": old_bus_tag.get("value", 3) if old_bus_tag else 3,
         "level": old_bus_tag.get("level", "보통") if old_bus_tag else "보통",
         "level_class": old_bus_tag.get("level_class", "level-normal") if old_bus_tag else "level-normal",
@@ -2449,7 +2449,7 @@ def apply_bus_baseline_to_ui(category_summaries, preference_tags, domain_summari
         "seoul_percentile": bus_info.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": f"🚍 {bus_info.get('nearest_stop', '')}",
+        "nearest_name": f"🚌 {bus_info.get('nearest_stop', '')}",
         "nearest_distance": bus_info.get("nearest_distance", None),
     })
 
@@ -6197,7 +6197,7 @@ def build_home_graph():
                     "filter_param": "line",
                 },
                 {
-                    "key": "bus", "label": "버스", "icon": "🚍", "kind": "autocomplete",
+                    "key": "bus", "label": "버스", "icon": "🚌", "kind": "autocomplete",
                     "endpoint": "/api/search/bus-routes", "param": "bus_route",
                     "placeholder": "버스 번호 검색 (예: 472)", "suffix": "번",
                 },
