@@ -11,6 +11,10 @@ services:
     environment:
       - WEB_CONCURRENCY=2          # 워커 2개: /result의 Kakao I/O 대기 중 동시 처리(preload COW로 RAM 거의 안 늘음)
       - CLUSTEAD_TRUST_PROXY=1     # host nginx 뒤 → ProxyFix on(실제 IP/HTTPS 인식)
+      - GUNICORN_MAX_REQUESTS=3000 # 워커 재활용 재도입(2026-07-25): 재활용 OFF(0) 상태에서 워커 메모리가
+                                   #   며칠 누적 → 스왑 스톰(22:35 healthz FAIL) 유발 의심. 3000회(≈워커당 3~4일)로
+                                   #   드물게 재활용해 누적분만 해제. jitter 100이 두 워커 동시 재활용(동시 콜드스타트)을 분산.
+                                   #   반복되면 근본책 RAM 2GB. 되돌리려면 이 줄 제거(=0=재활용 OFF).
     volumes:
       - ./data:/app/data           # 1.4GB 데이터 + Kakao 캐시 write(rw)
     ports:
