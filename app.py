@@ -14,6 +14,7 @@ from services.ranking_service import (
 
 import functools
 import os
+import time
 from pathlib import Path
 from urllib.parse import quote, urlencode
 from xml.sax.saxutils import escape as xml_escape
@@ -23,10 +24,12 @@ try:
 except ImportError:
     def load_dotenv(*args, **kwargs):
         return False
-from flask import Flask, Response, abort, jsonify, render_template, request, send_file
+from flask import Flask, Response, abort, g, jsonify, render_template, request, send_file
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+from services import request_tracker
 
 from services.poi_service import (
     get_category_summaries,
@@ -298,6 +301,52 @@ def _is_cdn_cacheable_path(path):
         or path == "/compare"
         or path == "/explore"
     )
+
+
+# 느린/멈춘 요청 진단(2026-07-28). 자원은 정상인데 워커가 60s 타임아웃으로
+# 강제종료되는 스파이럴의 범인 URL 을 다음 발생 때 특정하기 위함.
+#  - before: 현재 요청을 워커 인메모리에 기록(gunicorn worker_abort 훅이 읽음).
+#  - after : 임계(기본 5초) 이상 걸려 '완료된' 요청을 [SLOWLOG] 로 남김.
+#  - teardown: 예외 포함 항상 현재요청 슬롯 비움.
+# 강제종료(SIGKILL)된 요청은 after 가 안 돌므로 worker_abort 훅에서 [WORKER STUCK]
+# 으로 남는다(gunicorn.conf.py). 전 경로 try/except — 진단이 서비스를 안 깨뜨림.
+_SLOWLOG_SEC = float(os.getenv("CLUSTEAD_SLOWLOG_SEC", "5"))
+
+
+def _client_ip():
+    return request.headers.get("CF-Connecting-IP") or get_remote_address()
+
+
+@app.before_request
+def _track_request_begin():
+    try:
+        g._req_t0 = time.monotonic()
+        request_tracker.begin(request.method, request.full_path, _client_ip())
+    except Exception:
+        pass
+
+
+@app.after_request
+def _track_request_slowlog(resp):
+    try:
+        t0 = getattr(g, "_req_t0", None)
+        if t0 is not None:
+            elapsed = time.monotonic() - t0
+            if elapsed >= _SLOWLOG_SEC:
+                ua = (request.headers.get("User-Agent") or "")[:120]
+                print(
+                    f"[SLOWLOG] {elapsed:.1f}s {request.method} {request.full_path} "
+                    f"-> {resp.status_code} ip={_client_ip()} ua={ua}",
+                    flush=True,
+                )
+    except Exception:
+        pass
+    return resp
+
+
+@app.teardown_request
+def _track_request_end(exc=None):
+    request_tracker.end()
 
 
 @app.after_request

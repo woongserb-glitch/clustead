@@ -34,3 +34,23 @@ max_requests_jitter = int(os.getenv("GUNICORN_MAX_REQUESTS_JITTER", "100")) if m
 accesslog = "-"
 errorlog = "-"
 loglevel = os.getenv("GUNICORN_LOGLEVEL", "info")
+
+
+def worker_abort(worker):
+    """워커가 타임아웃(timeout=60s)으로 강제종료되기 직전 호출된다(해당 워커
+    프로세스 안에서). 그 순간 처리 중이던 요청 URL 을 남겨, 자원은 정상인데
+    워커만 묶이는 스파이럴(2026-07-28)의 범인 URL 을 특정한다. 앱이 인메모리로
+    기록해 둔 현재요청을 읽는다(services/request_tracker). 실패해도 무해."""
+    try:
+        from services.request_tracker import snapshot
+        snap = snapshot()
+        if snap:
+            worker.log.critical(
+                "[WORKER STUCK] %ss %s %s ip=%s",
+                snap.get("elapsed"), snap.get("method"),
+                snap.get("path"), snap.get("ip"),
+            )
+        else:
+            worker.log.critical("[WORKER STUCK] (처리 중 요청 없음 — 요청 밖에서 멈춤)")
+    except Exception:
+        pass
