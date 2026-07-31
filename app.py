@@ -115,10 +115,26 @@ def clustead_env(key, default=""):
 if clustead_env("TRUST_PROXY", "0") == "1":
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
+
+def real_client_ip():
+    """실제 방문자 IP. Cloudflare 뒤에서는 `CF-Connecting-IP` 가 진짜 클라이언트다.
+    ProxyFix(x_for=1)는 remote_addr 을 CF 엣지 IP 로 만들고, CF 엣지 IP 는 요청마다
+    바뀌므로 그걸로 레이트리밋을 걸면 엣지별로 버킷이 흩어져 사실상 무력화된다
+    (2026-07-31 /result/export.xlsx 가 10/분 제한에도 771회 통과한 사건). CF 헤더를
+    우선 쓰고, 없으면(직접 접근·로컬 healthz 등) 기존 remote_addr 로 폴백한다."""
+    try:
+        cf_ip = request.headers.get("CF-Connecting-IP")
+        if cf_ip:
+            return cf_ip.split(",")[0].strip()
+    except Exception:
+        pass
+    return get_remote_address()
+
+
 # Kakao 유료 API를 호출하는 /result·export 경로를 봇 폭주(쿼터 소진·비용)로부터 보호.
 # 단일 인스턴스는 memory 스토리지로 충분. 다중 인스턴스 확장 시 redis:// 로 교체.
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=real_client_ip,
     app=app,
     default_limits=[],  # 전역 기본 제한 없음 — 비용 경로에만 명시 적용
     storage_uri=clustead_env("RATELIMIT_STORAGE", "memory://"),
@@ -314,7 +330,7 @@ _SLOWLOG_SEC = float(os.getenv("CLUSTEAD_SLOWLOG_SEC", "5"))
 
 
 def _client_ip():
-    return request.headers.get("CF-Connecting-IP") or get_remote_address()
+    return real_client_ip()
 
 
 @app.before_request
