@@ -452,10 +452,15 @@ def manifest_webmanifest():
         # 알려준다. 이게 없으면 설치 여부를 알 길이 없어, 이미 설치한 사용자에게도
         # '앱 설치' 버튼이 계속 보이고 눌러도 아무 일이 없다(브라우저가 이미 설치된
         # 앱에는 beforeinstallprompt 를 주지 않기 때문).
+        #
+        # ⚠️ 여기 URL 은 **현재 접속한 출처**와 같아야 브라우저가 인식한다.
+        # 카노니컬(SITE_BASE_URL=apex)로 고정하면 www 로 들어온 사용자에게는
+        # 출처가 어긋나 '미설치'로 판정된다(www/apex 가 둘 다 서빙 중이라 실제로
+        # 발생했음). ProxyFix(x_proto/x_host)가 있어 _external 이 실제 호스트를 준다.
         "related_applications": [
             {
                 "platform": "webapp",
-                "url": _absolute_url("/manifest.webmanifest"),
+                "url": url_for("manifest_webmanifest", _external=True),
             }
         ],
         "prefer_related_applications": False,
