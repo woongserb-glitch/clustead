@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260618f">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
+    {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
 </head>
 

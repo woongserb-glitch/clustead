@@ -1,0 +1,90 @@
+/* 홈화면 설치 유도 배너(pwa.js 가 주입). style.css/home.css 양쪽 페이지에서
+   공통으로 쓰이므로 별도 파일로 둔다. */
+#clusteadPwaBanner {
+    position: fixed;
+    z-index: 10000;
+    left: 12px;
+    right: 12px;
+    /* iOS 홈 인디케이터/제스처 바를 피한다. */
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    border: 1px solid #e3e7ee;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(17, 24, 39, 0.16);
+    animation: clusteadPwaUp 0.28s ease-out;
+}
+
+@keyframes clusteadPwaUp {
+    from { transform: translateY(12px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #clusteadPwaBanner { animation: none; }
+}
+
+#clusteadPwaBanner img {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 9px;
+}
+
+#clusteadPwaBanner p {
+    flex: 1;
+    margin: 0;
+    /* 모바일 최소 가독 크기(iOS 자동 확대 방지 기준과 동일하게 유지). */
+    font-size: 14px;
+    line-height: 1.45;
+    color: #2b3444;
+}
+
+#clusteadPwaBanner b {
+    font-weight: 700;
+    color: #15243B;
+}
+
+#clusteadPwaBanner button {
+    font: inherit;
+    flex: none;
+    cursor: pointer;
+}
+
+#clusteadPwaBanner [data-install] {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    background: #15243B;
+    border: 0;
+    border-radius: 9px;
+    /* 터치 타깃 44px 기준. */
+    min-height: 44px;
+    padding: 0 16px;
+}
+
+#clusteadPwaBanner [data-close] {
+    width: 44px;
+    height: 44px;
+    font-size: 15px;
+    line-height: 1;
+    color: #8a93a3;
+    background: none;
+    border: 0;
+}
+
+#clusteadPwaBanner [data-close]:hover {
+    color: #2b3444;
+}
+
+@media (min-width: 640px) {
+    #clusteadPwaBanner {
+        left: auto;
+        right: 20px;
+        bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+        max-width: 420px;
+    }
+}

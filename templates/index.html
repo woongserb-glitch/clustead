@@ -12,7 +12,8 @@
             try {
                 if (location.search.indexOf('home=graph') !== -1) return;
                 if (window.matchMedia('(max-width: 760px)').matches) {
-                    location.replace('/explore');
+                    // 쿼리스트링을 유지해야 PWA 홈화면 실행(?src=pwa) 이 분석에서 구분된다.
+                    location.replace('/explore' + location.search);
                 }
             } catch (e) { /* matchMedia 미지원 시 홈 유지 */ }
         })();
@@ -37,6 +38,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}?v=35">
     <script type="application/ld+json">{{ home_json_ld | tojson | safe }}</script>
+    {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
 </head>
 

@@ -24,7 +24,17 @@ try:
 except ImportError:
     def load_dotenv(*args, **kwargs):
         return False
-from flask import Flask, Response, abort, g, jsonify, render_template, request, send_file
+from flask import (
+    Flask,
+    Response,
+    abort,
+    g,
+    jsonify,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -388,6 +398,88 @@ def healthz():
     # 로드밸런서/Docker 헬스체크용. 데이터 적재 완료(부팅 워밍업 후)에만 200.
     ready = bool(apartment_data)
     return jsonify({"status": "ok" if ready else "loading"}), (200 if ready else 503)
+
+
+@app.route("/manifest.webmanifest")
+def manifest_webmanifest():
+    """PWA 매니페스트(홈화면 설치 메타).
+
+    static 파일로 두지 않는 이유: .webmanifest 확장자의 MIME 추론이 환경마다
+    달라(application/octet-stream 으로 나가면 브라우저가 매니페스트로 안 읽음)
+    여기서 mimetype 을 명시한다.
+
+    start_url 은 '/' — 모바일은 index.html 의 헤드 스크립트가 /explore 로
+    자동 전환하므로(≤760px) 별도 분기가 필요 없다. src=pwa 는 홈화면 실행을
+    분석에서 구분하기 위한 표식.
+    """
+    manifest = {
+        "name": "Clustead — 내 삶에 맞는 서울 아파트",
+        "short_name": "Clustead",
+        "description": (
+            "집값·브랜드가 아니라 실제 누리는 생활 인프라"
+            "(교통·의료·교육·편의·안전)를 서울시 상대평가로 점수화."
+        ),
+        "lang": "ko",
+        "start_url": "/?src=pwa",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait-primary",
+        "background_color": "#f7f8fb",
+        "theme_color": "#15243B",
+        "icons": [
+            {
+                "src": url_for("static", filename="icons/icon-192.png"),
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any",
+            },
+            {
+                "src": url_for("static", filename="icons/icon-512.png"),
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any",
+            },
+            {
+                # 안드로이드 적응형 아이콘(원형/스퀴클 마스킹 대응)
+                "src": url_for("static", filename="icons/icon-512-maskable.png"),
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "maskable",
+            },
+        ],
+        "shortcuts": [
+            {
+                "name": "단지 탐색",
+                "short_name": "탐색",
+                "url": "/explore?src=pwa",
+            },
+            {
+                "name": "단지 비교",
+                "short_name": "비교",
+                "url": "/compare?src=pwa",
+            },
+        ],
+    }
+    resp = jsonify(manifest)
+    resp.mimetype = "application/manifest+json"
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
+@app.route("/sw.js")
+def service_worker():
+    """서비스워커. 반드시 루트에서 서빙해야 사이트 전체(scope '/')를 제어한다.
+    /static/sw.js 로 두면 스코프가 /static/ 으로 제한돼 페이지 캐시가 안 먹는다.
+
+    no-cache: 새 워커를 배포했는데 옛 sw.js 가 캐시돼 있으면 갱신이 막힌다.
+    """
+    resp = send_file(
+        os.path.join(app.static_folder, "sw.js"),
+        mimetype="application/javascript",
+    )
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 @app.route("/robots.txt")

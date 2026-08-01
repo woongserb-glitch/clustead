@@ -1,0 +1,12 @@
+{# PWA(홈화면 설치) 공통 헤드. 공개 페이지 템플릿에서 모두 include 한다.
+   manifest/sw 는 스코프 문제로 static 이 아니라 루트 경로(app.py 라우트)로 서빙한다. #}
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#15243B">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+{# iOS 홈화면 실행 시 주소창 없는 전체화면 + 상태바 스타일 #}
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Clustead">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="{{ url_for('static', filename='pwa.css') }}?v=1">
+<script src="{{ url_for('static', filename='pwa.js') }}?v=1" defer></script>
