@@ -1,0 +1,7 @@
+{# 앱 설치 버튼. pwa.js 가 환경을 보고 노출/동작을 정한다.
+   - 이미 설치됐으면 스크립트가 감춘다(기본은 hidden 으로 두고 가능할 때만 노출)
+   - 클릭 시: Chrome·Edge 계열은 네이티브 설치 다이얼로그, 그 외는 환경별 안내 모달
+   호출부에서 btn_class 로 페이지별 버튼 스타일을 맞춘다.
+   예) {% with btn_class='result-download-btn' %}{% include ... %}{% endwith %} #}
+<button type="button" class="{{ btn_class|default('result-download-btn') }} pwa-install-btn"
+        data-pwa-install hidden>⬇ 앱 설치</button>

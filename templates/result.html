@@ -44,6 +44,7 @@
                     <button type="button" class="result-download-btn result-share-btn" data-share-url>공유하기</button>
                     <a class="result-download-btn result-compare-btn" href="{{ url_for('compare', a=apartment.name, a_gu=apartment.district, a_dong=apartment.dong) }}">⚖ <span class="btn-label-long">이 단지와 </span>비교</a>
                     <a class="result-download-btn" href="{{ url_for('result_export_xlsx', apartment=apartment.name, gu=apartment.district, dong=apartment.dong) }}">⬇ Excel<span class="btn-label-long"> 다운로드</span></a>
+                    {% include "_pwa_install_button.html" %}
                 </div>
             </div>
             <div class="top-label">CLUSTEAD RESULT</div>

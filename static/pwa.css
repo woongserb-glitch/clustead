@@ -1,81 +1,105 @@
-/* 홈화면 설치 유도 배너(pwa.js 가 주입). style.css/home.css 양쪽 페이지에서
-   공통으로 쓰이므로 별도 파일로 둔다. */
-#clusteadPwaBanner {
-    position: fixed;
-    z-index: 10000;
-    left: 12px;
-    right: 12px;
-    /* iOS 홈 인디케이터/제스처 바를 피한다. */
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    background: #fff;
-    border: 1px solid #e3e7ee;
-    border-radius: 14px;
-    box-shadow: 0 10px 30px rgba(17, 24, 39, 0.16);
-    animation: clusteadPwaUp 0.28s ease-out;
+/* 헤더 '앱 설치' 버튼 + 환경별 안내 모달.
+   버튼은 페이지별 기존 버튼 클래스(hg-compare-btn / result-download-btn)를 그대로
+   물려받아 생김새를 맞추므로, 여기서는 최소한의 보정만 한다. */
+.pwa-install-btn {
+    cursor: pointer;
+    font: inherit;
 }
 
-@keyframes clusteadPwaUp {
-    from { transform: translateY(12px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
+/* hidden 속성이 기존 버튼 클래스의 display 선언에 덮이지 않도록 못 박는다. */
+[data-pwa-install][hidden] {
+    display: none !important;
+}
+
+/* ---------- 안내 모달 ---------- */
+#clusteadPwaGuide {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(17, 24, 39, 0.5);
+    backdrop-filter: blur(3px);
+    animation: clusteadPwaFade 0.18s ease-out;
+}
+
+@keyframes clusteadPwaFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #clusteadPwaBanner { animation: none; }
+    #clusteadPwaGuide { animation: none; }
 }
 
-#clusteadPwaBanner img {
-    flex: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 9px;
+#clusteadPwaGuide .pwa-guide-card {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    padding: 26px 22px 22px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 18px 44px rgba(17, 24, 39, 0.25);
+    text-align: center;
 }
 
-#clusteadPwaBanner p {
-    flex: 1;
-    margin: 0;
-    /* 모바일 최소 가독 크기(iOS 자동 확대 방지 기준과 동일하게 유지). */
-    font-size: 14px;
-    line-height: 1.45;
-    color: #2b3444;
+#clusteadPwaGuide img {
+    border-radius: 11px;
+    margin-bottom: 12px;
 }
 
-#clusteadPwaBanner b {
+#clusteadPwaGuide h2 {
+    margin: 0 0 12px;
+    font-size: 18px;
     font-weight: 700;
     color: #15243B;
 }
 
-#clusteadPwaBanner button,
-#clusteadPwaBanner a {
-    font: inherit;
-    flex: none;
-    cursor: pointer;
+#clusteadPwaGuide p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #4b5563;
+    /* 복사 실패 시 URL 을 그대로 노출하므로 줄바꿈이 되어야 한다. */
+    word-break: break-all;
 }
 
-/* 설치 버튼(안드로이드 크롬)과 '브라우저로 열기' 링크(인앱)는 같은 자리·같은 모양.
-   후자는 intent:// 이동이라 button 이 아니라 a 여야 한다. */
-#clusteadPwaBanner [data-install],
-#clusteadPwaBanner [data-openout],
-#clusteadPwaBanner [data-copy] {
+#clusteadPwaGuide b { color: #15243B; }
+
+/* iOS 단계 안내 — 번호를 원문자로 보여주고 왼쪽 정렬이 읽기 쉽다. */
+#clusteadPwaGuide .pwa-steps {
+    margin: 0;
+    padding-left: 20px;
+    text-align: left;
     font-size: 14px;
+    line-height: 1.75;
+    color: #4b5563;
+}
+
+#clusteadPwaGuide .pwa-guide-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 18px;
+    /* 터치 타깃 44px 기준. */
+    min-height: 44px;
+    padding: 0 22px;
+    font: inherit;
+    font-size: 15px;
     font-weight: 700;
     color: #fff;
     background: #15243B;
     border: 0;
-    border-radius: 9px;
-    /* 터치 타깃 44px 기준. */
-    min-height: 44px;
-    padding: 0 16px;
+    border-radius: 10px;
     text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
+    cursor: pointer;
 }
 
-#clusteadPwaBanner [data-close] {
+#clusteadPwaGuide .pwa-guide-close {
+    position: absolute;
+    top: 6px;
+    right: 6px;
     width: 44px;
     height: 44px;
     font-size: 15px;
@@ -83,17 +107,7 @@
     color: #8a93a3;
     background: none;
     border: 0;
+    cursor: pointer;
 }
 
-#clusteadPwaBanner [data-close]:hover {
-    color: #2b3444;
-}
-
-@media (min-width: 640px) {
-    #clusteadPwaBanner {
-        left: auto;
-        right: 20px;
-        bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-        max-width: 420px;
-    }
-}
+#clusteadPwaGuide .pwa-guide-close:hover { color: #2b3444; }
