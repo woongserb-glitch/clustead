@@ -58,7 +58,8 @@
 /* 설치 버튼(안드로이드 크롬)과 '브라우저로 열기' 링크(인앱)는 같은 자리·같은 모양.
    후자는 intent:// 이동이라 button 이 아니라 a 여야 한다. */
 #clusteadPwaBanner [data-install],
-#clusteadPwaBanner [data-openout] {
+#clusteadPwaBanner [data-openout],
+#clusteadPwaBanner [data-copy] {
     font-size: 14px;
     font-weight: 700;
     color: #fff;

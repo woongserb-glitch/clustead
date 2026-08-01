@@ -119,11 +119,41 @@
         if (el && el.parentNode) el.parentNode.removeChild(el);
     }
 
-    /* 안드로이드 인앱 WebView 는 intent:// 로 크롬을 직접 띄울 수 있다.
-       iOS 는 Safari 를 강제로 여는 공개 스킴이 없어 안내문만 가능하다. */
+    /* 안드로이드 인앱 WebView 는 intent:// 로 크롬을 직접 띄울 수 있다. */
     function chromeIntentUrl() {
         return 'intent://' + location.host + location.pathname + location.search +
             '#Intent;scheme=https;package=com.android.chrome;end';
+    }
+
+    /* iOS 는 Safari 를 강제로 여는 공개 스킴이 없다(x-safari- 류는 비공식이라
+       앱에 따라 오류 팝업만 뜬다). "메뉴에서 Safari로 열기" 식 안내는 메뉴
+       위치가 앱마다 달라 사용자가 찾지 못한다 — 실제로 무의미했다.
+       그래서 유일하게 확실히 동작하는 행동인 '링크 복사'를 제공한다.
+       clipboard API 는 인앱 WebView 에서 막히는 경우가 있어 execCommand 폴백. */
+    function copyUrl() {
+        var url = location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(url).then(
+                function () { return true; },
+                function () { return legacyCopy(url); }
+            );
+        }
+        return Promise.resolve(legacyCopy(url));
+    }
+
+    function legacyCopy(text) {
+        try {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+            document.body.appendChild(ta);
+            ta.select();
+            ta.setSelectionRange(0, text.length);   // iOS 는 select() 만으로 부족
+            var ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch (e) { return false; }
     }
 
     function showBanner(mode) {
@@ -144,8 +174,9 @@
             msg = '앱으로 설치하려면 <b>Chrome</b>에서 열어주세요.';
             action = '<a href="' + chromeIntentUrl() + '" data-openout>Chrome으로 열기</a>';
         } else {
-            // iOS 인앱/비Safari — 앱마다 메뉴 위치가 달라 일반적인 표현을 쓴다.
-            msg = '앱으로 설치하려면 메뉴에서 <b>Safari로 열기</b>를 선택해 주세요.';
+            // iOS 인앱/비Safari — 링크를 복사해 Safari 에 붙여넣는 것이 유일한 경로.
+            msg = '이 화면에서는 홈 화면 추가가 안 돼요. 링크를 복사해 <b>Safari</b>에서 열면 앱처럼 쓸 수 있어요.';
+            action = '<button type="button" data-copy>링크 복사</button>';
         }
 
         wrap.innerHTML =
@@ -158,6 +189,28 @@
         wrap.querySelector('[data-close]').addEventListener('click', function () {
             dismiss(wrap);
         });
+
+        var copyBtn = wrap.querySelector('[data-copy]');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', function () {
+                copyUrl().then(function (ok) {
+                    var p = wrap.querySelector('p');
+                    if (ok) {
+                        copyBtn.textContent = '복사됨';
+                        p.innerHTML = '<b>Safari</b>를 열고 주소창에 붙여넣기 하세요.';
+                        // 복사한 사람은 목적을 달성했으므로 잠시 뒤 스스로 닫는다.
+                        setTimeout(function () { dismiss(wrap); }, 4000);
+                    } else {
+                        // 복사조차 막힌 환경 — 주소를 직접 보여줘 손으로 옮기게 한다.
+                        p.textContent = location.host + location.pathname;
+                        copyBtn.textContent = '복사 실패';
+                    }
+                    if (typeof window.gtag === 'function') {
+                        window.gtag('event', 'pwa_copy_link', { ok: !!ok });
+                    }
+                });
+            });
+        }
 
         var openOut = wrap.querySelector('[data-openout]');
         if (openOut) {
