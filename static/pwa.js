@@ -11,9 +11,11 @@
  *   iOS 인앱·iOS 크롬/파폭      : 설치 불가, Safari 전환 스킴도 없음 → 링크 복사
  *   그 외 데스크톱(사파리·파폭)  : 브라우저 메뉴 안내
  *
- * 버튼은 설치된 앱으로 '실행 중'일 때만 감춘다. 일반 브라우저 탭에서는 이미
- * 설치한 사용자에게도 계속 보인다 — 설치 여부를 localStorage 로 기억해 감췄더니
- * 데스크톱 크롬이 설치앱과 저장소를 공유해 웹페이지에서도 버튼이 사라졌다.
+ * 노출 규칙은 "보이면 눌렀을 때 실제로 뭔가 된다" 를 보장하도록 잡았다.
+ *   크로미움(PC·안드로이드) : beforeinstallprompt 를 받았을 때만 노출
+ *                            — 안 오면 이미 설치됐거나 설치 불가라 눌러도 소용없다
+ *   iOS·인앱 브라우저        : 설치 API 는 없지만 안내가 유일한 경로이므로 항상 노출
+ *   설치된 앱으로 실행 중     : 감춤
  * ?pwa=hint 로 강제 노출(테스트).
  */
 (function () {
@@ -23,8 +25,6 @@
 
     // 이번 페이지에서 방금 설치했는지(즉시 피드백용, 저장하지 않음).
     var installedNow = false;
-    // 브라우저가 "이 PWA 이미 설치됨"이라고 확인해준 경우.
-    var relatedInstalled = false;
 
     /* ---------- 서비스워커 등록 ---------- */
     if ('serviceWorker' in navigator) {
@@ -81,12 +81,30 @@
         return document.querySelectorAll('[data-pwa-install]');
     }
 
-    /* 감추는 기준은 '설치 여부'가 아니라 '설치된 앱으로 실행 중인가' 다.
-       localStorage 플래그로 설치를 기억해 감췄더니, 데스크톱 크롬은 설치앱과
-       브라우저가 저장소를 공유해 **일반 웹페이지에서도 버튼이 사라졌다**.
-       브라우저 탭에서는 항상 노출한다(방금 설치한 경우만 즉시 피드백으로 감춤). */
+    /* 노출 기준 — "버튼이 보이면 눌렀을 때 실제로 뭔가 된다" 를 보장한다.
+
+       핵심: 크로미움 계열은 **설치 가능할 때 반드시 beforeinstallprompt 를 준다.**
+       그게 오지 않는다면 이미 설치됐거나(설치된 앱엔 두 번 주지 않는다) 설치를
+       지원하지 않는 브라우저다. 어느 쪽이든 버튼을 눌러봐야 할 일이 없으므로
+       아예 노출하지 않는다.
+
+       앞서 '설치 여부'를 추측해 안내를 고르려다 두 번 틀렸다 —
+       localStorage 플래그는 데스크톱 크롬이 설치앱과 저장소를 공유해 웹에서도
+       버튼을 지웠고, getInstalledRelatedApps() 는 데스크톱에서 설치를 보고하지
+       않아 이미 설치한 사용자에게 '이 브라우저는 설치가 안 된다'는 틀린 안내를
+       띄웠다. 추측을 걷어내고 확실한 신호(프롬프트 유무)만 쓴다.
+
+       예외: iOS 와 인앱 브라우저는 설치 API 자체가 없지만 '어떻게 설치하는지'
+       안내가 유효하므로 계속 노출한다. */
+    function canShowButton() {
+        if (force) return true;
+        if (isStandalone() || installedNow) return false;
+        if (isIOS || isInApp) return true;      // 안내가 유일한 경로인 환경
+        return !!deferredPrompt;                // 그 외는 진짜 설치 가능할 때만
+    }
+
     function syncButtons() {
-        var hide = (isStandalone() || installedNow || relatedInstalled) && !force;
+        var hide = !canShowButton();
         Array.prototype.forEach.call(buttons(), function (b) { b.hidden = hide; });
     }
 
@@ -104,43 +122,18 @@
             });
             return;
         }
-        // 설치 확인이 아직 안 끝난 채로 눌렀을 수 있다. 안내를 띄우기 전에
-        // 다시 확인해, 이미 설치한 사용자에게 '설치 방법' 안내가 뜨지 않게 한다.
-        checkAlreadyInstalled().then(function (installed) {
-            if (installed) {
-                relatedInstalled = true;
-                syncButtons();
-                openGuide('installed');
-                return;
-            }
-            openGuide();
-            if (typeof window.gtag === 'function') {
-                window.gtag('event', 'pwa_install_guide', { env: guideKind() });
-            }
-        });
-    }
-
-    /* 브라우저에 "이 PWA 이미 설치돼 있니?" 를 직접 묻는다(Chromium 계열).
-       manifest 의 related_applications 에 자기 자신을 선언해 둬야 동작한다.
-       이미 설치된 앱에는 beforeinstallprompt 가 오지 않으므로, 이 확인이 없으면
-       설치자가 버튼을 눌렀을 때 '설치 불가 환경' 안내가 잘못 뜬다. */
-    function checkAlreadyInstalled() {
-        if (!navigator.getInstalledRelatedApps) return Promise.resolve(false);
-        try {
-            return navigator.getInstalledRelatedApps().then(
-                function (apps) { return !!(apps && apps.length); },
-                function () { return false; }
-            );
-        } catch (e) { return Promise.resolve(false); }
+        // 여기 오는 건 iOS·인앱(설치 API 없음) 뿐이다. 데스크톱에서 프롬프트가
+        // 없으면 애초에 버튼이 보이지 않는다.
+        openGuide();
+        if (typeof window.gtag === 'function') {
+            window.gtag('event', 'pwa_install_guide', { env: guideKind() });
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         syncButtons();
         Array.prototype.forEach.call(buttons(), function (b) {
             b.addEventListener('click', onInstallClick);
-        });
-        checkAlreadyInstalled().then(function (installed) {
-            if (installed) { relatedInstalled = true; syncButtons(); }
         });
     });
 
@@ -228,18 +221,11 @@
                 action: '<button type="button" class="pwa-guide-action" data-copy>링크 복사</button>'
             };
         }
-        if (kind === 'installed') {
-            return {
-                title: '이미 설치되어 있어요',
-                body: '<p>이 컴퓨터에 Clustead가 이미 설치돼 있습니다. ' +
-                    '작업 표시줄이나 시작 메뉴에서 <b>Clustead</b>를 실행하세요.</p>',
-                action: ''
-            };
-        }
+        // ?pwa=hint 강제 노출 때만 도달한다(평소엔 이 환경에서 버튼이 안 뜬다).
         return {
-            title: '이 브라우저는 바로 설치가 안 돼요',
-            body: '<p><b>Chrome</b>이나 <b>Edge</b>에서 열면 이 버튼만 눌러 바로 설치됩니다. ' +
-                '지금 브라우저(Firefox·Safari 등)는 웹앱 설치를 지원하지 않아요.</p>',
+            title: '설치할 수 없는 상태예요',
+            body: '<p>이미 설치되어 있거나, 이 브라우저가 웹앱 설치를 지원하지 않습니다. ' +
+                '<b>Chrome</b>·<b>Edge</b>에서는 버튼 한 번으로 설치됩니다.</p>',
             action: ''
         };
     }
