@@ -1239,29 +1239,47 @@
     });
 
     /* ---------- 리사이즈 ----------
-       창을 최소화하면 stage 의 clientWidth/Height 가 0 으로 보고된다. 그 값을
-       그대로 반영하면 중심이 (0,0) 이 되어 center 노드가 좌상단에 고정되고
-       radial/x/y 힘이 전부 모서리를 향한다 → 노드가 구석으로 빨려 들어가
-       뭉치고, 창을 복원하면 엉킨 상태에서 다시 펴지는 것처럼 보인다.
-       (설치형 PWA 창에서 최소화/최대화를 자주 하게 되면서 드러난 문제)
-       0 이하 크기는 무시하고, 실제로 바뀐 경우에만 반영한다. */
+       두 가지 문제를 함께 막는다.
+
+       (1) 최소화: stage 의 clientWidth/Height 가 0 으로 보고된다. 그대로 반영하면
+           중심이 (0,0) 이 되어 center 가 좌상단에 고정되고 radial/x/y 힘이 전부
+           모서리를 향한다 → 노드가 구석으로 빨려 들어간다.
+
+       (2) 최대화/크기변경: 중심만 순간이동하고 나머지 노드는 제자리에 남는다.
+           예) 1280→1920 이면 cx 가 640→960 으로 뛰는데 노드는 옛 중심 주변에
+           그대로라 **전부 새 중심의 왼쪽**에 놓인다. forceRadial 은 최단거리로
+           링에 투영하므로 노드들이 왼쪽 호에 눌러앉아 한쪽으로 쏠린 채 굳는다
+           (각도 재분배가 일어나지 않음).
+           → 중심 이동량만큼 **모든 노드를 함께 평행이동**시켜 레이아웃의 상대
+             배치를 보존한다. 그러면 링 위 각도 분포가 그대로 유지된다. */
     var resizeTimer = null;
     window.addEventListener("resize", function () {
         var w = stage.clientWidth, h = stage.clientHeight;
         if (w <= 0 || h <= 0) return;      // 최소화/숨김 — 레이아웃 건드리지 않음
         if (w === W && h === H) return;    // 실제 변화 없음(복원 등) — 재가열 불필요
 
+        var ddx = w / 2 - cx, ddy = h / 2 - cy;
+
         W = w; H = h;
         cx = W / 2; cy = H / 2;
+
+        // 레이아웃 전체를 새 중심으로 평행이동(고정된 노드의 fx/fy 포함).
+        nodes.forEach(function (n) {
+            if (typeof n.x === "number") { n.x += ddx; n.y += ddy; }
+            if (typeof n.fx === "number") { n.fx += ddx; n.fy += ddy; }
+        });
+
         center.fx = cx; center.fy = cy;
         sim.force("radial").x(cx).y(cy);
         sim.force("x").x(cx);
         sim.force("y").y(cy);
+        ticked();                          // 재가열 전에 새 좌표를 즉시 반영
 
         // 드래그로 창 크기를 바꾸면 resize 가 연속 발생한다. 매번 restart 하면
         // 시뮬레이션이 계속 재가열돼 흔들리므로 마지막 이벤트 기준 한 번만.
+        // 평행이동으로 배치가 이미 맞으므로 살짝만 데운다.
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(function () { sim.alpha(0.3).restart(); }, 120);
+        resizeTimer = setTimeout(function () { sim.alpha(0.15).restart(); }, 120);
     });
 
     /* ---------- 유틸 ---------- */
