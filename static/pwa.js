@@ -23,6 +23,8 @@
 
     // 이번 페이지에서 방금 설치했는지(즉시 피드백용, 저장하지 않음).
     var installedNow = false;
+    // 브라우저가 "이 PWA 이미 설치됨"이라고 확인해준 경우.
+    var relatedInstalled = false;
 
     /* ---------- 서비스워커 등록 ---------- */
     if ('serviceWorker' in navigator) {
@@ -84,7 +86,7 @@
        브라우저가 저장소를 공유해 **일반 웹페이지에서도 버튼이 사라졌다**.
        브라우저 탭에서는 항상 노출한다(방금 설치한 경우만 즉시 피드백으로 감춤). */
     function syncButtons() {
-        var hide = (isStandalone() || installedNow) && !force;
+        var hide = (isStandalone() || installedNow || relatedInstalled) && !force;
         Array.prototype.forEach.call(buttons(), function (b) { b.hidden = hide; });
     }
 
@@ -102,16 +104,43 @@
             });
             return;
         }
-        openGuide();
-        if (typeof window.gtag === 'function') {
-            window.gtag('event', 'pwa_install_guide', { env: guideKind() });
-        }
+        // 설치 확인이 아직 안 끝난 채로 눌렀을 수 있다. 안내를 띄우기 전에
+        // 다시 확인해, 이미 설치한 사용자에게 '설치 방법' 안내가 뜨지 않게 한다.
+        checkAlreadyInstalled().then(function (installed) {
+            if (installed) {
+                relatedInstalled = true;
+                syncButtons();
+                openGuide('installed');
+                return;
+            }
+            openGuide();
+            if (typeof window.gtag === 'function') {
+                window.gtag('event', 'pwa_install_guide', { env: guideKind() });
+            }
+        });
+    }
+
+    /* 브라우저에 "이 PWA 이미 설치돼 있니?" 를 직접 묻는다(Chromium 계열).
+       manifest 의 related_applications 에 자기 자신을 선언해 둬야 동작한다.
+       이미 설치된 앱에는 beforeinstallprompt 가 오지 않으므로, 이 확인이 없으면
+       설치자가 버튼을 눌렀을 때 '설치 불가 환경' 안내가 잘못 뜬다. */
+    function checkAlreadyInstalled() {
+        if (!navigator.getInstalledRelatedApps) return Promise.resolve(false);
+        try {
+            return navigator.getInstalledRelatedApps().then(
+                function (apps) { return !!(apps && apps.length); },
+                function () { return false; }
+            );
+        } catch (e) { return Promise.resolve(false); }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         syncButtons();
         Array.prototype.forEach.call(buttons(), function (b) {
             b.addEventListener('click', onInstallClick);
+        });
+        checkAlreadyInstalled().then(function (installed) {
+            if (installed) { relatedInstalled = true; syncButtons(); }
         });
     });
 
@@ -199,18 +228,25 @@
                 action: '<button type="button" class="pwa-guide-action" data-copy>링크 복사</button>'
             };
         }
+        if (kind === 'installed') {
+            return {
+                title: '이미 설치되어 있어요',
+                body: '<p>이 컴퓨터에 Clustead가 이미 설치돼 있습니다. ' +
+                    '작업 표시줄이나 시작 메뉴에서 <b>Clustead</b>를 실행하세요.</p>',
+                action: ''
+            };
+        }
         return {
-            title: '앱으로 설치하기',
-            body: '<p>주소창 오른쪽의 <b>설치</b> 아이콘, 또는 브라우저 메뉴에서 ' +
-                '<b>앱으로 설치</b>를 선택해 주세요. ' +
-                'Chrome·Edge에서 가장 잘 동작합니다.</p>',
+            title: '이 브라우저는 바로 설치가 안 돼요',
+            body: '<p><b>Chrome</b>이나 <b>Edge</b>에서 열면 이 버튼만 눌러 바로 설치됩니다. ' +
+                '지금 브라우저(Firefox·Safari 등)는 웹앱 설치를 지원하지 않아요.</p>',
             action: ''
         };
     }
 
-    function openGuide() {
+    function openGuide(kindOverride) {
         closeGuide();
-        var kind = guideKind();
+        var kind = kindOverride || guideKind();
         var c = guideContent(kind);
 
         var back = document.createElement('div');

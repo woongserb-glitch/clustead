@@ -447,6 +447,18 @@ def manifest_webmanifest():
                 "purpose": "maskable",
             },
         ],
+        # 자기 자신을 related_applications 에 선언해야 브라우저의
+        # navigator.getInstalledRelatedApps() 가 "이 PWA가 이미 설치됐는지"를
+        # 알려준다. 이게 없으면 설치 여부를 알 길이 없어, 이미 설치한 사용자에게도
+        # '앱 설치' 버튼이 계속 보이고 눌러도 아무 일이 없다(브라우저가 이미 설치된
+        # 앱에는 beforeinstallprompt 를 주지 않기 때문).
+        "related_applications": [
+            {
+                "platform": "webapp",
+                "url": _absolute_url("/manifest.webmanifest"),
+            }
+        ],
+        "prefer_related_applications": False,
         "shortcuts": [
             {
                 "name": "단지 탐색",
