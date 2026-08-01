@@ -11,13 +11,18 @@
  *   iOS 인앱·iOS 크롬/파폭      : 설치 불가, Safari 전환 스킴도 없음 → 링크 복사
  *   그 외 데스크톱(사파리·파폭)  : 브라우저 메뉴 안내
  *
- * 이미 설치된 것이 확인되면 버튼 자체를 감춘다. ?pwa=hint 로 강제 노출(테스트).
+ * 버튼은 설치된 앱으로 '실행 중'일 때만 감춘다. 일반 브라우저 탭에서는 이미
+ * 설치한 사용자에게도 계속 보인다 — 설치 여부를 localStorage 로 기억해 감췄더니
+ * 데스크톱 크롬이 설치앱과 저장소를 공유해 웹페이지에서도 버튼이 사라졌다.
+ * ?pwa=hint 로 강제 노출(테스트).
  */
 (function () {
     'use strict';
 
-    var INSTALLED_KEY = 'clustead_pwa_installed';
     var force = location.search.indexOf('pwa=hint') !== -1;
+
+    // 이번 페이지에서 방금 설치했는지(즉시 피드백용, 저장하지 않음).
+    var installedNow = false;
 
     /* ---------- 서비스워커 등록 ---------- */
     if ('serviceWorker' in navigator) {
@@ -28,13 +33,6 @@
         });
     }
 
-    /* ---------- 저장소 ---------- */
-    function store(key, val) {
-        try { localStorage.setItem(key, val); } catch (e) { /* 사파리 프라이빗 */ }
-    }
-    function read(key) {
-        try { return localStorage.getItem(key); } catch (e) { return null; }
-    }
 
     /* ---------- 환경 판별 ---------- */
     function isStandalone() {
@@ -59,16 +57,6 @@
     var isIOSSafari = isIOS && /Safari/i.test(ua) &&
         !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua) && !isInApp;
 
-    // 설치된 상태로 한 번이라도 실행되면 기억한다. isStandalone() 은 홈화면
-    // 아이콘으로 '실행 중일 때만' true 라, 설치자가 일반 탭으로 들어오면
-    // false 가 되어 버튼이 다시 보인다.
-    // 한계: iOS 홈화면 웹앱은 Safari 와 저장소가 분리돼 이 플래그가 공유되지 않는다.
-    if (isStandalone()) store(INSTALLED_KEY, '1');
-
-    function alreadyInstalled() {
-        return isStandalone() || read(INSTALLED_KEY) === '1';
-    }
-
     /* ---------- 설치 프롬프트 보관 ---------- */
     var deferredPrompt = null;
 
@@ -80,7 +68,7 @@
 
     window.addEventListener('appinstalled', function () {
         // 안드로이드·데스크톱은 이 이벤트로 설치를 확정할 수 있다(iOS 는 미발생).
-        store(INSTALLED_KEY, '1');
+        installedNow = true;
         deferredPrompt = null;
         syncButtons();
         if (typeof window.gtag === 'function') window.gtag('event', 'pwa_installed');
@@ -91,8 +79,12 @@
         return document.querySelectorAll('[data-pwa-install]');
     }
 
+    /* 감추는 기준은 '설치 여부'가 아니라 '설치된 앱으로 실행 중인가' 다.
+       localStorage 플래그로 설치를 기억해 감췄더니, 데스크톱 크롬은 설치앱과
+       브라우저가 저장소를 공유해 **일반 웹페이지에서도 버튼이 사라졌다**.
+       브라우저 탭에서는 항상 노출한다(방금 설치한 경우만 즉시 피드백으로 감춤). */
     function syncButtons() {
-        var hide = alreadyInstalled() && !force;
+        var hide = (isStandalone() || installedNow) && !force;
         Array.prototype.forEach.call(buttons(), function (b) { b.hidden = hide; });
     }
 

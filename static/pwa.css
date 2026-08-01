@@ -1,9 +1,19 @@
 /* 헤더 '앱 설치' 버튼 + 환경별 안내 모달.
    버튼은 페이지별 기존 버튼 클래스(hg-compare-btn / result-download-btn)를 그대로
    물려받아 생김새를 맞추므로, 여기서는 최소한의 보정만 한다. */
+/* <button> 은 <a> 와 달리 글꼴을 상속하지 않고 브라우저 기본값을 쓴다. 형제
+   버튼들과 글꼴을 맞추려면 font-family 만 상속시키면 된다.
+   ⚠️ font: inherit 로 뭉뚱그리면 클래스가 지정한 font-size(13px)·font-weight(800)
+      까지 부모 값으로 덮여 혼자만 크기·굵기가 달라진다. */
 .pwa-install-btn {
+    font-family: inherit;
     cursor: pointer;
-    font: inherit;
+}
+
+/* ⬇ 는 폴백 이모지 폰트의 메트릭이 커서 버튼의 line box 를 부풀린다(형제보다
+   2px 높아짐). 아이콘만 line-height 를 고정해 텍스트 줄 높이에 영향을 끊는다. */
+.pwa-install-btn .pwa-btn-icon {
+    line-height: 1;
 }
 
 /* hidden 속성이 기존 버튼 클래스의 display 선언에 덮이지 않도록 못 박는다. */

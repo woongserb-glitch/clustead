@@ -3,5 +3,7 @@
    - 클릭 시: Chrome·Edge 계열은 네이티브 설치 다이얼로그, 그 외는 환경별 안내 모달
    호출부에서 btn_class 로 페이지별 버튼 스타일을 맞춘다.
    예) {% with btn_class='result-download-btn' %}{% include ... %}{% endwith %} #}
+{# ⬇ 는 폴백 이모지 폰트 메트릭이 커서 그대로 두면 line box 가 부풀어 형제
+   버튼보다 2px 높아진다. 아이콘만 line-height:1 로 격리해 높이를 맞춘다. #}
 <button type="button" class="{{ btn_class|default('result-download-btn') }} pwa-install-btn"
-        data-pwa-install hidden>⬇ 앱 설치</button>
+        data-pwa-install hidden><span class="pwa-btn-icon">⬇</span> 앱 설치</button>

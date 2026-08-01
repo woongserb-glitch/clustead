@@ -10,5 +10,5 @@
 <meta name="mobile-web-app-capable" content="yes">
 {# ?v= 는 서비스워커의 /static/* cache-first 를 뚫는 유일한 수단이다.
    pwa.js/pwa.css 를 고치면 반드시 함께 올릴 것(안 올리면 기존 방문자는 옛 파일 유지). #}
-<link rel="stylesheet" href="{{ url_for('static', filename='pwa.css') }}?v=5">
-<script src="{{ url_for('static', filename='pwa.js') }}?v=5" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='pwa.css') }}?v=7">
+<script src="{{ url_for('static', filename='pwa.js') }}?v=7" defer></script>

@@ -421,6 +421,10 @@ body:not(.home-page) #resultLoadingOverlay {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    /* <a> 와 <button> 을 섞어 쓰는 클래스다. <button> 은 글꼴을 상속하지 않고
+       브라우저 기본값(Arial 등)을 쓰므로, 명시하지 않으면 '공유하기' 같은
+       버튼만 다른 글꼴로 렌더된다. */
+    font-family: inherit;
     margin-bottom: 10px;
     padding: 7px 14px;
     border-radius: 999px;
