@@ -167,21 +167,32 @@
 
     function guideContent(kind) {
         if (kind === 'ios-safari') {
+            // 왜 버튼만으로 안 되는지 먼저 밝힌다. '앱 설치'를 눌렀는데 설치가
+            // 안 되고 안내만 뜨면 사용자는 고장으로 받아들인다.
+            // 단계는 실제 조작 순서 그대로. iOS 버전/Safari 레이아웃에 따라
+            // 하단에 공유 아이콘이 바로 보이는 경우가 있어 그것도 덧붙인다.
             return {
-                title: '홈 화면에 추가',
-                body: '<ol class="pwa-steps">' +
-                    '<li>하단의 <b>공유</b> 버튼을 누르세요.</li>' +
-                    '<li>목록에서 <b>홈 화면에 추가</b>를 선택하세요.</li>' +
-                    '<li>오른쪽 위 <b>추가</b>를 누르면 끝입니다.</li>' +
-                    '</ol>',
+                title: 'iPhone은 방법이 조금 달라요',
+                body: '<p class="pwa-guide-lead">iOS는 버튼만으로 설치할 수 없어요. ' +
+                    'Apple이 자동 설치를 지원하지 않아 <b>Safari 메뉴에서 직접 추가</b>해야 합니다. ' +
+                    '아래 순서대로 하시면 됩니다.</p>' +
+                    '<ol class="pwa-steps">' +
+                    '<li>화면 하단의 <span class="pwa-key">⋯</span> 버튼을 누르세요.</li>' +
+                    '<li><b>공유</b>를 누르세요.</li>' +
+                    '<li>목록 아래쪽의 <b>더보기</b>를 누르세요.</li>' +
+                    '<li><b>+ 홈 화면에 추가</b>를 선택하세요.</li>' +
+                    '</ol>' +
+                    '<p class="pwa-guide-note">iOS 버전에 따라 하단에 공유 아이콘' +
+                    '(<span class="pwa-key">↑</span>)이 바로 보이기도 합니다. ' +
+                    '그 경우 2번부터 진행하세요.</p>',
                 action: ''
             };
         }
         if (kind === 'android-inapp') {
             return {
                 title: 'Chrome에서 열어주세요',
-                body: '<p>지금은 앱 안의 브라우저라 설치할 수 없어요. ' +
-                    'Chrome으로 열면 바로 설치할 수 있습니다.</p>',
+                body: '<p class="pwa-guide-lead">지금은 <b>앱 안의 브라우저</b>라 설치 기능이 없어요. ' +
+                    'Chrome으로 열면 버튼 한 번으로 설치됩니다.</p>',
                 action: '<a class="pwa-guide-action" href="' + chromeIntentUrl() +
                     '" data-openout>Chrome으로 열기</a>'
             };
@@ -189,8 +200,10 @@
         if (kind === 'ios-out') {
             return {
                 title: 'Safari에서 열어주세요',
-                body: '<p>지금 화면에서는 홈 화면 추가가 안 돼요. ' +
-                    '링크를 복사해 <b>Safari</b> 주소창에 붙여넣어 주세요.</p>',
+                body: '<p class="pwa-guide-lead">지금은 <b>앱 안의 브라우저</b>라 홈 화면 추가가 안 돼요. ' +
+                    'iOS는 <b>Safari</b>에서만 추가할 수 있습니다.</p>' +
+                    '<p class="pwa-guide-msg">아래 버튼으로 링크를 복사한 뒤, ' +
+                    'Safari를 열고 주소창에 붙여넣어 주세요.</p>',
                 action: '<button type="button" class="pwa-guide-action" data-copy>링크 복사</button>'
             };
         }
@@ -238,14 +251,17 @@
         if (copyBtn) {
             copyBtn.addEventListener('click', function () {
                 copyUrl().then(function (ok) {
-                    var p = back.querySelector('.pwa-guide-card p');
+                    // 안내 문구 전용 단락만 바꾼다(첫 단락은 '왜 안 되는지' 설명이라 유지).
+                    var p = back.querySelector('.pwa-guide-msg');
                     if (ok) {
                         copyBtn.textContent = '복사됨';
-                        if (p) p.innerHTML = '<b>Safari</b>를 열고 주소창에 붙여넣기 하세요.';
+                        if (p) p.innerHTML = '복사했습니다. <b>Safari</b>를 열고 주소창을 길게 눌러 ' +
+                            '<b>붙여넣기</b> 하세요.';
                     } else {
                         // 복사조차 막힌 환경 — 주소를 보여줘 손으로 옮기게 한다.
                         copyBtn.textContent = '복사 실패';
-                        if (p) p.textContent = location.host + location.pathname;
+                        if (p) p.innerHTML = '아래 주소를 Safari 주소창에 직접 입력해 주세요.<br>' +
+                            '<b>' + location.host + location.pathname + '</b>';
                     }
                     if (typeof window.gtag === 'function') {
                         window.gtag('event', 'pwa_copy_link', { ok: !!ok });

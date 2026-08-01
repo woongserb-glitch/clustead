@@ -11,7 +11,7 @@
  * CACHE_VERSION 을 올리면 이전 캐시는 activate 에서 전부 삭제된다.
  * 재배포로 정적 자산이 바뀌면 반드시 올릴 것.
  */
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const STATIC_CACHE = `clustead-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `clustead-pages-${CACHE_VERSION}`;
 const OFFLINE_URL = '/static/offline.html';

@@ -42,6 +42,9 @@
     border-radius: 16px;
     box-shadow: 0 18px 44px rgba(17, 24, 39, 0.25);
     text-align: center;
+    /* iOS 안내는 단계가 4개라 작은 화면에서 넘칠 수 있다. */
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
 }
 
 #clusteadPwaGuide img {
@@ -66,6 +69,45 @@
 }
 
 #clusteadPwaGuide b { color: #15243B; }
+
+/* 도입 문구 — '왜 버튼만으로 안 되는지'. 단계 목록과 시각적으로 분리한다. */
+#clusteadPwaGuide .pwa-guide-lead {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #edf0f5;
+}
+
+/* 복사 성공/실패 시 문구가 바뀌는 단락. */
+#clusteadPwaGuide .pwa-guide-msg {
+    margin-top: 12px;
+}
+
+/* 보조 설명 — iOS 버전별 차이 안내. */
+#clusteadPwaGuide .pwa-guide-note {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #edf0f5;
+    font-size: 12.5px;
+    color: #6b7280;
+}
+
+/* 화면에서 눌러야 할 버튼 기호(⋯, ↑)를 실제 버튼처럼 보이게. */
+#clusteadPwaGuide .pwa-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    margin: 0 1px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #15243B;
+    background: #f1f5f9;
+    border: 1px solid #dbe2ea;
+    border-radius: 6px;
+    vertical-align: middle;
+}
 
 /* iOS 단계 안내 — 번호를 원문자로 보여주고 왼쪽 정렬이 읽기 쉽다. */
 #clusteadPwaGuide .pwa-steps {
