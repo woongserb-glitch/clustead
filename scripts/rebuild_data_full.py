@@ -70,7 +70,10 @@ def main():
          [sys.executable, str(ROOT / "scripts" / "validate_baselines.py")])
 
     print("\n" + "=" * 64, flush=True)
-    print("[DONE] 전체 baseline 체인 완료 — data/baseline.db 갱신됨.", flush=True)
+    # em-dash(U+2014) 는 Windows cp949 콘솔에서 UnicodeEncodeError 를 일으켜
+    # 체인이 전부 성공했는데도 EXIT=1 로 끝난다(2026-07-05·08-01 두 차례 오탐).
+    # ASCII 하이픈으로 고정한다.
+    print("[DONE] 전체 baseline 체인 완료 - data/baseline.db 갱신됨.", flush=True)
     print("배포: 변경된 data/baseline.db(또는 *_baseline.csv) 를 서버로 전송하고", flush=True)
     print("      컨테이너를 재시작해야 라이브에 반영된다.", flush=True)
     return 0

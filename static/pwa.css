@@ -48,13 +48,17 @@
     color: #15243B;
 }
 
-#clusteadPwaBanner button {
+#clusteadPwaBanner button,
+#clusteadPwaBanner a {
     font: inherit;
     flex: none;
     cursor: pointer;
 }
 
-#clusteadPwaBanner [data-install] {
+/* 설치 버튼(안드로이드 크롬)과 '브라우저로 열기' 링크(인앱)는 같은 자리·같은 모양.
+   후자는 intent:// 이동이라 button 이 아니라 a 여야 한다. */
+#clusteadPwaBanner [data-install],
+#clusteadPwaBanner [data-openout] {
     font-size: 14px;
     font-weight: 700;
     color: #fff;
@@ -64,6 +68,10 @@
     /* 터치 타깃 44px 기준. */
     min-height: 44px;
     padding: 0 16px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
 }
 
 #clusteadPwaBanner [data-close] {

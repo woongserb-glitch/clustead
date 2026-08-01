@@ -1238,15 +1238,30 @@
         if (!nameForm.contains(e.target)) nameMenu.hidden = true;
     });
 
-    /* ---------- 리사이즈 ---------- */
+    /* ---------- 리사이즈 ----------
+       창을 최소화하면 stage 의 clientWidth/Height 가 0 으로 보고된다. 그 값을
+       그대로 반영하면 중심이 (0,0) 이 되어 center 노드가 좌상단에 고정되고
+       radial/x/y 힘이 전부 모서리를 향한다 → 노드가 구석으로 빨려 들어가
+       뭉치고, 창을 복원하면 엉킨 상태에서 다시 펴지는 것처럼 보인다.
+       (설치형 PWA 창에서 최소화/최대화를 자주 하게 되면서 드러난 문제)
+       0 이하 크기는 무시하고, 실제로 바뀐 경우에만 반영한다. */
+    var resizeTimer = null;
     window.addEventListener("resize", function () {
-        W = stage.clientWidth; H = stage.clientHeight;
+        var w = stage.clientWidth, h = stage.clientHeight;
+        if (w <= 0 || h <= 0) return;      // 최소화/숨김 — 레이아웃 건드리지 않음
+        if (w === W && h === H) return;    // 실제 변화 없음(복원 등) — 재가열 불필요
+
+        W = w; H = h;
         cx = W / 2; cy = H / 2;
         center.fx = cx; center.fy = cy;
         sim.force("radial").x(cx).y(cy);
         sim.force("x").x(cx);
         sim.force("y").y(cy);
-        sim.alpha(0.3).restart();
+
+        // 드래그로 창 크기를 바꾸면 resize 가 연속 발생한다. 매번 restart 하면
+        // 시뮬레이션이 계속 재가열돼 흔들리므로 마지막 이벤트 기준 한 번만.
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () { sim.alpha(0.3).restart(); }, 120);
     });
 
     /* ---------- 유틸 ---------- */
