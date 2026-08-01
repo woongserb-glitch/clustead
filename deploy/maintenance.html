@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>업데이트 중 — Clustead</title>
+    <meta name="theme-color" content="#15243B">
+    <meta name="robots" content="noindex">
+    <!-- 이 파일은 앱 컨테이너가 죽어 있을 때 호스트 nginx 가 직접 서빙한다.
+         외부 CSS·폰트·이미지에 의존하면 안 된다(그 요청도 전부 실패한다). -->
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", sans-serif;
+            background: radial-gradient(circle at top left, #f1f5ff 0, transparent 34%), #f7f8fb;
+            color: #111;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .card {
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .mark {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 22px;
+            display: block;
+            color: #15243B;
+            animation: spin 2.4s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (prefers-reduced-motion: reduce) {
+            .mark { animation: none; }
+        }
+
+        h1 {
+            font-size: 20px;
+            letter-spacing: -0.01em;
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 15px;
+            line-height: 1.65;
+            color: #5b6472;
+        }
+
+        .note {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #8a93a3;
+        }
+
+        button {
+            font: inherit;
+            font-weight: 600;
+            color: #fff;
+            background: #15243B;
+            border: 0;
+            border-radius: 10px;
+            padding: 12px 24px;
+            min-height: 44px;
+            margin-top: 22px;
+            cursor: pointer;
+        }
+
+        button:active { opacity: 0.85; }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <svg class="mark" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+            <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(0 50 50)" />
+            <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(60 50 50)" opacity="0.38" />
+            <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(120 50 50)" />
+            <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(180 50 50)" />
+            <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(240 50 50)" />
+            <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(300 50 50)" />
+        </svg>
+        <h1>업데이트 중입니다</h1>
+        <p>최신 실거래·생활 인프라 데이터를 반영하고 있습니다.<br>보통 2~3분이면 끝납니다.</p>
+        <p class="note" id="status">복구되면 자동으로 새로고침됩니다.</p>
+        <button type="button" onclick="location.reload()">지금 다시 시도</button>
+    </div>
+
+    <script>
+        // 앱이 살아나면 스스로 돌아간다. /healthz 가 200 이면 준비 완료.
+        // (복구 전에는 nginx 가 이 페이지를 503 으로 돌려주므로 ok 가 false)
+        (function () {
+            var tries = 0;
+            var el = document.getElementById('status');
+
+            function schedule() { setTimeout(check, 5000); }
+
+            function check() {
+                tries++;
+                if (el) {
+                    el.textContent = '복구 확인 중… (' + tries + '회) 복구되면 자동으로 새로고침됩니다.';
+                }
+                fetch('/healthz', { cache: 'no-store' })
+                    .then(function (r) { if (r.ok) { location.reload(); } else { schedule(); } })
+                    .catch(schedule);
+            }
+
+            schedule();
+        })();
+    </script>
+</body>
+
+</html>

@@ -91,6 +91,43 @@ chmod +x /root/clustead/scripts/server_health_check.sh
 
 ---
 
+### C. 배포 중 안내 페이지 (호스트 nginx)
+
+재배포·재시작으로 앱 컨테이너가 내려가는 동안(워밍업 포함 ~2분) 예전에는
+Cloudflare 기본 **영문 오류 화면**이 노출됐다. 지금은 호스트 nginx 가 이를 가로채
+한국어 안내 페이지를 대신 보여준다. **nginx 는 호스트에서 돌기 때문에 컨테이너가
+죽어도 살아 있다**는 점을 이용한 구조다.
+
+- 파일: [`deploy/maintenance.html`](../deploy/maintenance.html) → 서버 `/var/www/clustead/maintenance.html`
+  (앱이 죽은 상태에서 서빙되므로 **외부 CSS·폰트·이미지 의존이 없어야 한다**)
+- nginx `location /` 에 `error_page 502 503 504 =503 /maintenance.html;`
+- 페이지가 5초마다 `/healthz` 를 폴링해 **복구되면 자동 새로고침**한다.
+
+**설계 판단 두 가지**
+- **상태코드는 503 으로 통일**(`=503`). 503 은 '일시적'이라는 뜻이라 검색엔진이
+  색인을 지우지 않고 나중에 다시 크롤한다. 200 으로 내보내면 안내 문구가 그대로
+  색인될 수 있다. `Retry-After: 60` 도 함께 보낸다.
+- **`proxy_intercept_errors` 는 켜지 않는다.** 켜면 앱이 스스로 낸 5xx(코드 버그)까지
+  안내 페이지로 가려져 장애를 못 본다. 여기서 잡는 건 nginx 가 판단한
+  '업스트림 없음/타임아웃' 뿐이다. 같은 이유로 `/healthz` 도 앱이 살아 있으면
+  앱의 실제 응답(200/503 JSON)이 그대로 나간다.
+
+**maintenance.html 을 고쳤을 때 재배포**
+```bash
+scp -i ~/.ssh/clustead_deploy deploy/maintenance.html root@211.188.48.124:/var/www/clustead/maintenance.html
+```
+nginx 설정 자체를 바꿀 땐 반드시 `nginx -t` 통과 후 `systemctl reload nginx`.
+설정 백업은 `/etc/nginx/sites-available/clustead.bak.<날짜>` 로 남겨 둔다.
+
+> **무중단 검증법**: 죽은 포트를 가리키는 임시 location 을 넣어 같은 error_page
+> 경로를 태우면, 서비스를 내리지 않고 안내 페이지를 확인할 수 있다.
+> ```
+> location /__maint_test { proxy_pass http://127.0.0.1:9; error_page 502 503 504 =503 /maintenance.html; }
+> ```
+> 확인 후 반드시 제거할 것.
+
+---
+
 ## 5. 예상 비용
 
 | 항목 | 비용 |
