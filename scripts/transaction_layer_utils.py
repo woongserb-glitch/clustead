@@ -254,8 +254,26 @@ def read_apartment_master():
             "bubun": split_lot_number(jibun)[1],
             "lat": clean_text(row.get("좌표Y")),
             "lng": clean_text(row.get("좌표X")),
+            # 분양형태(분양/임대/기타/혼합). 임대 단지에 분양 단지의 실거래를
+            # 붙이지 않기 위해 매핑 단계에서 쓴다. K-apt 공식 분류라 이름 표기
+            # ('OO임대')보다 정확하다 — 이름에 표기가 없는 LH·SH 단지가 다수다.
+            "tenure_type": clean_text(row.get("k-세대타입(분양형태)")),
         })
     return normalized
+
+
+def is_rental_apartment(apartment):
+    """임대 단지인가. 공식 분양형태를 우선하고, 이름 표기도 보조로 본다.
+
+    같은 도로명주소에 분양·임대 단지가 따로 등록된 경우가 많은데, 실거래 매핑이
+    주소 기준이라 임대 단지가 분양 단지의 거래를 그대로 복제받는다(매매 불가한
+    단지에 매매가가 찍힌다). 그걸 막기 위한 판별.
+    """
+    if not apartment:
+        return False
+    if "임대" in (apartment.get("tenure_type") or ""):
+        return True
+    return "임대" in (apartment.get("livefit_name") or "")
 
 
 def today_iso():

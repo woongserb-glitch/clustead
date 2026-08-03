@@ -1405,6 +1405,22 @@ body:not(.home-page) #resultLoadingOverlay {
     max-width: 820px;
 }
 
+/* 임대 단지 안내 — 데이터 누락이 아니라 '원래 없음'이라는 사실을 전달해야 하므로
+   일반 빈 상태 문구보다 눈에 띄게 카드로 처리한다. */
+.transaction-empty-rental {
+    padding: 14px 16px;
+    background: #f7f8fb;
+    border: 1px solid #e3e7ee;
+    border-left: 3px solid #15243B;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.transaction-empty-rental b {
+    color: #15243B;
+}
+
 .transaction-insight-badges {
     display: flex;
     flex-wrap: wrap;

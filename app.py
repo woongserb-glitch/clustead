@@ -1671,6 +1671,10 @@ def _build_apartment_view(apt):
         "area_60_85": apt.get("area_60_85"),
         "area_85_135": apt.get("area_85_135"),
         "area_over_135": apt.get("area_over_135"),
+        # 임대 단지는 분양 세대가 아니라 실거래 기록 자체가 없다. 결과 페이지의
+        # '거래 정보 없음'이 데이터 누락처럼 보이지 않도록 사유를 안내하는 데 쓴다.
+        "is_rental": bool(apt.get("is_rental")),
+        "tenure_type": apt.get("tenure_type") or "",
         "scores": {},
         "pois": [],
     }
@@ -5436,7 +5440,8 @@ def get_preference_tags(preferences, category_summaries, apartment):
 
 
 @app.route("/")
-def home():
+def build_home_config():
+    """index.html 렌더에 필요한 설정. 홈 라우트와 '단지 없음' 404 응답이 공용한다."""
     gu_options = sorted({
         clean_text(item.get("gu") or item.get("district", ""))
         for item in apartment_data
@@ -5449,7 +5454,7 @@ def home():
             f for f in os.listdir(brand_dir)
             if f.lower().endswith((".svg", ".png", ".webp", ".jpg", ".jpeg"))
         )
-    home_config = {
+    return {
         "domains": build_home_graph(),
         "brand_logos": brand_logos,
         "presets": {
@@ -5462,6 +5467,24 @@ def home():
             ],
         },
     }
+
+
+def render_home_not_found():
+    """대상(단지·지역)을 못 찾았을 때 홈 화면을 404 로 보여준다.
+
+    index.html 은 home_config·home_json_ld 를 요구한다. 이걸 빠뜨리면 Jinja 의
+    Undefined 가 tojson 에서 터져 404 가 아니라 **500** 이 나간다. 크롤러가
+    옛·오타 URL 을 훑을 때 5xx 를 받게 되어 SEO 에도 해로웠다.
+    """
+    return render_template(
+        "index.html",
+        home_config=build_home_config(),
+        home_json_ld=build_home_json_ld(),
+    ), 404
+
+
+def home():
+    home_config = build_home_config()
     analytics_service.track(
         "page_view",
         ip=get_remote_address(),
@@ -5497,7 +5520,7 @@ def area_index():
 def area_landing(gu, dong=None):
     context = build_area_landing_context(gu, dong)
     if context is None:
-        return render_template("index.html"), 404
+        return render_home_not_found()
     analytics_service.track(
         "area_view",
         ip=get_remote_address(),
@@ -7473,7 +7496,7 @@ def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", 
         src,
     )
     if context is None:
-        return render_template("index.html"), 404
+        return render_home_not_found()
     combo_key, combo = analytics_service.build_weight_combo(get_preferences())
     analytics_service.track(
         "result_view",

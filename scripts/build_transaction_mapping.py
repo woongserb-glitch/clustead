@@ -12,6 +12,7 @@ from transaction_layer_utils import (
     clean_text,
     compose_lot_number,
     ensure_transaction_dirs,
+    is_rental_apartment,
     normalize_address,
     normalize_dong,
     normalize_lot_part,
@@ -188,6 +189,22 @@ def reject_excluded_row(apartment, candidate):
         "0.00",
         "N",
         "candidate excluded by apartment_transaction_mapping_reject.csv",
+    )
+
+
+def rental_tenure_mismatch_row(apartment, row):
+    """임대 단지가 분양 단지의 거래에 매칭된 경우 — 매핑을 끊는다."""
+    return make_row(
+        apartment,
+        {
+            "transaction_apt_name": row.get("transaction_apt_name", ""),
+            "transaction_road_address": row.get("transaction_road_address", ""),
+            "transaction_jibun": row.get("transaction_jibun", ""),
+        },
+        "rental_tenure_mismatch",
+        "0.00",
+        "N",
+        "rental complex matched to non-rental transaction record",
     )
 
 
@@ -1490,6 +1507,17 @@ def build_mapping():
                 elif alias_candidate:
                     row = auto_approve_mapping_row(apartment, alias_candidate, alias_score, alias_reason)
                     auto_approve_rows.append(auto_approve_report_row(apartment, alias_candidate, alias_score, alias_reason))
+        # 임대 단지에 분양 단지의 실거래가 붙는 것을 막는다.
+        # 매핑이 도로명주소 기준이라, 같은 주소에 분양·임대가 따로 등록된 단지
+        # (텐즈힐1단지 / 왕십리텐즈힐1단지(임대) 등)는 거래 집합이 통째로
+        # 복제됐다 — 매매가 불가능한 임대 단지에 매매가가 찍히고, 같은 거래가
+        # 두 번 집계돼 서울시 상대평가 percentile 까지 왜곡된다.
+        # 국토부 거래명에도 '임대' 표기가 있으면 그 단지의 실제 거래이므로 살린다.
+        if is_rental_apartment(apartment):
+            matched_name = row.get("transaction_apt_name") or ""
+            if matched_name and "임대" not in matched_name:
+                row = rental_tenure_mismatch_row(apartment, row)
+
         if row.get("verified") == "Y" and row.get("manual_override") != "Y":
             risk_type, risk_detail, _ = verified_risk_type(row, apartment, master_by_norm)
             if risk_type in {

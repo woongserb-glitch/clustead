@@ -523,6 +523,14 @@ def load_apartment_data():
             "area_over_135": row.get("k-135㎡초과", ""),
         }
 
+        # 분양형태(분양/임대/기타/혼합). 임대 단지는 분양 세대가 아니라 실거래
+        # 기록이 없다 — 결과 페이지에서 '거래 정보 없음'이 고장으로 보이지 않게
+        # 사유를 안내하는 데 쓴다. K-apt 공식 분류라 이름 표기('OO임대')보다
+        # 정확하다(이름에 표기가 없는 LH·SH 단지가 다수).
+        tenure = str(row.get("k-세대타입(분양형태)", "")).strip()
+        apartment["tenure_type"] = tenure
+        apartment["is_rental"] = ("임대" in tenure) or ("임대" in apartment["name"])
+
         apartment_list.append(apartment)
 
     apartment_data.clear()
