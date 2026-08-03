@@ -5439,7 +5439,6 @@ def get_preference_tags(preferences, category_summaries, apartment):
     return tags
 
 
-@app.route("/")
 def build_home_config():
     """index.html 렌더에 필요한 설정. 홈 라우트와 '단지 없음' 404 응답이 공용한다."""
     gu_options = sorted({
@@ -5483,6 +5482,7 @@ def render_home_not_found():
     ), 404
 
 
+@app.route("/")
 def home():
     home_config = build_home_config()
     analytics_service.track(
