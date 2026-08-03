@@ -1,8 +1,11 @@
-{# 로딩용 브랜드 스피너 — 조리개 마크가 회전 + CLUSTEAD 워드마크. currentColor 상속. #}
+{# 로딩용 브랜드 스피너.
+   마크 전체를 돌리지 않는다 — 조리개는 고정하고 블레이드가 하나씩 순차로
+   어두워져 '빛이 조리개를 한 바퀴 도는' 형태로 진행을 보여준다. 회전과 달리
+   마크의 형태가 계속 읽혀 브랜드 정체성이 덜 흐려진다. currentColor 상속. #}
 <span class="clustead-spinner">
   <svg class="clustead-spin" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
     <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(0 50 50)"/>
-    <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(60 50 50)" opacity="0.38"/>
+    <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(60 50 50)"/>
     <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(120 50 50)"/>
     <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(180 50 50)"/>
     <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(240 50 50)"/>
@@ -11,8 +14,25 @@
   <span class="clustead-spinner-text">CLUSTEAD</span>
 </span>
 <style>
-  @keyframes clustead-spin { to { transform: rotate(360deg); } }
+  /* 앞 1/6 구간만 어둡고 나머지는 밝다 → 딜레이를 어긋내면 어두운 칸이 돌아간다. */
+  @keyframes clustead-blade {
+    0%, 16.66% { opacity: 0.16; }
+    33.33%, 100% { opacity: 1; }
+  }
   .clustead-spinner{display:inline-flex;flex-direction:column;align-items:center;gap:10px;color:inherit}
-  .clustead-spinner .clustead-spin{width:46px;height:46px;display:block;transform-origin:50% 50%;animation:clustead-spin 1.4s linear infinite}
+  .clustead-spinner .clustead-spin{width:46px;height:46px;display:block}
+  .clustead-spinner .clustead-spin polygon{animation:clustead-blade 1.5s linear infinite}
+  /* 마크의 rotate 순서(시계방향)대로 어두워지도록 딜레이를 역순 배치한다. */
+  .clustead-spinner .clustead-spin polygon:nth-child(1){animation-delay:0s}
+  .clustead-spinner .clustead-spin polygon:nth-child(2){animation-delay:-1.25s}
+  .clustead-spinner .clustead-spin polygon:nth-child(3){animation-delay:-1s}
+  .clustead-spinner .clustead-spin polygon:nth-child(4){animation-delay:-0.75s}
+  .clustead-spinner .clustead-spin polygon:nth-child(5){animation-delay:-0.5s}
+  .clustead-spinner .clustead-spin polygon:nth-child(6){animation-delay:-0.25s}
   .clustead-spinner .clustead-spinner-text{font-family:'Jost','Century Gothic','Futura',sans-serif;font-weight:500;letter-spacing:.22em;padding-left:.22em;font-size:13px}
+  @media (prefers-reduced-motion: reduce){
+    /* 모션을 끄면 정적 브랜드 마크(우측 블레이드만 옅음)로 되돌린다. */
+    .clustead-spinner .clustead-spin polygon{animation:none}
+    .clustead-spinner .clustead-spin polygon:nth-child(2){opacity:.38}
+  }
 </style>

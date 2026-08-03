@@ -34,13 +34,27 @@
             margin: 0 auto 22px;
             display: block;
             color: #15243B;
-            animation: spin 2.4s linear infinite;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        /* 마크는 고정하고 블레이드가 순차로 어두워진다(빛이 조리개를 한 바퀴 돎).
+           앞 1/6 구간만 어둡게 두고 딜레이를 어긋내는 방식. */
+        @keyframes blade {
+            0%, 16.66% { opacity: 0.16; }
+            33.33%, 100% { opacity: 1; }
+        }
+
+        .mark polygon { animation: blade 1.5s linear infinite; }
+        /* 마크의 rotate 순서(시계방향)대로 어두워지도록 딜레이를 역순 배치. */
+        .mark polygon:nth-child(1) { animation-delay: 0s; }
+        .mark polygon:nth-child(2) { animation-delay: -1.25s; }
+        .mark polygon:nth-child(3) { animation-delay: -1s; }
+        .mark polygon:nth-child(4) { animation-delay: -0.75s; }
+        .mark polygon:nth-child(5) { animation-delay: -0.5s; }
+        .mark polygon:nth-child(6) { animation-delay: -0.25s; }
 
         @media (prefers-reduced-motion: reduce) {
-            .mark { animation: none; }
+            .mark polygon { animation: none; }
+            .mark polygon:nth-child(2) { opacity: 0.38; }
         }
 
         h1 {
@@ -82,7 +96,7 @@
     <div class="card">
         <svg class="mark" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
             <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(0 50 50)" />
-            <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(60 50 50)" opacity="0.38" />
+            <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(60 50 50)" />
             <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(120 50 50)" />
             <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(180 50 50)" />
             <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(240 50 50)" />

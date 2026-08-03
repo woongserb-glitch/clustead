@@ -856,15 +856,33 @@
 }
 @keyframes hg-spin { to { transform: rotate(360deg); } }
 
-/* 조리개 마크가 회전하는 브랜드 스피너 */
+/* 브랜드 스피너 — 마크는 고정하고 블레이드가 순차로 어두워진다(빛이 한 바퀴 돎).
+   회전과 달리 조리개 형태가 계속 읽혀 브랜드 정체성이 덜 흐려진다. */
 .hg-aperture-spin {
     display: inline-block;
     margin-bottom: 14px;
     color: var(--hg-ink);
-    animation: hg-spin 1.4s linear infinite;
-    transform-origin: 50% 50%;
 }
 .hg-aperture-spin svg { width: 44px; height: 44px; display: block; }
+
+/* 앞 1/6 구간만 어둡다 → 딜레이를 어긋내면 어두운 칸이 돌아간다. */
+@keyframes hg-blade {
+    0%, 16.66% { opacity: 0.16; }
+    33.33%, 100% { opacity: 1; }
+}
+.hg-aperture-spin polygon { animation: hg-blade 1.5s linear infinite; }
+/* 마크의 rotate 순서(시계방향)대로 어두워지도록 딜레이를 역순 배치. */
+.hg-aperture-spin polygon:nth-child(1) { animation-delay: 0s; }
+.hg-aperture-spin polygon:nth-child(2) { animation-delay: -1.25s; }
+.hg-aperture-spin polygon:nth-child(3) { animation-delay: -1s; }
+.hg-aperture-spin polygon:nth-child(4) { animation-delay: -0.75s; }
+.hg-aperture-spin polygon:nth-child(5) { animation-delay: -0.5s; }
+.hg-aperture-spin polygon:nth-child(6) { animation-delay: -0.25s; }
+
+@media (prefers-reduced-motion: reduce) {
+    .hg-aperture-spin polygon { animation: none; }
+    .hg-aperture-spin polygon:nth-child(2) { opacity: 0.4; }
+}
 
 /* ---------- 반응형 ---------- */
 @media (max-width: 1180px) {

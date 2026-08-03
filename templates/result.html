@@ -20,7 +20,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260803a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260803b">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -497,11 +497,21 @@
                같은 주소의 분양 단지 거래를 붙이던 것을 끊었으므로, 사유를 밝히지
                않으면 데이터 누락이나 고장으로 오해된다. #}
             {% if apartment.is_rental %}
-            <p class="transaction-empty transaction-empty-rental">
-                <b>임대 단지입니다.</b><br>
-                분양 세대가 아니어서 매매·전월세 실거래 기록이 없습니다.
-                같은 주소에 분양 단지가 함께 있는 경우, 그 단지의 거래는 해당 단지 페이지에서 확인하실 수 있습니다.
-            </p>
+            <div class="transaction-empty-rental">
+                <span class="transaction-empty-rental-mark" aria-hidden="true">
+                    <svg viewBox="0 0 100 100" fill="currentColor">
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(0 50 50)" />
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(60 50 50)" opacity="0.38" />
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(120 50 50)" />
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(180 50 50)" />
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(240 50 50)" />
+                        <polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(300 50 50)" />
+                    </svg>
+                </span>
+                <strong>임대 단지입니다</strong>
+                <p>분양 세대가 아니어서 매매·전월세 실거래 기록이 없습니다.<br>
+                    같은 주소에 분양 단지가 함께 있다면, 그 단지 페이지에서 거래를 확인하실 수 있습니다.</p>
+            </div>
             {% else %}
             <p class="transaction-empty">실거래 내역이 아직 충분히 확인되지 않았습니다.<br>정확한 거래 정보는 국토교통부 실거래가 공개시스템을 함께 확인해 주세요.</p>
             {% endif %}
