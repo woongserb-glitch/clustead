@@ -56,28 +56,9 @@ body:not(.home-page) #resultLoadingOverlay {
     line-height: 1.45;
 }
 
-.result-loading-card::before {
-    content: "";
-    display: block;
-    width: 32px;
-    height: 3px;
-    margin-bottom: 12px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #2563eb, #10b981);
-    animation: clusteadLoadingPulse 1.1s ease-in-out infinite;
-}
-
-@keyframes clusteadLoadingPulse {
-    0%, 100% {
-        transform: scaleX(0.45);
-        transform-origin: left;
-        opacity: 0.55;
-    }
-    50% {
-        transform: scaleX(1);
-        opacity: 1;
-    }
-}
+/* 예전 그라데이션 바 스피너(::before)는 제거했다.
+   브랜드 조리개 스피너와 나란히 떠서 로딩 표시가 두 개로 보였고, 그래프 홈
+   (hg-loading-card)에는 없어 화면마다 로딩 모습이 달랐다. 조리개 하나로 통일. */
 
 .page {
     max-width: 1080px;
@@ -1446,6 +1427,9 @@ body:not(.home-page) #resultLoadingOverlay {
     font-size: 13px;
     line-height: 1.65;
     color: #7b8190;
+    /* 한국어는 기본값(normal)이면 어절 중간에서도 줄이 바뀌어 '있습니 / 다.'
+       처럼 끊긴다. keep-all 은 공백 단위로만 끊는다. */
+    word-break: keep-all;
 }
 
 .transaction-insight-badges {
