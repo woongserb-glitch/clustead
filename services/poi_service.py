@@ -922,8 +922,13 @@ def get_category_summaries(apartment, preference_keys):
 
         # CCTV uses the baked baseline (single source of truth) for score and
         # count; the POI list stays the live preloaded cctv_data above. This
-        # replaces the request-time live-count percentile path. baked count is
-        # built from the same cctv_data + 500m, so it equals the live count.
+        # replaces the request-time live-count percentile path.
+        #
+        # baked count은 '카메라 대수'(등록 단위 보정, build_cctv_camera_weights)
+        # 이고 POI 목록은 '등록 지점'이라 두 수는 일치하지 않는다. 그래서 CCTV만
+        # 단위가 '대'이고, 지점 수는 point_count로 따로 내려보낸다.
+        point_count = None
+
         if key == "cctv":
             cctv_row = get_indexed_baseline_row(
                 cctv_baseline_index,
@@ -940,8 +945,13 @@ def get_category_summaries(apartment, preference_keys):
                 baked_count = _to_num(cctv_row.get("cctv_count_500m"))
                 if baked_count is not None:
                     count = int(baked_count)
+                baked_points = _to_num(cctv_row.get("cctv_point_count_500m"))
+                if baked_points is not None:
+                    point_count = int(baked_points)
 
         summaries.append({
+            "count_unit": "대" if key == "cctv" else "곳",
+            "point_count": point_count,
             "key": key,
             "label": meta["label"],
             "domain": CATEGORY_TO_DOMAIN.get(key, "etc"),

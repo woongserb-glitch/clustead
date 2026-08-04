@@ -1116,10 +1116,17 @@ def build_category_evidence(summary):
         return f"반경 1km 내 전기차 충전소 {format_count_phrase(count)}이 있습니다."
 
     if key == "cctv":
-        subtype_text = subtype_sentence(summary, unit="개", limit=2)
+        # count는 카메라 대수, subtype/POI는 등록 지점 기준이라 단위를 나눠 쓴다.
+        point_count = summary.get("point_count")
+        point_text = (
+            f"(등록 지점 {point_count:,}곳)"
+            if point_count is not None
+            else ""
+        )
+        subtype_text = subtype_sentence(summary, unit="곳", limit=2)
         if subtype_text:
-            return f"반경 {radius} 내 CCTV {format_count_phrase(count, '개')}가 확인됩니다. {subtype_text}가 포함됩니다."
-        return f"반경 {radius} 내 CCTV {format_count_phrase(count, '개')}가 확인됩니다."
+            return f"반경 {radius} 내 CCTV 카메라 {format_count_phrase(count, '대')}{point_text}가 확인됩니다. 지점 유형은 {subtype_text}이 포함됩니다."
+        return f"반경 {radius} 내 CCTV 카메라 {format_count_phrase(count, '대')}{point_text}가 확인됩니다."
 
     if key == "fire-station":
         _, nearest_distance = nearest_name_and_distance(summary)

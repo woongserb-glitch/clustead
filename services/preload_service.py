@@ -2,6 +2,7 @@ import csv
 import math
 import re
 import os
+import statistics
 
 # 일부 baseline CSV는 한 셀에 POI 목록 등 매우 큰 문자열을 담는다.
 # csv 모듈 기본 필드 한도(131072B)를 넘으면 읽기가 실패하므로 한도를 올린다.
@@ -21,6 +22,11 @@ def preload_log(*args):
         print(*args)
 
 cctv_data = []
+# (lat, lng) -> 카메라 대수 가중치. build_cctv_camera_weights 참고.
+cctv_camera_weights = {}
+# 지주당 행 수가 이 값 미만이면 '행 = 지주' 등록으로 본다.
+# 행 = 카메라로 등록하는 기관은 1.89 이상이라 사이가 충분히 벌어져 있다.
+POLE_ROWS_PER_COORD_MAX = 1.2
 park_data = []
 apartment_data = []
 bus_stop_data = []
@@ -306,6 +312,97 @@ def get_cctv_icon_and_subtype(purpose):
     return "📹", "기타"
 
 
+def build_cctv_camera_weights(points):
+    """자치구마다 CCTV 등록 단위가 달라 행 수를 그대로 세면 비교가 안 된다.
+
+    두 가지 등록 방식이 섞여 있다.
+      - 행 = 카메라 1대 (한 지주에 여러 행, 카메라대수는 전부 1)
+        영등포/강북/서초/도봉/노원
+      - 행 = 지주 1개 (카메라대수 컬럼에 실제 대수)
+        나머지 19개 구
+
+    좌표 단위로 max(그 좌표의 행 수, 그 좌표의 최대 카메라대수)를 실제 대수로
+    보고, 그 값을 좌표에 속한 행들에 균등 배분한다. 이러면 행을 세든 가중치를
+    합하든 두 방식 모두 '카메라 대수'로 정규화된다. 중복 등록(양천구: 행도
+    여러 개면서 카메라대수도 >1)도 max 규칙에서 함께 걸러진다.
+
+    세 번째로, 지주 단위 등록이면서 카메라대수를 아예 채우지 않은 기관이 있다
+    (2026-08 기준 광진구). 이 경우 위 규칙으로도 지주당 1대로 남아 실제보다
+    3배 적게 잡힌다. 지주 밀도는 서울 중앙값 이상인데 대수만 비어 있는 것이라,
+    기입한 기관들의 '지주당 카메라 수' 중앙값을 대신 적용한다. 기관을 하드코딩
+    하지 않고 등록 패턴(지주당 행 수가 1에 가까운데 최대 대수가 1)으로 판별한다.
+
+    가중치는 포인트 dict가 아니라 좌표 키 딕셔너리로 돌려준다. 포인트 dict는
+    지도 마커 JSON으로 그대로 직렬화되므로 내부 계산용 필드를 얹으면 안 된다.
+    """
+    by_agency = {}
+
+    for point in points:
+        entry = by_agency.setdefault(
+            point.get("agency", ""),
+            {"rows": 0, "coords": {}, "max_cameras": 0},
+        )
+        key = (point["lat"], point["lng"])
+        cameras = point["camera_count"]
+
+        entry["rows"] += 1
+        entry["max_cameras"] = max(entry["max_cameras"], cameras)
+
+        coord = entry["coords"].get(key)
+        if coord is None:
+            entry["coords"][key] = [1, cameras]
+        else:
+            coord[0] += 1
+            coord[1] = max(coord[1], cameras)
+
+    unfilled = set()
+    cameras_per_pole = []
+
+    for agency, entry in by_agency.items():
+        poles = len(entry["coords"])
+        rows_per_pole = entry["rows"] / poles
+
+        # 지주당 행이 1에 가까운데(=지주 단위 등록) 대수가 전부 1이면 미기입.
+        if entry["max_cameras"] <= 1 and rows_per_pole < POLE_ROWS_PER_COORD_MAX:
+            unfilled.add(agency)
+            continue
+
+        cameras_per_pole.append(
+            sum(
+                max(rows, cameras)
+                for rows, cameras in entry["coords"].values()
+            ) / poles
+        )
+
+    imputed_cameras = (
+        statistics.median(cameras_per_pole)
+        if cameras_per_pole
+        else 1
+    )
+
+    by_coord = {}
+
+    for point in points:
+        cameras = point["camera_count"]
+
+        if point.get("agency", "") in unfilled:
+            cameras = imputed_cameras
+
+        key = (point["lat"], point["lng"])
+        entry = by_coord.get(key)
+
+        if entry is None:
+            by_coord[key] = [1, cameras]
+        else:
+            entry[0] += 1
+            entry[1] = max(entry[1], cameras)
+
+    return {
+        key: max(rows, max_cameras) / rows
+        for key, (rows, max_cameras) in by_coord.items()
+    }
+
+
 def load_cctv_data():
     global cctv_data
 
@@ -354,6 +451,9 @@ def load_cctv_data():
 
                     except Exception:
                         continue
+
+            cctv_camera_weights.clear()
+            cctv_camera_weights.update(build_cctv_camera_weights(loaded))
 
             cctv_data.clear()
             cctv_data.extend(loaded)
