@@ -311,6 +311,86 @@ def query_points(layer, bounds, subtypes=None, limit=2000):
     }
 
 
+def _percentile_of(value, breaks):
+    """값 → 백분위(0~100). 클라이언트의 percentileOf 와 같은 규칙."""
+    if not breaks:
+        return 0
+
+    if value <= breaks[0]:
+        return 0
+
+    if value >= breaks[-1]:
+        return 100
+
+    lo, hi = 0, len(breaks) - 1
+
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+
+        if breaks[mid] <= value:
+            lo = mid
+        else:
+            hi = mid - 1
+
+    return lo
+
+
+def query_compare(layer_a, layer_b, bounds, factor=1,
+                  subtypes_a=None, subtypes_b=None, core_only=False):
+    """두 레이어의 불균형. 값 = A백분위 - B백분위 (-100 ~ +100).
+
+    원시 비율(A/B)은 분모가 0 이면 폭발하고 단위가 달라 비교가 성립하지 않는다.
+    각각을 서울 생활권 분포의 백분위로 바꾼 뒤 빼면 순위 기반 잔차가 되어
+    "학원은 상위 82% 인데 CCTV 는 31%" 라는 방어 가능한 문장이 나온다.
+
+    두 레이어 모두 coverage(영향권) 기준이다. 개수와 거리를 섞으면 해석이
+    불가능해서 mode 는 고정한다.
+    """
+    meta = get_meta()
+
+    if meta is None:
+        return {"cells": [], "truncated": False}
+
+    scale_a = get_scale(layer_a, "coverage", factor, subtypes_a, core_only)
+    scale_b = get_scale(layer_b, "coverage", factor, subtypes_b, core_only)
+
+    min_i, max_i, min_j, max_j = _cell_bounds(meta, *bounds)
+    extra = ["i BETWEEN ? AND ?", "j BETWEEN ? AND ?"]
+    extra_params = (min_i, max_i, min_j, max_j)
+
+    def fetch(layer, subtypes):
+        sql, params = _cell_value_sql(
+            layer, "coverage", factor, subtypes, core_only,
+            extra_where=extra, extra_params=extra_params,
+            limit=MAX_CELLS + 1,
+        )
+        with _connect() as connection:
+            return {
+                (row["gi"], row["gj"]): row["value"]
+                for row in connection.execute(sql, params)
+            }
+
+    values_a = fetch(layer_a, subtypes_a)
+    values_b = fetch(layer_b, subtypes_b)
+
+    cells = []
+
+    # 양쪽 모두 값이 없는 칸은 차이가 0 이라 굳이 내려보내지 않는다.
+    for key in set(values_a) | set(values_b):
+        pa = _percentile_of(values_a.get(key, 0), scale_a["breaks"])
+        pb = _percentile_of(values_b.get(key, 0), scale_b["breaks"])
+        cells.append([key[0], key[1], pa - pb, pa, pb])
+
+    truncated = len(cells) > MAX_CELLS
+
+    return {
+        "cells": cells[:MAX_CELLS],
+        "truncated": truncated,
+        "scale_a": scale_a,
+        "scale_b": scale_b,
+    }
+
+
 def get_cell_detail(i, j):
     """셀 하나의 전 레이어 값. 지도에서 칸을 클릭했을 때 쓴다."""
     if not grid_available():

@@ -134,7 +134,9 @@
                 <option value="coverage">영향권 (반경 내 개수)</option>
                 <option value="point">위치 (그 칸의 시설 수)</option>
                 <option value="nearest">최근접 거리</option>
+                <option value="compare">비교 · 불균형 (백분위 차)</option>
             </select>
+            <select id="layer2" style="display:none"></select>
             <label><input type="checkbox" id="core-only"> 핵심 생활권({{ meta.core_radius_m }}m)만</label>
             <label><input type="checkbox" id="absolute" checked> 절대 스케일(서울 생활권 백분위)</label>
         </fieldset>
@@ -188,7 +190,8 @@ function factorFor(level) {
 const MODE_NOTE = {
     coverage: '반경 내 시설 수. 거친 격자에서는 평균(합산 불가).',
     point: '그 칸에 실제로 위치한 시설 수. 거친 격자에서는 합산.',
-    nearest: '가장 가까운 시설까지 거리(m). 값이 작을수록 가깝다.'
+    nearest: '가장 가까운 시설까지 거리(m). 값이 작을수록 가깝다.',
+    compare: '두 레이어의 서울 생활권 백분위 차. 둘 다 영향권 기준.'
 };
 
 let map, tiles = [], selected = null, reqSeq = 0;
@@ -202,6 +205,11 @@ function currentLayer() {
     return checked ? checked.value : null;
 }
 
+function layerLabel(key) {
+    const hit = META.layers.find(l => l.layer === key);
+    return hit ? hit.label : key;
+}
+
 function currentSubtypes(layer) {
     return Array.from(
         document.querySelectorAll('.subtypes[data-layer="' + layer + '"] input:checked')
@@ -212,6 +220,15 @@ function currentSubtypes(layer) {
 function colorFor(t) {
     const hue = 220 - 220 * Math.max(0, Math.min(1, t));
     return 'hsl(' + hue + ', 75%, 50%)';
+}
+
+// 불균형 전용 발산 색상. A우세=빨강, 균형=회색, B우세=파랑.
+// 순차 색상(파랑→빨강)을 쓰면 '균형'이 중간값처럼 보여 0의 의미가 사라진다.
+function diffColor(diff) {
+    const t = Math.max(-1, Math.min(1, diff / 100));
+    const light = 92 - 42 * Math.abs(t);
+    if (Math.abs(t) < 0.05) return 'hsl(0, 0%, 82%)';
+    return 'hsl(' + (t > 0 ? 8 : 220) + ', 72%, ' + light + '%)';
 }
 
 // 값 → 서울 생활권 백분위(0~100). breaks 는 p0..p100 오름차순.
@@ -253,9 +270,23 @@ async function refresh() {
     if (document.getElementById('core-only').checked) params.set('core', '1');
     currentSubtypes(layer).forEach(s => params.append('subtype', s));
 
+    let url = '/admin/grid/cells?';
+
+    if (mode === 'compare') {
+        const layer2 = document.getElementById('layer2').value;
+        if (!layer2 || layer2 === layer) {
+            clearTiles();
+            document.getElementById('status-line').textContent = '비교할 두 번째 레이어를 고르세요';
+            return;
+        }
+        params.set('layer2', layer2);
+        currentSubtypes(layer2).forEach(s => params.append('subtype2', s));
+        url = '/admin/grid/compare?';
+    }
+
     document.getElementById('status-line').textContent = '불러오는 중…';
 
-    const res = await fetch(withToken('/admin/grid/cells?' + params.toString()));
+    const res = await fetch(withToken(url + params.toString()));
     const data = await res.json();
     if (seq !== reqSeq) return;   // 오래된 응답 폐기
 
@@ -272,9 +303,11 @@ function render(data, factor, mode) {
         return;
     }
 
+    const isCompare = mode === 'compare';
     const absolute = document.getElementById('absolute').checked;
     const breaks = (data.scale || {}).breaks || [];
-    const useAbsolute = absolute && breaks.length > 1;
+    // 비교 모드는 값 자체가 이미 백분위 차라 스케일 선택이 의미 없다.
+    const useAbsolute = !isCompare && absolute && breaks.length > 1;
 
     const values = cells.map(c => c[2]);
     const max = Math.max(...values), min = Math.min(...values);
@@ -285,10 +318,16 @@ function render(data, factor, mode) {
         const south = LAT0 + i * DLAT, west = LNG0 + j * DLNG;
         const north = south + DLAT * factor, east = west + DLNG * factor;
 
-        let t = useAbsolute
-            ? percentileOf(value, breaks) / 100
-            : (value - min) / span;
-        if (mode === 'nearest') t = 1 - t;
+        let fill;
+        if (isCompare) {
+            fill = diffColor(value);
+        } else {
+            let t = useAbsolute
+                ? percentileOf(value, breaks) / 100
+                : (value - min) / span;
+            if (mode === 'nearest') t = 1 - t;
+            fill = colorFor(t);
+        }
 
         const rect = new kakao.maps.Rectangle({
             bounds: new kakao.maps.LatLngBounds(
@@ -296,7 +335,7 @@ function render(data, factor, mode) {
                 new kakao.maps.LatLng(north, east)
             ),
             strokeWeight: 0,
-            fillColor: colorFor(t),
+            fillColor: fill,
             fillOpacity: 0.55
         });
         rect.setMap(map);
@@ -311,7 +350,11 @@ function render(data, factor, mode) {
         cells.length.toLocaleString() + '칸 · ' + (CELL * factor) + 'm 격자'
         + (data.truncated ? ' (일부 생략)' : '');
 
-    if (useAbsolute) {
+    if (isCompare) {
+        const labelA = layerLabel(data.layer), labelB = layerLabel(data.layer2);
+        document.getElementById('legend-min').textContent = '-100 ' + labelB + ' 우세';
+        document.getElementById('legend-max').textContent = labelA + ' 우세 +100';
+    } else if (useAbsolute) {
         // 색은 백분위 고정. 양 끝에 그 백분위의 실제 값을 함께 보여준다.
         document.getElementById('legend-min').textContent =
             '0% (' + breaks[0].toLocaleString() + unit + ')';
@@ -323,12 +366,20 @@ function render(data, factor, mode) {
     }
 
     document.getElementById('legend-bar').style.background =
-        mode === 'nearest'
-            ? 'linear-gradient(to right, hsl(0,75%,50%), hsl(220,75%,50%))'
-            : 'linear-gradient(to right, hsl(220,75%,50%), hsl(0,75%,50%))';
+        isCompare
+            ? 'linear-gradient(to right, hsl(220,72%,50%), hsl(0,0%,82%), hsl(8,72%,50%))'
+            : mode === 'nearest'
+                ? 'linear-gradient(to right, hsl(0,75%,50%), hsl(220,75%,50%))'
+                : 'linear-gradient(to right, hsl(220,75%,50%), hsl(0,75%,50%))';
 
     let note = MODE_NOTE[mode];
-    if (useAbsolute) {
+    if (isCompare) {
+        // diff = A백분위 - B백분위. 크게 양수면 A 는 높은데 B 가 낮다는 뜻.
+        const gaps = values.filter(v => v >= 40).length;
+        note += ' ' + layerLabel(data.layer) + ' 대비 ' + layerLabel(data.layer2)
+              + ' 부족(40%p 이상) 칸 ' + gaps.toLocaleString()
+              + '/' + cells.length.toLocaleString() + '.';
+    } else if (useAbsolute) {
         const mid = breaks[50];
         note += ' 색은 서울 생활권 ' + (scale.cells || 0).toLocaleString()
               + '칸 기준 백분위(중앙 ' + mid.toLocaleString() + unit + ').';
@@ -468,22 +519,51 @@ function buildLayerControls() {
     });
 
     host.addEventListener('change', () => {
-        const layer = currentLayer();
-        document.querySelectorAll('.subtypes').forEach(el => {
-            el.classList.toggle('open', el.dataset.layer === layer);
-        });
-
-        const meta = META.layers.find(l => l.layer === layer);
-        const warn = document.getElementById('trust-warn');
-        if (meta && meta.note) {
-            warn.style.display = 'block';
-            warn.textContent = meta.note;
-        } else {
-            warn.style.display = 'none';
-        }
-
+        syncLayerUi();
         refresh();
     });
+}
+
+function syncLayerUi() {
+    const layer = currentLayer();
+    const mode = document.getElementById('mode').value;
+    const second = document.getElementById('layer2');
+
+    document.querySelectorAll('.subtypes').forEach(el => {
+        el.classList.toggle('open', el.dataset.layer === layer);
+    });
+
+    // 비교 모드에서만 두 번째 레이어 선택을 노출. 자기 자신은 뺀다.
+    second.style.display = mode === 'compare' ? 'block' : 'none';
+
+    if (mode === 'compare') {
+        const keep = second.value;
+        second.innerHTML = META.layers
+            .filter(l => l.layer !== layer)
+            .map(l => '<option value="' + l.layer + '">' + l.label + ' (비교 대상)</option>')
+            .join('');
+        if (keep && keep !== layer) second.value = keep;
+    }
+
+    const meta = META.layers.find(l => l.layer === layer);
+    const warn = document.getElementById('trust-warn');
+    const notes = [];
+
+    if (meta && meta.note) notes.push(meta.label + ': ' + meta.note);
+
+    if (mode === 'compare' && second.value) {
+        const other = META.layers.find(l => l.layer === second.value);
+        if (other && other.note) notes.push(other.label + ': ' + other.note);
+        // 신뢰등급이 다른 레이어를 겹치면 차이가 실제 격차인지 등록 관행
+        // 차이인지 구분되지 않는다. 비교 모드에서만 경고한다.
+        if (other && meta && other.trust !== meta.trust) {
+            notes.push('두 레이어의 신뢰등급이 다릅니다(' + meta.trust
+                     + ' vs ' + other.trust + '). 차이를 격차로 단정하지 마세요.');
+        }
+    }
+
+    warn.style.display = notes.length ? 'block' : 'none';
+    warn.textContent = notes.join(' / ');
 }
 
 function initMap() {
@@ -502,7 +582,14 @@ function initMap() {
 // 지도 SDK 와 무관하게 패널은 항상 세운다. SDK 로드가 실패해도 레이어 목록과
 // 신뢰등급은 읽을 수 있어야 하고, 그래야 원인 파악도 된다.
 buildLayerControls();
-document.getElementById('mode').addEventListener('change', refresh);
+document.getElementById('mode').addEventListener('change', () => {
+    syncLayerUi();
+    refresh();
+});
+document.getElementById('layer2').addEventListener('change', () => {
+    syncLayerUi();
+    refresh();
+});
 document.getElementById('core-only').addEventListener('change', refresh);
 document.getElementById('absolute').addEventListener('change', refresh);
 document.getElementById('cell-close').addEventListener('click', closeCellPanel);

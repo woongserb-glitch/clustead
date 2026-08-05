@@ -115,6 +115,12 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Jinja 는 기본적으로 템플릿을 프로세스 메모리에 캐시해, 기동 이후의 수정이
+# 재시작 전까지 반영되지 않는다. 로컬 개발에서만 자동 리로드를 켠다.
+# (운영은 gunicorn + CLUSTEAD_TEMPLATE_RELOAD 미설정이라 영향 없음)
+if os.getenv("CLUSTEAD_TEMPLATE_RELOAD", "0") == "1":
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+
 
 def clustead_env(key, default=""):
     """Read CLUSTEAD_* first, with LIVEFIT_* kept as a legacy fallback."""
@@ -5718,6 +5724,53 @@ def admin_grid_cells():
         subtypes=subtypes or None,
         core_only=request.args.get("core") == "1",
     )
+
+    return jsonify(result)
+
+
+@app.route("/admin/grid/compare")
+def admin_grid_compare():
+    _require_admin()
+
+    bounds = _grid_bounds_from_args()
+
+    if bounds is None:
+        return jsonify({"error": "bbox 형식이 올바르지 않습니다"}), 400
+
+    layer_a = clean_text(request.args.get("layer", ""))
+    layer_b = clean_text(request.args.get("layer2", ""))
+
+    if not layer_a or not layer_b:
+        return jsonify({"error": "layer 와 layer2 가 모두 필요합니다"}), 400
+
+    if layer_a == layer_b:
+        return jsonify({"error": "서로 다른 레이어를 골라야 합니다"}), 400
+
+    try:
+        factor = int(request.args.get("factor", "1"))
+    except ValueError:
+        factor = 1
+
+    def subtype_list(name):
+        return [
+            clean_text(value)
+            for value in request.args.getlist(name)
+            if clean_text(value)
+        ] or None
+
+    result = grid_service.query_compare(
+        layer_a,
+        layer_b,
+        bounds,
+        factor=factor,
+        subtypes_a=subtype_list("subtype"),
+        subtypes_b=subtype_list("subtype2"),
+        core_only=request.args.get("core") == "1",
+    )
+
+    result["layer"] = layer_a
+    result["layer2"] = layer_b
+    result["factor"] = factor
 
     return jsonify(result)
 
