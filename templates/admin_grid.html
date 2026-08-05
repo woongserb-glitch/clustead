@@ -358,7 +358,7 @@ function render(data, factor, mode) {
     const max = Math.max(...values), min = Math.min(...values);
     const span = max - min || 1;
 
-    cells.forEach(([gi, gj, value]) => {
+    cells.forEach(([gi, gj, value, isEdge]) => {
         const i = gi * factor, j = gj * factor;
         const south = LAT0 + i * DLAT, west = LNG0 + j * DLNG;
         const north = south + DLAT * factor, east = west + DLNG * factor;
@@ -374,14 +374,19 @@ function render(data, factor, mode) {
             fill = colorFor(t);
         }
 
+        // 경계 영향 칸: 반경이 서울 밖으로 나가 그쪽 시설을 세지 못한 칸.
+        // 값이 낮은 게 아니라 못 믿는 칸이라 회색으로 눌러 구분한다.
         const rect = new kakao.maps.Rectangle({
             bounds: new kakao.maps.LatLngBounds(
                 new kakao.maps.LatLng(south, west),
                 new kakao.maps.LatLng(north, east)
             ),
-            strokeWeight: 0,
-            fillColor: fill,
-            fillOpacity: 0.55
+            strokeWeight: isEdge ? 1 : 0,
+            strokeColor: '#9ca3af',
+            strokeStyle: 'shortdash',
+            strokeOpacity: 0.9,
+            fillColor: isEdge ? '#9ca3af' : fill,
+            fillOpacity: isEdge ? 0.22 : 0.55
         });
         rect.setMap(map);
         kakao.maps.event.addListener(rect, 'click', () => showDetail(i, j));
@@ -437,6 +442,13 @@ function render(data, factor, mode) {
         }
     } else {
         note += ' 색은 현재 화면 최소~최대 기준(이동 시 달라짐).';
+    }
+
+    const edgeCount = cells.filter(c => c[3]).length;
+    if (edgeCount) {
+        note += ' 회색 ' + edgeCount.toLocaleString() + '칸은 반경('
+              + (data.edge_radius_m || '') + 'm)이 서울 밖으로 나가 과소집계 —'
+              + ' 통계에서 제외됨.';
     }
     document.getElementById('mode-note').textContent = note;
 }

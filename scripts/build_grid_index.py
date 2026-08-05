@@ -450,6 +450,58 @@ def rasterize_districts(zone_cells):
     return assigned
 
 
+def build_boundary_distance(zone_cells):
+    """셀 중심에서 서울 행정경계까지의 거리(m).
+
+    서울 전용 원본을 쓰는 레이어(11종 중 9종)는 경계 밖 POI 가 없다. 반경이
+    경계를 넘는 칸은 그 바깥을 '시설 0' 으로 세는 셈이라 과소집계된다.
+
+    레이어마다 반경이 달라(200~1500m) 플래그를 레이어별로 두면 11개가 된다.
+    대신 경계까지의 거리 하나만 저장하고, 조회 시 각 레이어가 자기 반경과
+    비교하게 한다(`distance < radius` 이면 영향 있음).
+
+    거리는 100m 격자 위 다중시작 BFS 로 구한다. 셀마다 폴리곤 25,222개 정점을
+    재면 15억 연산이지만, 경계 밖 칸에서 퍼뜨리면 격자 크기에 비례한다.
+    격자 해상도(100m)만큼의 오차가 있으나 반경 비교에는 충분하다.
+    """
+    min_lat, max_lat, min_lng, max_lng = POI_BOUNDS
+    i_lo, j_lo = cell_of(min_lat, min_lng)
+    i_hi, j_hi = cell_of(max_lat, max_lng)
+
+    region = {
+        (i, j)
+        for i in range(i_lo, i_hi + 1)
+        for j in range(j_lo, j_hi + 1)
+    }
+
+    inside = set(rasterize_districts(region))
+
+    # 경계 밖 칸에서 시작해 안쪽으로 퍼뜨린다.
+    from collections import deque
+
+    distance = {}
+    queue = deque()
+
+    for cell in region:
+        if cell not in inside:
+            distance[cell] = 0
+            queue.append(cell)
+
+    while queue:
+        i, j = queue.popleft()
+        step = distance[(i, j)] + 1
+
+        for nb in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+            if nb in inside and nb not in distance:
+                distance[nb] = step
+                queue.append(nb)
+
+    return {
+        cell: distance.get(cell, 0) * CELL_SIZE_M
+        for cell in zone_cells
+    }
+
+
 def build_apartment_cells():
     """단지별 생활권 셀. 겹쳐도 셀 집계는 한 번만 하고 관계만 저장한다."""
     apartments = []
@@ -500,8 +552,9 @@ def build_apartment_cells():
     return apartments, pairs, core_cells, extended_cells, nearest_apartment
 
 
-def write_db(counts, coverage, nearest_distance, nearest, districts, stats,
-             apartments, pairs, core_cells, extended_cells):
+def write_db(counts, coverage, nearest_distance, nearest, districts,
+             boundary_distance, stats, apartments, pairs, core_cells,
+             extended_cells):
     if os.path.exists(OUTPUT_PATH):
         os.remove(OUTPUT_PATH)
 
@@ -564,6 +617,7 @@ def write_db(counts, coverage, nearest_distance, nearest, districts, stats,
             apartment_count INTEGER NOT NULL,
             gu TEXT,
             dong TEXT,
+            boundary_distance_m INTEGER,
             PRIMARY KEY (i, j)
         ) WITHOUT ROWID;
 
@@ -650,7 +704,15 @@ def write_db(counts, coverage, nearest_distance, nearest, districts, stats,
         ],
     )
 
+    cursor.executemany(
+        "UPDATE grid_zone SET boundary_distance_m = ? WHERE i = ? AND j = ?",
+        [(d, i, j) for (i, j), d in boundary_distance.items()],
+    )
+
     cursor.execute("CREATE INDEX idx_zone_gu ON grid_zone (gu)")
+    cursor.execute(
+        "CREATE INDEX idx_zone_boundary ON grid_zone (boundary_distance_m)"
+    )
 
     cursor.executescript("""
         CREATE INDEX idx_cell_layer ON grid_cell (layer, i, j);
@@ -704,8 +766,16 @@ def main():
     outside = len(extended_cells) - len(districts)
     print(f"[GU] 경계 내 {len(districts):,}셀 / 경계 밖 {outside:,}셀(최근접 단지로 보완)")
 
-    write_db(counts, coverage, nearest, nearest_apartment, districts, stats,
-             apartments, pairs, core_cells, extended_cells)
+    print("[EDGE] 서울 경계까지 거리 계산")
+    boundary_distance = build_boundary_distance(extended_cells)
+    for limit in (200, 500, 1000, 1500):
+        n = sum(1 for d in boundary_distance.values() if d < limit)
+        print(f"[EDGE]   반경 {limit:>4}m 영향 칸 {n:>6,} "
+              f"({100 * n / len(extended_cells):.0f}%)")
+
+    write_db(counts, coverage, nearest, nearest_apartment, districts,
+             boundary_distance, stats, apartments, pairs, core_cells,
+             extended_cells)
 
     size_mb = os.path.getsize(OUTPUT_PATH) / 1e6
     print(

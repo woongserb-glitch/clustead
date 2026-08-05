@@ -135,13 +135,51 @@ def _cell_bounds(meta, min_lat, min_lng, max_lat, max_lng):
     )
 
 
+def layer_radius(layer):
+    meta = get_meta()
+
+    if meta is None:
+        return None
+
+    for entry in meta["layers"]:
+        if entry["layer"] == layer:
+            return entry["radius_m"]
+
+    return None
+
+
+def _edge_where(layer):
+    """경계 영향 칸 제외 조건.
+
+    서울 전용 원본을 쓰는 레이어는 경계 밖 POI 가 없어, 반경이 경계를 넘는
+    칸은 그 바깥을 '시설 0' 으로 세는 셈이다. 값이 낮은 게 아니라 못 믿는
+    칸이므로 백분위 분모와 클러스터 탐지에서 뺀다.
+    """
+    radius = layer_radius(layer)
+
+    if radius is None:
+        return None
+
+    return (
+        "EXISTS (SELECT 1 FROM grid_zone z2 "
+        "WHERE z2.i = t.i AND z2.j = t.j "
+        f"AND z2.boundary_distance_m >= {int(radius)})"
+    )
+
+
 def _cell_value_sql(layer, mode, factor, subtypes, core_only,
-                    extra_where=None, extra_params=(), limit=None):
+                    extra_where=None, extra_params=(), limit=None,
+                    exclude_edge=False):
     """(SQL, params). 셀 안 집계 → 자식셀 간 집계 2단계로 만든다."""
     table, column, inner, outer = _MODE_TABLE[mode]
 
     where = ["layer = ?"]
     params = [layer]
+
+    if exclude_edge:
+        edge = _edge_where(layer)
+        if edge:
+            where.append(edge)
 
     # nearest 는 서브타입이 없다.
     if subtypes and mode != "nearest":
@@ -177,10 +215,18 @@ def _cell_value_sql(layer, mode, factor, subtypes, core_only,
     return sql, params
 
 
-def _zone_cell_count(connection, factor, core_only):
-    sql = f"SELECT COUNT(*) FROM (SELECT 1 FROM grid_zone "
+def _zone_cell_count(connection, factor, core_only, min_boundary=None):
+    where = []
+
     if core_only:
-        sql += "WHERE in_core = 1 "
+        where.append("in_core = 1")
+
+    if min_boundary is not None:
+        where.append(f"boundary_distance_m >= {int(min_boundary)}")
+
+    sql = "SELECT COUNT(*) FROM (SELECT 1 FROM grid_zone "
+    if where:
+        sql += "WHERE " + " AND ".join(where) + " "
     sql += f"GROUP BY i / {factor}, j / {factor})"
 
     return connection.execute(sql).fetchone()[0]
@@ -220,11 +266,15 @@ def get_scale(layer, mode, factor=1, subtypes=None, core_only=False):
     if key in _scale_cache:
         return _scale_cache[key]
 
-    sql, params = _cell_value_sql(layer, mode, factor, subtypes, core_only)
+    sql, params = _cell_value_sql(
+        layer, mode, factor, subtypes, core_only, exclude_edge=True
+    )
 
     with closing(_connect()) as connection:
         rows = connection.execute(sql, params).fetchall()
-        total_cells = _zone_cell_count(connection, factor, core_only)
+        total_cells = _zone_cell_count(
+            connection, factor, core_only, min_boundary=layer_radius(layer)
+        )
 
     values = sorted(row["value"] for row in rows)
     measured = len(values)
@@ -239,6 +289,7 @@ def get_scale(layer, mode, factor=1, subtypes=None, core_only=False):
         "measured": measured,
         "zero_cells": sum(1 for v in values if v == 0) if mode != "nearest" else None,
         "beyond_range": (total_cells - measured) if mode == "nearest" else None,
+        "edge_radius_m": layer_radius(layer),
     }
 
     if len(_scale_cache) >= _SCALE_CACHE_MAX:
@@ -270,17 +321,39 @@ def query_cells(layer, mode, bounds, factor=1, subtypes=None, core_only=False):
         limit=MAX_CELLS + 1,
     )
 
+    radius = layer_radius(layer)
+
     with closing(_connect()) as connection:
         rows = connection.execute(sql, params).fetchall()
+
+        # 경계 영향 칸은 지우지 않고 표시만 한다. 값이 낮은 게 아니라 못 믿는
+        # 칸이라는 걸 지도에서 구분해야 하기 때문이다.
+        edge = set()
+
+        if radius is not None:
+            edge = {
+                (row["gi"], row["gj"])
+                for row in connection.execute(
+                    f"SELECT i / {factor} AS gi, j / {factor} AS gj "
+                    "FROM grid_zone WHERE boundary_distance_m < ? "
+                    "AND i BETWEEN ? AND ? AND j BETWEEN ? AND ? "
+                    "GROUP BY gi, gj",
+                    (radius, min_i, max_i, min_j, max_j),
+                )
+            }
 
     truncated = len(rows) > MAX_CELLS
 
     return {
         "cells": [
-            [row["gi"], row["gj"], round(row["value"], 2)]
+            [
+                row["gi"], row["gj"], round(row["value"], 2),
+                1 if (row["gi"], row["gj"]) in edge else 0,
+            ]
             for row in rows[:MAX_CELLS]
         ],
         "truncated": truncated,
+        "edge_radius_m": radius,
     }
 
 
@@ -509,7 +582,9 @@ def query_clusters(layer_a, layer_b, threshold=40, subtypes_a=None,
     scale_b = get_scale(layer_b, "coverage", 1, subtypes_b, core_only)
 
     def fetch(layer, subtypes):
-        sql, params = _cell_value_sql(layer, "coverage", 1, subtypes, core_only)
+        sql, params = _cell_value_sql(
+            layer, "coverage", 1, subtypes, core_only, exclude_edge=True
+        )
         with closing(_connect()) as connection:
             return {
                 (row["gi"], row["gj"]): row["value"]
@@ -519,9 +594,25 @@ def query_clusters(layer_a, layer_b, threshold=40, subtypes_a=None,
     values_a = fetch(layer_a, subtypes_a)
     values_b = fetch(layer_b, subtypes_b)
 
+    # 경계 영향 칸은 후보에서 뺀다. 안 그러면 경계 지역이 가짜 불균형
+    # 덩어리로 잡힌다(한쪽 레이어만 과소집계되므로 차이가 부풀려진다).
+    edge_limit = max(
+        layer_radius(layer_a) or 0,
+        layer_radius(layer_b) or 0,
+    )
+
+    with closing(_connect()) as connection:
+        usable = {
+            (row["i"], row["j"])
+            for row in connection.execute(
+                "SELECT i, j FROM grid_zone WHERE boundary_distance_m >= ?",
+                (edge_limit,),
+            )
+        }
+
     flagged = {}
 
-    for cell in set(values_a) | set(values_b):
+    for cell in (set(values_a) | set(values_b)) & usable:
         pa = _percentile_of(values_a.get(cell, 0), scale_a["breaks"])
         pb = _percentile_of(values_b.get(cell, 0), scale_b["breaks"])
         diff = pa - pb
