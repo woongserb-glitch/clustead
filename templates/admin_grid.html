@@ -22,7 +22,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             font-size: 13px;
         }
-        .shell { display: flex; height: 100vh; }
+        .shell { display: flex; height: 100vh; overflow: hidden; }
         .side {
             width: 300px; flex: none; background: var(--panel);
             border-right: 1px solid var(--line); overflow-y: auto; padding: 16px;
@@ -61,8 +61,10 @@
 
         /* 셀 상세 — 지도 위 우측 플로팅 */
         .cell-panel {
-            position: absolute; top: 10px; right: 10px; z-index: 6;
-            width: 290px; max-height: calc(100% - 20px);
+            position: absolute; top: 10px; z-index: 7;
+            width: 300px; height: 440px;
+            min-width: 220px; min-height: 160px;
+            resize: both; overflow: hidden;
             display: none; flex-direction: column;
             background: rgba(255,255,255,0.97); border: 1px solid var(--line);
             border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.14);
@@ -71,17 +73,18 @@
         .cell-head {
             display: flex; justify-content: space-between; align-items: center;
             padding: 10px 12px; border-bottom: 1px solid var(--line);
+            cursor: move; user-select: none;
         }
         .cell-head strong { font-size: 13px; }
         .cell-close {
             width: auto; margin: 0; padding: 2px 8px; cursor: pointer;
             background: transparent; border: none; font-size: 16px; color: var(--muted);
         }
-        .cell-body { overflow-y: auto; padding: 10px 12px; }
+        .cell-body { flex: 1; overflow-y: auto; padding: 10px 12px; }
         .cell-body table { width: 100%; border-collapse: collapse; }
         .cell-body td { padding: 2px 0; font-size: 12px; }
         .cell-body td:last-child { text-align: right; color: var(--muted); }
-        .apt-list { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+        .apt-list { margin-bottom: 10px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
         .apt-item {
             display: flex; justify-content: space-between; gap: 6px;
             padding: 5px 6px; border-radius: 4px; cursor: pointer; font-size: 12px;
@@ -103,6 +106,13 @@
         .cluster-item.active { background: #fee2e2; }
         .cluster-head { display: flex; justify-content: space-between; font-weight: 600; }
         .cluster-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+        /* 커서가 놓인 구 */
+        .hover-gu {
+            background: #f59e0b; color: #fff; font-weight: 700;
+            padding: 2px 8px; border-radius: 4px; font-size: 13px;
+            margin-bottom: 4px;
+        }
 
         /* 자치구 이름 라벨 */
         .gu-label {
@@ -186,7 +196,7 @@
         <div id="map"></div>
 
         <div class="cell-panel" id="cell-panel">
-            <div class="cell-head">
+            <div class="cell-head" id="cell-head">
                 <strong id="cell-title">셀</strong>
                 <button class="cell-close" id="cell-close" title="닫기">×</button>
             </div>
@@ -194,6 +204,7 @@
         </div>
 
         <div class="status">
+            <div><span id="hover-gu" class="hover-gu" style="display:none"></span></div>
             <div id="status-line">불러오는 중…</div>
             <div class="legend-bar" id="legend-bar"></div>
             <div class="legend-ends"><span id="legend-min">0</span><span id="legend-max">-</span></div>
@@ -485,6 +496,7 @@ function drawApartments(apartments) {
 // 자치구 경계 — 정적이라 한 번만 받아두고, 화면에 걸리는 선분만 그린다.
 // 1,755개를 전부 Polyline 으로 올리면 지도가 무거워진다.
 let boundaryData = null, boundaryLines = [], guLabels = [];
+let hoverGu = null, hoverLines = [];
 
 function clearBoundaries() {
     boundaryLines.forEach(l => l.setMap(null));
@@ -493,12 +505,84 @@ function clearBoundaries() {
     guLabels = [];
 }
 
+function clearHover() {
+    hoverLines.forEach(l => l.setMap(null));
+    hoverLines = [];
+}
+
+// 링 하나에 대한 광선 교차 판정. path 는 [lat, lng] 배열.
+function pointInRing(lat, lng, path) {
+    let inside = false;
+
+    for (let a = 0, b = path.length - 1; a < path.length; b = a++) {
+        const latA = path[a][0], lngA = path[a][1];
+        const latB = path[b][0], lngB = path[b][1];
+
+        if ((latA > lat) !== (latB > lat)) {
+            const x = (lngB - lngA) * (lat - latA) / (latB - latA) + lngA;
+            if (lng < x) inside = !inside;
+        }
+    }
+    return inside;
+}
+
+// 구마다 링이 여러 개일 수 있다(홀 포함). 홀수 번 들어가면 내부.
+function guAt(lat, lng) {
+    if (!boundaryData) return null;
+
+    const hits = {};
+
+    boundaryData.rings.forEach(ring => {
+        if (pointInRing(lat, lng, ring.path)) {
+            hits[ring.gu] = (hits[ring.gu] || 0) + 1;
+        }
+    });
+
+    for (const gu in hits) {
+        if (hits[gu] % 2 === 1) return gu;
+    }
+    return null;
+}
+
+function highlightGu(gu) {
+    if (gu === hoverGu) return;
+
+    hoverGu = gu;
+    clearHover();
+
+    const chip = document.getElementById('hover-gu');
+    chip.textContent = gu || '';
+    chip.style.display = gu ? 'inline-block' : 'none';
+
+    if (!gu || !map || !boundaryData) return;
+
+    boundaryData.rings
+        .filter(r => r.gu === gu)
+        .forEach(r => {
+            const path = r.path.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng));
+
+            // 채우지 않는다. 채우면 그 위의 셀 클릭이 막힐 수 있다.
+            const line = new kakao.maps.Polyline({
+                path: path,
+                strokeWeight: 5,
+                strokeColor: '#f59e0b',
+                strokeOpacity: 0.95,
+                zIndex: 8
+            });
+            line.setMap(map);
+            hoverLines.push(line);
+        });
+}
+
 async function drawBoundaries() {
     if (!map) return;
 
     clearBoundaries();
 
-    if (!document.getElementById('show-gu').checked) return;
+    if (!document.getElementById('show-gu').checked) {
+        highlightGu(null);
+        return;
+    }
 
     if (!boundaryData) {
         boundaryData = await (await fetch(withToken('/admin/grid/boundaries'))).json();
@@ -521,15 +605,24 @@ async function drawBoundaries() {
         if (minLat > ne.getLat() + pad || maxLat < sw.getLat() - pad ||
             minLng > ne.getLng() + pad || maxLng < sw.getLng() - pad) return;
 
-        const line = new kakao.maps.Polyline({
-            path: ring.path.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng)),
-            strokeWeight: 2,
-            strokeColor: '#111827',
-            strokeOpacity: 0.7,
-            zIndex: 5
+        const path = ring.path.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng));
+
+        // 격자 색이 파랑~빨강 전 구간을 쓰므로 단색 선은 어디선가 반드시
+        // 묻힌다. 흰 헤일로를 깔고 진한 선을 얹어 어떤 배경에서도 뜨게 한다.
+        [
+            { weight: 6, color: '#ffffff', opacity: 0.85, z: 5 },
+            { weight: 2, color: '#1f2937', opacity: 0.95, z: 6 }
+        ].forEach(s => {
+            const line = new kakao.maps.Polyline({
+                path: path,
+                strokeWeight: s.weight,
+                strokeColor: s.color,
+                strokeOpacity: s.opacity,
+                zIndex: s.z
+            });
+            line.setMap(map);
+            boundaryLines.push(line);
         });
-        line.setMap(map);
-        boundaryLines.push(line);
     });
 
     // 라벨은 넓게 볼 때만. 확대하면 화면 밖 중심점이라 오히려 헷갈린다.
@@ -630,9 +723,61 @@ function focusCluster(c) {
     map.setBounds(bounds);
 }
 
+function openCellPanel() {
+    const panel = document.getElementById('cell-panel');
+
+    // 처음 열 때만 우측 상단에 놓는다. 이후에는 사용자가 옮긴 자리를 유지한다.
+    if (!panel.dataset.placed) {
+        const wrap = panel.parentElement.getBoundingClientRect();
+        panel.style.left = Math.max(10, wrap.width - panel.offsetWidth - 10) + 'px';
+        panel.style.top = '10px';
+        panel.dataset.placed = '1';
+    }
+
+    panel.classList.add('open');
+}
+
 function closeCellPanel() {
     document.getElementById('cell-panel').classList.remove('open');
     clearApartments();
+}
+
+function makePanelDraggable() {
+    const panel = document.getElementById('cell-panel');
+    const head = document.getElementById('cell-head');
+    let startX = 0, startY = 0, baseLeft = 0, baseTop = 0, dragging = false;
+
+    head.addEventListener('mousedown', event => {
+        if (event.target.id === 'cell-close') return;
+
+        dragging = true;
+        startX = event.clientX;
+        startY = event.clientY;
+        baseLeft = panel.offsetLeft;
+        baseTop = panel.offsetTop;
+        event.preventDefault();
+    });
+
+    document.addEventListener('mousemove', event => {
+        if (!dragging) return;
+
+        const wrap = panel.parentElement.getBoundingClientRect();
+        // 패널 전체를 지도 영역 안에 가둔다. 밖으로 나가게 두면 문서에
+        // 가로 스크롤바가 생겨 컨테이너 폭이 바뀌고 좌표가 어긋난다.
+        const left = Math.min(
+            Math.max(0, baseLeft + event.clientX - startX),
+            Math.max(0, wrap.width - panel.offsetWidth)
+        );
+        const top = Math.min(
+            Math.max(0, baseTop + event.clientY - startY),
+            Math.max(0, wrap.height - panel.offsetHeight)
+        );
+
+        panel.style.left = left + 'px';
+        panel.style.top = top + 'px';
+    });
+
+    document.addEventListener('mouseup', () => { dragging = false; });
 }
 
 async function showDetail(i, j) {
@@ -656,14 +801,15 @@ async function showDetail(i, j) {
     ).join('');
 
     document.getElementById('cell-title').textContent = '셀 (' + i + ', ' + j + ')';
+    // 기준점이 아파트라 단지 목록을 위에 둔다. 인프라 수치는 그 아래.
     document.getElementById('cell-body').innerHTML =
         '<p class="note">' + (d.in_core ? '핵심 생활권' : '확장 생활권')
         + ' · 이 칸을 생활권에 포함하는 단지 ' + d.apartment_count + '개</p>'
-        + '<table>' + near + rows + '</table>'
         + (list
             ? '<div class="apt-list"><p class="note">단지 — 클릭하면 지도에서 강조</p>' + list + '</div>'
-            : '');
-    document.getElementById('cell-panel').classList.add('open');
+            : '')
+        + '<table>' + near + rows + '</table>';
+    openCellPanel();
 
     document.querySelectorAll('.apt-item').forEach(el => {
         el.addEventListener('click', () => highlightApartment(Number(el.dataset.id), true));
@@ -768,6 +914,22 @@ function initMap() {
     };
     kakao.maps.event.addListener(map, 'idle', debounced);
 
+    // 커서가 놓인 구 강조. 매 픽셀마다 25개 폴리곤을 판정할 필요는 없어
+    // 간격을 둔다.
+    let lastHoverAt = 0;
+    kakao.maps.event.addListener(map, 'mousemove', event => {
+        if (!document.getElementById('show-gu').checked) return;
+
+        const now = Date.now();
+        if (now - lastHoverAt < 70) return;
+        lastHoverAt = now;
+
+        const position = event.latLng;
+        highlightGu(guAt(position.getLat(), position.getLng()));
+    });
+
+    kakao.maps.event.addListener(map, 'mouseout', () => highlightGu(null));
+
     refresh();
     drawBoundaries();
 }
@@ -788,6 +950,7 @@ document.getElementById('absolute').addEventListener('change', refresh);
 document.getElementById('cell-close').addEventListener('click', closeCellPanel);
 document.getElementById('find-clusters').addEventListener('click', findClusters);
 document.getElementById('show-gu').addEventListener('change', drawBoundaries);
+makePanelDraggable();
 document.getElementById('layers').dispatchEvent(new Event('change'));
 
 if (window.kakao && window.kakao.maps) {
