@@ -339,13 +339,14 @@ def get_cell_detail(i, j):
             )
         }
 
+        # 지도에 마커로 찍어야 해서 좌표까지 함께 준다.
         apartments = [
             dict(row)
             for row in connection.execute(
-                "SELECT a.name, a.gu, a.dong, ga.in_core "
+                "SELECT a.id, a.name, a.gu, a.dong, a.lat, a.lng, ga.in_core "
                 "FROM grid_apartment ga JOIN apartment a ON a.id = ga.apartment_id "
                 "WHERE ga.i = ? AND ga.j = ? "
-                "ORDER BY ga.in_core DESC, a.name LIMIT 30",
+                "ORDER BY ga.in_core DESC, a.name LIMIT 60",
                 (i, j),
             )
         ]

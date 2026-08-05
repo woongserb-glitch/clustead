@@ -58,10 +58,52 @@
         .legend-bar { height: 10px; border-radius: 3px; margin: 6px 0 3px; }
         .legend-ends { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
         .note { color: var(--muted); font-size: 11px; line-height: 1.5; margin-top: 6px; }
-        .detail { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
-        .detail table { width: 100%; border-collapse: collapse; }
-        .detail td { padding: 2px 0; font-size: 12px; }
-        .detail td:last-child { text-align: right; color: var(--muted); }
+
+        /* 셀 상세 — 지도 위 우측 플로팅 */
+        .cell-panel {
+            position: absolute; top: 10px; right: 10px; z-index: 6;
+            width: 290px; max-height: calc(100% - 20px);
+            display: none; flex-direction: column;
+            background: rgba(255,255,255,0.97); border: 1px solid var(--line);
+            border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+        }
+        .cell-panel.open { display: flex; }
+        .cell-head {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 12px; border-bottom: 1px solid var(--line);
+        }
+        .cell-head strong { font-size: 13px; }
+        .cell-close {
+            width: auto; margin: 0; padding: 2px 8px; cursor: pointer;
+            background: transparent; border: none; font-size: 16px; color: var(--muted);
+        }
+        .cell-body { overflow-y: auto; padding: 10px 12px; }
+        .cell-body table { width: 100%; border-collapse: collapse; }
+        .cell-body td { padding: 2px 0; font-size: 12px; }
+        .cell-body td:last-child { text-align: right; color: var(--muted); }
+        .apt-list { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+        .apt-item {
+            display: flex; justify-content: space-between; gap: 6px;
+            padding: 5px 6px; border-radius: 4px; cursor: pointer; font-size: 12px;
+        }
+        .apt-item:hover { background: #eef2ff; }
+        .apt-item.active { background: var(--accent); color: #fff; }
+        .apt-item.active .apt-where { color: #dbeafe; }
+        .apt-where { color: var(--muted); font-size: 11px; white-space: nowrap; }
+        .apt-core { font-size: 10px; color: #16a34a; }
+        .apt-item.active .apt-core { color: #bbf7d0; }
+
+        /* 단지 마커 */
+        .apt-dot {
+            width: 11px; height: 11px; border-radius: 50%;
+            background: #2563eb; border: 2px solid #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.45);
+        }
+        .apt-dot.core { background: #16a34a; }
+        .apt-dot.on {
+            width: 19px; height: 19px; background: #dc2626;
+            box-shadow: 0 0 0 5px rgba(220,38,38,0.28), 0 1px 4px rgba(0,0,0,0.45);
+        }
         .warn { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412;
                 padding: 8px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 12px; }
     </style>
@@ -102,11 +144,19 @@
             <div id="layers"></div>
         </fieldset>
 
-        <div id="detail" class="detail" style="display:none"></div>
     </aside>
 
     <div class="map-wrap">
         <div id="map"></div>
+
+        <div class="cell-panel" id="cell-panel">
+            <div class="cell-head">
+                <strong id="cell-title">셀</strong>
+                <button class="cell-close" id="cell-close" title="닫기">×</button>
+            </div>
+            <div class="cell-body" id="cell-body"></div>
+        </div>
+
         <div class="status">
             <div id="status-line">불러오는 중…</div>
             <div class="legend-bar" id="legend-bar"></div>
@@ -295,10 +345,66 @@ function render(data, factor, mode) {
     document.getElementById('mode-note').textContent = note;
 }
 
+// 단지 마커 — 셀을 클릭할 때마다 갈아끼운다.
+let aptOverlays = [], activeAptId = null;
+
+function clearApartments() {
+    aptOverlays.forEach(o => o.overlay.setMap(null));
+    aptOverlays = [];
+    activeAptId = null;
+}
+
+function highlightApartment(id, pan) {
+    activeAptId = id;
+
+    aptOverlays.forEach(({ apt, node }) => {
+        node.classList.toggle('on', apt.id === id);
+    });
+
+    document.querySelectorAll('.apt-item').forEach(el => {
+        el.classList.toggle('active', Number(el.dataset.id) === id);
+    });
+
+    const hit = aptOverlays.find(o => o.apt.id === id);
+    if (hit && pan && map) {
+        map.panTo(new kakao.maps.LatLng(hit.apt.lat, hit.apt.lng));
+    }
+
+    const row = document.querySelector('.apt-item[data-id="' + id + '"]');
+    if (row) row.scrollIntoView({ block: 'nearest' });
+}
+
+function drawApartments(apartments) {
+    clearApartments();
+
+    if (!map) { return; }   // SDK 미로드 시 패널만 동작
+
+    apartments.forEach(apt => {
+        const node = document.createElement('div');
+        node.className = 'apt-dot' + (apt.in_core ? ' core' : '');
+        node.title = apt.name;
+        node.addEventListener('click', () => highlightApartment(apt.id, false));
+
+        const overlay = new kakao.maps.CustomOverlay({
+            position: new kakao.maps.LatLng(apt.lat, apt.lng),
+            content: node,
+            zIndex: 4,
+            clickable: true
+        });
+        overlay.setMap(map);
+
+        aptOverlays.push({ apt, node, overlay });
+    });
+}
+
+function closeCellPanel() {
+    document.getElementById('cell-panel').classList.remove('open');
+    clearApartments();
+}
+
 async function showDetail(i, j) {
     const res = await fetch(withToken('/admin/grid/cell/' + i + '/' + j));
     const d = await res.json();
-    const box = document.getElementById('detail');
 
     const rows = (d.coverage || []).map(c =>
         '<tr><td>' + c.layer + ' · ' + c.subtype + '</td><td>' + c.count.toLocaleString() + '</td></tr>'
@@ -306,17 +412,31 @@ async function showDetail(i, j) {
     const near = Object.entries(d.nearest || {}).map(([k, v]) =>
         '<tr><td>최근접 ' + k + '</td><td>' + v + 'm</td></tr>'
     ).join('');
-    const apts = (d.apartments || []).slice(0, 8).map(a =>
-        '<tr><td>' + a.name + '</td><td>' + a.gu + ' ' + a.dong + '</td></tr>'
+
+    const apartments = d.apartments || [];
+    const list = apartments.map(a =>
+        '<div class="apt-item" data-id="' + a.id + '">'
+        + '<span>' + a.name
+        + (a.in_core ? ' <span class="apt-core">핵심</span>' : '') + '</span>'
+        + '<span class="apt-where">' + a.gu + ' ' + a.dong + '</span>'
+        + '</div>'
     ).join('');
 
-    box.style.display = 'block';
-    box.innerHTML =
-        '<strong>셀 (' + i + ', ' + j + ')</strong>'
-        + '<p class="note">' + (d.in_core ? '핵심 생활권' : '확장 생활권')
-        + ' · 관련 단지 ' + d.apartment_count + '개</p>'
+    document.getElementById('cell-title').textContent = '셀 (' + i + ', ' + j + ')';
+    document.getElementById('cell-body').innerHTML =
+        '<p class="note">' + (d.in_core ? '핵심 생활권' : '확장 생활권')
+        + ' · 이 칸을 생활권에 포함하는 단지 ' + d.apartment_count + '개</p>'
         + '<table>' + near + rows + '</table>'
-        + (apts ? '<p class="note">이 칸을 생활권에 포함하는 단지</p><table>' + apts + '</table>' : '');
+        + (list
+            ? '<div class="apt-list"><p class="note">단지 — 클릭하면 지도에서 강조</p>' + list + '</div>'
+            : '');
+    document.getElementById('cell-panel').classList.add('open');
+
+    document.querySelectorAll('.apt-item').forEach(el => {
+        el.addEventListener('click', () => highlightApartment(Number(el.dataset.id), true));
+    });
+
+    drawApartments(apartments);
 }
 
 function buildLayerControls() {
@@ -385,6 +505,7 @@ buildLayerControls();
 document.getElementById('mode').addEventListener('change', refresh);
 document.getElementById('core-only').addEventListener('change', refresh);
 document.getElementById('absolute').addEventListener('change', refresh);
+document.getElementById('cell-close').addEventListener('click', closeCellPanel);
 document.getElementById('layers').dispatchEvent(new Event('change'));
 
 if (window.kakao && window.kakao.maps) {
