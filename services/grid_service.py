@@ -16,16 +16,35 @@ GRID_DB_PATH = "data/grid.db"
 
 MODES = ("point", "coverage", "nearest")
 
+# (테이블, 값컬럼, 셀 안 집계, 자식셀 간 집계)
+#
+# 두 단계를 구분해야 한다. 한 셀 안에는 서브타입별로 행이 여러 개 있고,
+# 거친 격자에서는 그런 셀이 여러 개 묶인다.
+#   coverage 셀 안=SUM(서브타입 합) / 셀 간=AVG(중복 계산이라 합산 불가)
+#   point    셀 안=SUM / 셀 간=SUM (POI 실개수라 합산이 맞다)
+#   nearest  서브타입 없음. 셀 안=MIN / 셀 간=MIN
 _MODE_TABLE = {
-    "point": ("grid_cell", "SUM(count)"),
-    "coverage": ("grid_coverage", "AVG(count)"),
-    "nearest": ("grid_nearest", "MIN(distance_m)"),
+    "point": ("grid_cell", "count", "SUM", "SUM"),
+    "coverage": ("grid_coverage", "count", "SUM", "AVG"),
+    "nearest": ("grid_nearest", "distance_m", "MIN", "MIN"),
 }
 
 # 확대 수준별 집계 배수. 100m 셀 9개가 정확히 300m 셀 1개가 된다.
 FACTORS = (1, 3, 9)
 
 MAX_CELLS = 20000
+
+# 절대 색상 스케일용 분위 경계 개수(p0..p100).
+SCALE_STEPS = 100
+
+# 격자 데이터는 정적이라 프로세스 내내 유효하다. 서브타입 조합이 임의라
+# 미리 구울 수 없어 요청 시 계산하고(50~200ms) 선택 단위로 캐시한다.
+# 뷰포트가 아니라 '선택'이 키라, 지도를 옮겨도 다시 계산하지 않는다.
+_scale_cache = {}
+_SCALE_CACHE_MAX = 200
+
+# get_meta() 결과 캐시(리스트 1칸). 격자 데이터는 정적이다.
+_meta_cache = []
 
 
 def grid_available():
@@ -39,7 +58,14 @@ def _connect():
 
 
 def get_meta():
-    """격자 원점·셀크기 등. 클라이언트가 셀 ID ↔ 위경도를 직접 계산한다."""
+    """격자 원점·셀크기 등. 클라이언트가 셀 ID ↔ 위경도를 직접 계산한다.
+
+    레이어별 서브타입 목록을 뽑느라 DISTINCT 스캔이 들어가 요청마다 부르면
+    수백 ms 가 든다. 격자 데이터는 정적이라 프로세스 단위로 캐시한다.
+    """
+    if _meta_cache:
+        return _meta_cache[0]
+
     if not grid_available():
         return None
 
@@ -74,6 +100,7 @@ def get_meta():
             )
 
     meta["layers"] = layers
+    _meta_cache.append(meta)
     return meta
 
 
@@ -92,6 +119,119 @@ def _cell_bounds(meta, min_lat, min_lng, max_lat, max_lng):
     )
 
 
+def _cell_value_sql(layer, mode, factor, subtypes, core_only,
+                    extra_where=None, extra_params=(), limit=None):
+    """(SQL, params). 셀 안 집계 → 자식셀 간 집계 2단계로 만든다."""
+    table, column, inner, outer = _MODE_TABLE[mode]
+
+    where = ["layer = ?"]
+    params = [layer]
+
+    # nearest 는 서브타입이 없다.
+    if subtypes and mode != "nearest":
+        where.append("subtype IN (" + ",".join("?" * len(subtypes)) + ")")
+        params.extend(subtypes)
+
+    if core_only:
+        where.append(
+            "EXISTS (SELECT 1 FROM grid_zone z "
+            "WHERE z.i = t.i AND z.j = t.j AND z.in_core = 1)"
+        )
+
+    if extra_where:
+        where.extend(extra_where)
+        params.extend(extra_params)
+
+    inner_sql = (
+        f"SELECT i / {factor} AS gi, j / {factor} AS gj, "
+        f"{inner}({column}) AS cell_value "
+        f"FROM {table} AS t "
+        f"WHERE {' AND '.join(where)} "
+        f"GROUP BY i, j"
+    )
+
+    sql = (
+        f"SELECT gi, gj, {outer}(cell_value) AS value "
+        f"FROM ({inner_sql}) GROUP BY gi, gj"
+    )
+
+    if limit is not None:
+        sql += f" LIMIT {limit}"
+
+    return sql, params
+
+
+def _zone_cell_count(connection, factor, core_only):
+    sql = f"SELECT COUNT(*) FROM (SELECT 1 FROM grid_zone "
+    if core_only:
+        sql += "WHERE in_core = 1 "
+    sql += f"GROUP BY i / {factor}, j / {factor})"
+
+    return connection.execute(sql).fetchone()[0]
+
+
+def _breaks_from(values, steps=SCALE_STEPS):
+    """정렬된 값에서 p0..p100 경계를 뽑는다."""
+    if not values:
+        return []
+
+    last = len(values) - 1
+
+    return [
+        values[min(last, int(round(last * step / steps)))]
+        for step in range(steps + 1)
+    ]
+
+
+def get_scale(layer, mode, factor=1, subtypes=None, core_only=False):
+    """서울 아파트 생활권 전체 분포 기준 분위 경계.
+
+    뷰포트 최소~최대로 색을 칠하면 지도를 옮길 때마다 같은 값의 색이 달라져
+    비교가 불가능하다. 절대 스케일은 화면과 무관하게 고정된 기준을 준다.
+
+    coverage/point 는 값이 없는 셀이 곧 0 이므로, 테이블에 없는 셀을 0 으로
+    채워 넣어야 분포가 정직하다(CCTV 는 22% 가 0). nearest 는 값이 없으면
+    '3km 밖'이라는 별도 범주라 채우지 않는다.
+    """
+    if mode not in _MODE_TABLE:
+        raise ValueError(f"알 수 없는 mode: {mode}")
+
+    if factor not in FACTORS:
+        factor = 1
+
+    key = (layer, mode, factor, tuple(sorted(subtypes or ())), core_only)
+
+    if key in _scale_cache:
+        return _scale_cache[key]
+
+    sql, params = _cell_value_sql(layer, mode, factor, subtypes, core_only)
+
+    with _connect() as connection:
+        rows = connection.execute(sql, params).fetchall()
+        total_cells = _zone_cell_count(connection, factor, core_only)
+
+    values = sorted(row["value"] for row in rows)
+    measured = len(values)
+
+    if mode != "nearest":
+        missing = max(0, total_cells - measured)
+        values = [0] * missing + values
+
+    scale = {
+        "breaks": [round(v, 2) for v in _breaks_from(values)],
+        "cells": len(values),
+        "measured": measured,
+        "zero_cells": sum(1 for v in values if v == 0) if mode != "nearest" else None,
+        "beyond_range": (total_cells - measured) if mode == "nearest" else None,
+    }
+
+    if len(_scale_cache) >= _SCALE_CACHE_MAX:
+        _scale_cache.clear()
+
+    _scale_cache[key] = scale
+    return scale
+
+
 def query_cells(layer, mode, bounds, factor=1, subtypes=None, core_only=False):
     """뷰포트 내 셀 값. bounds = (min_lat, min_lng, max_lat, max_lng)."""
     if mode not in _MODE_TABLE:
@@ -105,37 +245,13 @@ def query_cells(layer, mode, bounds, factor=1, subtypes=None, core_only=False):
     if meta is None:
         return {"cells": [], "truncated": False}
 
-    table, aggregate = _MODE_TABLE[mode]
     min_i, max_i, min_j, max_j = _cell_bounds(meta, *bounds)
 
-    where = [
-        "layer = ?",
-        "i BETWEEN ? AND ?",
-        "j BETWEEN ? AND ?",
-    ]
-    params = [layer, min_i, max_i, min_j, max_j]
-
-    # nearest 는 서브타입이 없다.
-    if subtypes and mode != "nearest":
-        where.append(
-            "subtype IN (" + ",".join("?" * len(subtypes)) + ")"
-        )
-        params.extend(subtypes)
-
-    if core_only:
-        where.append(
-            "EXISTS (SELECT 1 FROM grid_zone z "
-            "WHERE z.i = t.i AND z.j = t.j AND z.in_core = 1)"
-        )
-
-    # 거친 격자는 자식 셀을 묶어 재집계한다. coverage 는 합이 아니라 평균이다.
-    sql = (
-        f"SELECT i / {factor} AS gi, j / {factor} AS gj, "
-        f"{aggregate} AS value "
-        f"FROM {table} AS t "
-        f"WHERE {' AND '.join(where)} "
-        f"GROUP BY gi, gj "
-        f"LIMIT {MAX_CELLS + 1}"
+    sql, params = _cell_value_sql(
+        layer, mode, factor, subtypes, core_only,
+        extra_where=["i BETWEEN ? AND ?", "j BETWEEN ? AND ?"],
+        extra_params=(min_i, max_i, min_j, max_j),
+        limit=MAX_CELLS + 1,
     )
 
     with _connect() as connection:

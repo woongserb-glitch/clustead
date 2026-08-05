@@ -94,6 +94,7 @@
                 <option value="nearest">최근접 거리</option>
             </select>
             <label><input type="checkbox" id="core-only"> 핵심 생활권({{ meta.core_radius_m }}m)만</label>
+            <label><input type="checkbox" id="absolute" checked> 절대 스케일(서울 생활권 백분위)</label>
         </fieldset>
 
         <fieldset>
@@ -163,6 +164,20 @@ function colorFor(t) {
     return 'hsl(' + hue + ', 75%, 50%)';
 }
 
+// 값 → 서울 생활권 백분위(0~100). breaks 는 p0..p100 오름차순.
+function percentileOf(value, breaks) {
+    let lo = 0, hi = breaks.length - 1;
+
+    if (value <= breaks[0]) return 0;
+    if (value >= breaks[hi]) return 100;
+
+    while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (breaks[mid] <= value) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+}
+
 function clearTiles() {
     tiles.forEach(t => t.setMap(null));
     tiles = [];
@@ -207,6 +222,10 @@ function render(data, factor, mode) {
         return;
     }
 
+    const absolute = document.getElementById('absolute').checked;
+    const breaks = (data.scale || {}).breaks || [];
+    const useAbsolute = absolute && breaks.length > 1;
+
     const values = cells.map(c => c[2]);
     const max = Math.max(...values), min = Math.min(...values);
     const span = max - min || 1;
@@ -216,7 +235,9 @@ function render(data, factor, mode) {
         const south = LAT0 + i * DLAT, west = LNG0 + j * DLNG;
         const north = south + DLAT * factor, east = west + DLNG * factor;
 
-        let t = (value - min) / span;
+        let t = useAbsolute
+            ? percentileOf(value, breaks) / 100
+            : (value - min) / span;
         if (mode === 'nearest') t = 1 - t;
 
         const rect = new kakao.maps.Rectangle({
@@ -234,16 +255,44 @@ function render(data, factor, mode) {
     });
 
     const unit = mode === 'nearest' ? 'm' : '';
+    const scale = data.scale || {};
+
     document.getElementById('status-line').textContent =
         cells.length.toLocaleString() + '칸 · ' + (CELL * factor) + 'm 격자'
         + (data.truncated ? ' (일부 생략)' : '');
-    document.getElementById('legend-min').textContent = min.toLocaleString() + unit;
-    document.getElementById('legend-max').textContent = max.toLocaleString() + unit;
+
+    if (useAbsolute) {
+        // 색은 백분위 고정. 양 끝에 그 백분위의 실제 값을 함께 보여준다.
+        document.getElementById('legend-min').textContent =
+            '0% (' + breaks[0].toLocaleString() + unit + ')';
+        document.getElementById('legend-max').textContent =
+            '100% (' + breaks[breaks.length - 1].toLocaleString() + unit + ')';
+    } else {
+        document.getElementById('legend-min').textContent = min.toLocaleString() + unit;
+        document.getElementById('legend-max').textContent = max.toLocaleString() + unit;
+    }
+
     document.getElementById('legend-bar').style.background =
         mode === 'nearest'
             ? 'linear-gradient(to right, hsl(0,75%,50%), hsl(220,75%,50%))'
             : 'linear-gradient(to right, hsl(220,75%,50%), hsl(0,75%,50%))';
-    document.getElementById('mode-note').textContent = MODE_NOTE[mode];
+
+    let note = MODE_NOTE[mode];
+    if (useAbsolute) {
+        const mid = breaks[50];
+        note += ' 색은 서울 생활권 ' + (scale.cells || 0).toLocaleString()
+              + '칸 기준 백분위(중앙 ' + mid.toLocaleString() + unit + ').';
+        if (scale.zero_cells) {
+            note += ' 0인 칸 '
+                  + Math.round(100 * scale.zero_cells / scale.cells) + '%.';
+        }
+        if (scale.beyond_range) {
+            note += ' 3km 밖 ' + scale.beyond_range.toLocaleString() + '칸 제외.';
+        }
+    } else {
+        note += ' 색은 현재 화면 최소~최대 기준(이동 시 달라짐).';
+    }
+    document.getElementById('mode-note').textContent = note;
 }
 
 async function showDetail(i, j) {
@@ -335,6 +384,7 @@ function initMap() {
 buildLayerControls();
 document.getElementById('mode').addEventListener('change', refresh);
 document.getElementById('core-only').addEventListener('change', refresh);
+document.getElementById('absolute').addEventListener('change', refresh);
 document.getElementById('layers').dispatchEvent(new Event('change'));
 
 if (window.kakao && window.kakao.maps) {

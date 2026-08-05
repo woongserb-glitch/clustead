@@ -5709,6 +5709,16 @@ def admin_grid_cells():
     result["mode"] = mode
     result["factor"] = factor
 
+    # 절대 색상 스케일(서울 생활권 전체 분포). 선택 단위로 캐시되므로
+    # 지도를 옮기는 동안 재계산되지 않는다.
+    result["scale"] = grid_service.get_scale(
+        layer,
+        mode,
+        factor=factor,
+        subtypes=subtypes or None,
+        core_only=request.args.get("core") == "1",
+    )
+
     return jsonify(result)
 
 
