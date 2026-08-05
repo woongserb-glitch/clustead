@@ -5775,6 +5775,46 @@ def admin_grid_compare():
     return jsonify(result)
 
 
+@app.route("/admin/grid/clusters")
+def admin_grid_clusters():
+    _require_admin()
+
+    layer_a = clean_text(request.args.get("layer", ""))
+    layer_b = clean_text(request.args.get("layer2", ""))
+
+    if not layer_a or not layer_b or layer_a == layer_b:
+        return jsonify({"error": "서로 다른 두 레이어가 필요합니다"}), 400
+
+    try:
+        threshold = int(request.args.get("threshold", "40"))
+    except ValueError:
+        threshold = 40
+
+    threshold = max(5, min(100, threshold))
+
+    def subtype_list(name):
+        return [
+            clean_text(value)
+            for value in request.args.getlist(name)
+            if clean_text(value)
+        ] or None
+
+    result = grid_service.query_clusters(
+        layer_a,
+        layer_b,
+        threshold=threshold,
+        subtypes_a=subtype_list("subtype"),
+        subtypes_b=subtype_list("subtype2"),
+        core_only=request.args.get("core") == "1",
+    )
+
+    result["layer"] = layer_a
+    result["layer2"] = layer_b
+    result["threshold"] = threshold
+
+    return jsonify(result)
+
+
 @app.route("/admin/grid/points")
 def admin_grid_points():
     _require_admin()

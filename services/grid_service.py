@@ -11,6 +11,7 @@ grid.db 는 읽기 전용이고 요청마다 커넥션을 새로 연다. 격자 
 
 import os
 import sqlite3
+from contextlib import closing
 
 GRID_DB_PATH = "data/grid.db"
 
@@ -46,12 +47,22 @@ _SCALE_CACHE_MAX = 200
 # get_meta() 결과 캐시(리스트 1칸). 격자 데이터는 정적이다.
 _meta_cache = []
 
+# 클러스터는 서울 전체를 훑고 연결요소까지 계산해 1초 이상 걸린다.
+# 뷰포트와 무관한 결과라 선택 단위로 캐시하면 재계산이 없다.
+_cluster_cache = {}
+_CLUSTER_CACHE_MAX = 60
+
 
 def grid_available():
     return os.path.exists(GRID_DB_PATH)
 
 
 def _connect():
+    """호출부는 반드시 closing() 으로 감쌀 것.
+
+    `with sqlite3.connect(...)` 는 트랜잭션 컨텍스트일 뿐 연결을 닫지 않는다.
+    그대로 두면 요청마다 연결이 쌓인다.
+    """
     connection = sqlite3.connect(f"file:{GRID_DB_PATH}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     return connection
@@ -69,7 +80,7 @@ def get_meta():
     if not grid_available():
         return None
 
-    with _connect() as connection:
+    with closing(_connect()) as connection:
         meta = {
             row["key"]: row["value"]
             for row in connection.execute("SELECT key, value FROM grid_meta")
@@ -206,7 +217,7 @@ def get_scale(layer, mode, factor=1, subtypes=None, core_only=False):
 
     sql, params = _cell_value_sql(layer, mode, factor, subtypes, core_only)
 
-    with _connect() as connection:
+    with closing(_connect()) as connection:
         rows = connection.execute(sql, params).fetchall()
         total_cells = _zone_cell_count(connection, factor, core_only)
 
@@ -254,7 +265,7 @@ def query_cells(layer, mode, bounds, factor=1, subtypes=None, core_only=False):
         limit=MAX_CELLS + 1,
     )
 
-    with _connect() as connection:
+    with closing(_connect()) as connection:
         rows = connection.execute(sql, params).fetchall()
 
     truncated = len(rows) > MAX_CELLS
@@ -284,7 +295,7 @@ def query_points(layer, bounds, subtypes=None, limit=2000):
         where.append("subtype IN (" + ",".join("?" * len(subtypes)) + ")")
         params.extend(subtypes)
 
-    with _connect() as connection:
+    with closing(_connect()) as connection:
         rows = connection.execute(
             f"SELECT i, j, subtype, count FROM grid_cell "
             f"WHERE {' AND '.join(where)} LIMIT {limit + 1}",
@@ -364,7 +375,7 @@ def query_compare(layer_a, layer_b, bounds, factor=1,
             extra_where=extra, extra_params=extra_params,
             limit=MAX_CELLS + 1,
         )
-        with _connect() as connection:
+        with closing(_connect()) as connection:
             return {
                 (row["gi"], row["gj"]): row["value"]
                 for row in connection.execute(sql, params)
@@ -391,12 +402,168 @@ def query_compare(layer_a, layer_b, bounds, factor=1,
     }
 
 
+def query_clusters(layer_a, layer_b, threshold=40, subtypes_a=None,
+                   subtypes_b=None, core_only=False, min_cells=10, limit=40):
+    """인접한 불균형 칸을 묶어 실체로 만든다.
+
+    뷰포트가 아니라 서울 생활권 전체에서 계산한다. 화면을 옮길 때마다 덩어리가
+    달라지면 '이 지역은 불균형하다'는 진술이 성립하지 않기 때문이다.
+
+    기본 100m 격자에서만 묶는다. 거친 격자로 묶으면 경계가 뭉개져 면적과
+    관련 단지 수가 부정확해진다.
+
+    threshold 는 A백분위 - B백분위 기준. 양수면 'A 는 높은데 B 가 낮은' 칸.
+    """
+    meta = get_meta()
+
+    if meta is None:
+        return {"clusters": []}
+
+    # 아래 루프가 key 를 셀 좌표로 재사용하므로 이름을 분리해 둔다.
+    cache_key = (
+        layer_a, layer_b, threshold,
+        tuple(sorted(subtypes_a or ())), tuple(sorted(subtypes_b or ())),
+        core_only, min_cells, limit,
+    )
+
+    if cache_key in _cluster_cache:
+        return _cluster_cache[cache_key]
+
+    scale_a = get_scale(layer_a, "coverage", 1, subtypes_a, core_only)
+    scale_b = get_scale(layer_b, "coverage", 1, subtypes_b, core_only)
+
+    def fetch(layer, subtypes):
+        sql, params = _cell_value_sql(layer, "coverage", 1, subtypes, core_only)
+        with closing(_connect()) as connection:
+            return {
+                (row["gi"], row["gj"]): row["value"]
+                for row in connection.execute(sql, params)
+            }
+
+    values_a = fetch(layer_a, subtypes_a)
+    values_b = fetch(layer_b, subtypes_b)
+
+    flagged = {}
+
+    for cell in set(values_a) | set(values_b):
+        pa = _percentile_of(values_a.get(cell, 0), scale_a["breaks"])
+        pb = _percentile_of(values_b.get(cell, 0), scale_b["breaks"])
+        diff = pa - pb
+
+        if diff >= threshold:
+            flagged[cell] = diff
+
+    # 4-이웃 연결요소. 8-이웃은 모서리만 닿은 덩어리까지 붙여 과대집계된다.
+    seen = set()
+    clusters = []
+
+    for start in flagged:
+        if start in seen:
+            continue
+
+        stack = [start]
+        seen.add(start)
+        members = []
+
+        while stack:
+            cell = stack.pop()
+            members.append(cell)
+            i, j = cell
+
+            for nb in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+                if nb in flagged and nb not in seen:
+                    seen.add(nb)
+                    stack.append(nb)
+
+        if len(members) >= min_cells:
+            clusters.append(members)
+
+    clusters.sort(key=len, reverse=True)
+    clusters = clusters[:limit]
+
+    result = _describe_clusters(meta, clusters, flagged)
+
+    if len(_cluster_cache) >= _CLUSTER_CACHE_MAX:
+        _cluster_cache.clear()
+
+    _cluster_cache[cache_key] = result
+    return result
+
+
+def _describe_clusters(meta, clusters, flagged):
+    cell_size = float(meta["cell_size_m"])
+    lat_origin = float(meta["lat_origin"])
+    lng_origin = float(meta["lng_origin"])
+    d_lat = cell_size / float(meta["lat_m_per_deg"])
+    d_lng = cell_size / float(meta["lng_m_per_deg"])
+    cell_area_km2 = (cell_size / 1000.0) ** 2
+
+    described = []
+
+    with closing(_connect()) as connection:
+        connection.execute(
+            "CREATE TEMP TABLE cluster_cell (cid INTEGER, i INTEGER, j INTEGER)"
+        )
+        connection.executemany(
+            "INSERT INTO cluster_cell VALUES (?, ?, ?)",
+            [
+                (cid, i, j)
+                for cid, members in enumerate(clusters)
+                for i, j in members
+            ],
+        )
+        connection.execute("CREATE INDEX tmp_cc ON cluster_cell (i, j)")
+
+        apartment_counts = dict(
+            connection.execute(
+                "SELECT cc.cid, COUNT(DISTINCT ga.apartment_id) "
+                "FROM cluster_cell cc "
+                "JOIN grid_apartment ga ON ga.i = cc.i AND ga.j = cc.j "
+                "GROUP BY cc.cid"
+            )
+        )
+
+        places = {}
+
+        for cid, gu, dong, n in connection.execute(
+            "SELECT cc.cid, a.gu, a.dong, COUNT(DISTINCT a.id) n "
+            "FROM cluster_cell cc "
+            "JOIN grid_apartment ga ON ga.i = cc.i AND ga.j = cc.j "
+            "JOIN apartment a ON a.id = ga.apartment_id "
+            "GROUP BY cc.cid, a.gu, a.dong ORDER BY n DESC"
+        ):
+            places.setdefault(cid, []).append({"gu": gu, "dong": dong, "count": n})
+
+    for cid, members in enumerate(clusters):
+        lats = [i for i, _ in members]
+        lngs = [j for _, j in members]
+        diffs = [flagged[cell] for cell in members]
+
+        described.append({
+            "id": cid,
+            "cells": len(members),
+            "area_km2": round(len(members) * cell_area_km2, 3),
+            "mean_diff": round(sum(diffs) / len(diffs), 1),
+            "max_diff": max(diffs),
+            "apartment_count": apartment_counts.get(cid, 0),
+            "places": (places.get(cid) or [])[:3],
+            "bounds": {
+                "min_lat": lat_origin + min(lats) * d_lat,
+                "max_lat": lat_origin + (max(lats) + 1) * d_lat,
+                "min_lng": lng_origin + min(lngs) * d_lng,
+                "max_lng": lng_origin + (max(lngs) + 1) * d_lng,
+            },
+        })
+
+    return {"clusters": described}
+
+
 def get_cell_detail(i, j):
     """셀 하나의 전 레이어 값. 지도에서 칸을 클릭했을 때 쓴다."""
     if not grid_available():
         return None
 
-    with _connect() as connection:
+    with closing(_connect()) as connection:
         zone = connection.execute(
             "SELECT in_core, apartment_count FROM grid_zone WHERE i = ? AND j = ?",
             (i, j),

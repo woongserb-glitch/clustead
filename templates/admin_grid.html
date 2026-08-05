@@ -93,6 +93,17 @@
         .apt-core { font-size: 10px; color: #16a34a; }
         .apt-item.active .apt-core { color: #bbf7d0; }
 
+        /* 불균형 클러스터 목록 */
+        #cluster-list { margin-top: 8px; max-height: 260px; overflow-y: auto; }
+        .cluster-item {
+            padding: 6px; border-radius: 4px; cursor: pointer;
+            border-bottom: 1px solid var(--line); font-size: 12px;
+        }
+        .cluster-item:hover { background: #fef2f2; }
+        .cluster-item.active { background: #fee2e2; }
+        .cluster-head { display: flex; justify-content: space-between; font-weight: 600; }
+        .cluster-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
         /* 단지 마커 */
         .apt-dot {
             width: 11px; height: 11px; border-radius: 50%;
@@ -139,6 +150,20 @@
             <select id="layer2" style="display:none"></select>
             <label><input type="checkbox" id="core-only"> 핵심 생활권({{ meta.core_radius_m }}m)만</label>
             <label><input type="checkbox" id="absolute" checked> 절대 스케일(서울 생활권 백분위)</label>
+        </fieldset>
+
+        <fieldset id="cluster-box" style="display:none">
+            <legend>불균형 클러스터</legend>
+            <label>기준 격차
+                <select id="threshold" style="width:auto; margin:0 0 0 6px">
+                    <option value="30">30%p</option>
+                    <option value="40" selected>40%p</option>
+                    <option value="50">50%p</option>
+                    <option value="60">60%p</option>
+                </select>
+            </label>
+            <button id="find-clusters" style="margin-top:6px">찾기</button>
+            <div id="cluster-list"></div>
         </fieldset>
 
         <fieldset>
@@ -448,6 +473,86 @@ function drawApartments(apartments) {
     });
 }
 
+// 불균형 클러스터 — 뷰포트가 아니라 서울 전체 기준이라 한 번 찾아두면
+// 지도를 옮겨도 목록이 그대로다.
+let clusterOutlines = [];
+
+function clearClusterOutlines() {
+    clusterOutlines.forEach(o => o.setMap(null));
+    clusterOutlines = [];
+}
+
+async function findClusters() {
+    const layer = currentLayer();
+    const layer2 = document.getElementById('layer2').value;
+    const box = document.getElementById('cluster-list');
+
+    if (!layer2 || layer2 === layer) {
+        box.innerHTML = '<p class="note">비교할 두 번째 레이어를 고르세요.</p>';
+        return;
+    }
+
+    const params = new URLSearchParams({
+        layer: layer,
+        layer2: layer2,
+        threshold: document.getElementById('threshold').value
+    });
+    if (document.getElementById('core-only').checked) params.set('core', '1');
+    currentSubtypes(layer).forEach(s => params.append('subtype', s));
+
+    box.innerHTML = '<p class="note">서울 전체를 훑는 중…</p>';
+
+    const data = await (await fetch(withToken('/admin/grid/clusters?' + params))).json();
+    const clusters = data.clusters || [];
+
+    if (!clusters.length) {
+        box.innerHTML = '<p class="note">기준을 넘는 덩어리가 없습니다.</p>';
+        return;
+    }
+
+    box.innerHTML = clusters.map(c => {
+        const where = (c.places || [])
+            .map(p => p.gu + ' ' + p.dong).join(', ') || '—';
+        return '<div class="cluster-item" data-id="' + c.id + '">'
+            + '<div class="cluster-head"><span>' + where.split(',')[0] + '</span>'
+            + '<span>' + c.area_km2.toFixed(2) + 'km²</span></div>'
+            + '<div class="cluster-sub">평균 ' + c.mean_diff + '%p · 단지 '
+            + c.apartment_count + '개 · ' + where + '</div></div>';
+    }).join('');
+
+    document.querySelectorAll('.cluster-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const c = clusters.find(x => x.id === Number(el.dataset.id));
+            document.querySelectorAll('.cluster-item').forEach(
+                x => x.classList.toggle('active', x === el));
+            focusCluster(c);
+        });
+    });
+}
+
+function focusCluster(c) {
+    if (!c || !map) return;
+
+    clearClusterOutlines();
+
+    const bounds = new kakao.maps.LatLngBounds(
+        new kakao.maps.LatLng(c.bounds.min_lat, c.bounds.min_lng),
+        new kakao.maps.LatLng(c.bounds.max_lat, c.bounds.max_lng)
+    );
+
+    const outline = new kakao.maps.Rectangle({
+        bounds: bounds,
+        strokeWeight: 3,
+        strokeColor: '#dc2626',
+        strokeStyle: 'shortdash',
+        fillOpacity: 0
+    });
+    outline.setMap(map);
+    clusterOutlines.push(outline);
+
+    map.setBounds(bounds);
+}
+
 function closeCellPanel() {
     document.getElementById('cell-panel').classList.remove('open');
     clearApartments();
@@ -533,8 +638,15 @@ function syncLayerUi() {
         el.classList.toggle('open', el.dataset.layer === layer);
     });
 
-    // 비교 모드에서만 두 번째 레이어 선택을 노출. 자기 자신은 뺀다.
+    // 비교 모드에서만 두 번째 레이어 선택과 클러스터 도구를 노출.
     second.style.display = mode === 'compare' ? 'block' : 'none';
+    document.getElementById('cluster-box').style.display =
+        mode === 'compare' ? 'block' : 'none';
+
+    if (mode !== 'compare') {
+        document.getElementById('cluster-list').innerHTML = '';
+        clearClusterOutlines();
+    }
 
     if (mode === 'compare') {
         const keep = second.value;
@@ -593,6 +705,7 @@ document.getElementById('layer2').addEventListener('change', () => {
 document.getElementById('core-only').addEventListener('change', refresh);
 document.getElementById('absolute').addEventListener('change', refresh);
 document.getElementById('cell-close').addEventListener('click', closeCellPanel);
+document.getElementById('find-clusters').addEventListener('click', findClusters);
 document.getElementById('layers').dispatchEvent(new Event('change'));
 
 if (window.kakao && window.kakao.maps) {
