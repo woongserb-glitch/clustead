@@ -136,50 +136,55 @@ def constant(value):
     return extract
 
 
-# (키, 라벨, 경로, 위도컬럼, 경도컬럼, 서브타입함수, 신뢰등급, 비고)
+# 영향권 반경은 기존 서비스(POI_META)의 카테고리별 생활반경을 그대로 쓴다.
+# 학교/어린이보호구역은 POI_META 에 없어 여기서 정의한다(통학 도보권 / 법정 기준).
+#
+# (키, 라벨, 경로, 위도컬럼, 경도컬럼, 서브타입함수, 반경m, 신뢰등급, 비고)
 LAYERS = [
     ("academy", "학원", "data/academy/academy_geocoded.csv",
-     "lat", "lng", academy_subtype, "medium",
+     "lat", "lng", academy_subtype, 1000, "medium",
      "지오코딩 실패분 제외"),
 
     ("school", "학교", "data/school/school.csv",
-     "위도", "경도", simple("학교급구분"), "high",
-     "교육부 전수"),
+     "위도", "경도", simple("학교급구분"), 500, "high",
+     "교육부 전수. 반경은 통학 도보권 기준으로 자체 정의"),
 
     ("child_zone", "어린이보호구역", "data/child_zone/child_protection_zone.csv",
-     "latitude", "longitude", simple("fcltyKnd"), "high",
-     "법정 지정구역. cctvNumber 는 구별 기입률 편차로 미사용"),
+     "latitude", "longitude", simple("fcltyKnd"), 300, "high",
+     "법정 지정구역(반경 300m). cctvNumber 는 구별 기입률 편차로 미사용"),
 
     ("hospital", "병원", "data/medical/hospital_seoul.csv",
-     "WGS84LAT", "WGS84LON", hospital_subtype, "medium", ""),
+     "WGS84LAT", "WGS84LON", hospital_subtype, 700, "medium", ""),
 
     ("pharmacy", "약국", "data/medical/pharmacy_hours_seoul.csv",
-     "WGS84LAT", "WGS84LON", constant("약국"), "medium", ""),
+     "WGS84LAT", "WGS84LON", constant("약국"), 700, "medium", ""),
 
     ("subway", "지하철", "data/subway/subway_station_master.csv",
-     "위도", "경도", simple("호선"), "high", ""),
+     "위도", "경도", simple("호선"), 1500, "high", ""),
 
     ("bus_stop", "버스정류장", "data/bus/seoul_bus_stops.csv",
-     "Y좌표", "X좌표", simple("정류소 타입"), "high",
+     "Y좌표", "X좌표", simple("정류소 타입"), 400, "high",
      "X/Y 컬럼명이 경도/위도로 뒤바뀌어 있음"),
 
     ("bike", "따릉이", "data/bike/bike_station_seoul.csv",
-     "위도", "경도", constant("대여소"), "high", ""),
+     "위도", "경도", constant("대여소"), 500, "high", ""),
 
     ("ev_charger", "전기차 충전기", "data/ev_chargers/ev_chargers_seoul_filtered.csv",
-     "lat", "lng", constant("충전소"), "medium", ""),
+     "lat", "lng", constant("충전소"), 1000, "medium", ""),
 
     ("culture", "문화시설", "data/culture/culture_filtered.csv",
-     "lat", "lng", simple("subtype"), "medium", ""),
+     "lat", "lng", simple("subtype"), 1500, "medium", ""),
 ]
 
+CCTV_RADIUS_M = 500
 
-def build_poi_counts():
-    """레이어별 (셀, 서브타입) 개수. CCTV 는 카메라 대수 가중치를 쓴다."""
-    counts = {}
+
+def build_poi_list():
+    """레이어별 POI 좌표 목록. CCTV 는 카메라 대수 가중치를 함께 싣는다."""
+    pois = []
     stats = []
 
-    for key, label, path, lat_col, lng_col, subtype_of, trust, note in LAYERS:
+    for key, label, path, lat_col, lng_col, subtype_of, radius, trust, note in LAYERS:
         if not os.path.exists(path):
             print(f"[SKIP] {label}: 파일 없음 ({path})")
             continue
@@ -200,14 +205,11 @@ def build_poi_counts():
                 dropped += 1
                 continue
 
-            i, j = cell_of(lat, lng)
-            counts[(i, j, key, subtype_of(row))] = (
-                counts.get((i, j, key, subtype_of(row)), 0) + 1
-            )
+            pois.append((lat, lng, key, subtype_of(row), 1.0, radius))
             kept += 1
 
-        stats.append((key, label, trust, note, kept, dropped))
-        print(f"[POI] {label:<14}{kept:>7,}건 집계 (제외 {dropped:,})")
+        stats.append((key, label, trust, note, kept, dropped, radius))
+        print(f"[POI] {label:<14}{kept:>7,}건 (반경 {radius}m, 제외 {dropped:,})")
 
     # CCTV: 지주/카메라 등록 단위 차이를 보정한 가중치로 집계한다.
     load_cctv_data()
@@ -220,22 +222,69 @@ def build_poi_counts():
         if not in_seoul(lat, lng):
             continue
 
-        i, j = cell_of(lat, lng)
         _, subtype = get_cctv_icon_and_subtype(point.get("purpose", ""))
         weight = cctv_camera_weights.get((lat, lng), 1)
 
-        key = (i, j, "cctv", subtype)
-        counts[key] = counts.get(key, 0) + weight
+        pois.append((lat, lng, "cctv", subtype, weight, CCTV_RADIUS_M))
         kept += 1
 
     stats.append((
         "cctv", "CCTV", "normalized",
         "자치구별 등록단위 보정 적용. 목적구분(서브타입)은 구간 비교 불가",
-        kept, 0,
+        kept, 0, CCTV_RADIUS_M,
     ))
-    print(f"[POI] {'CCTV':<14}{kept:>7,}건 집계 (카메라 대수 가중)")
+    print(f"[POI] {'CCTV':<14}{kept:>7,}건 (반경 {CCTV_RADIUS_M}m, 카메라 대수 가중)")
 
-    return counts, stats
+    return pois, stats
+
+
+def build_point_counts(pois):
+    """POI 가 '위치한' 셀 집계. 최대 확대에서의 개별 표시·정확한 위치용."""
+    counts = {}
+
+    for lat, lng, layer, subtype, weight, _ in pois:
+        i, j = cell_of(lat, lng)
+        key = (i, j, layer, subtype)
+        counts[key] = counts.get(key, 0) + weight
+
+    return counts
+
+
+def build_coverage(pois, zone_cells):
+    """POI 가 '영향을 주는' 셀 집계.
+
+    지하철역이 있는 칸만 역세권이 아니라 반경 500m 안의 모든 칸이 역세권이다.
+    기존 서비스가 단지 좌표 기준으로 하던 반경 집계를, 모든 지점으로 일반화한
+    것이다. 즉 '이 칸에 산다면 생활권이 어떻게 되는가'.
+
+    주의: 커버리지는 셀 간 합산이 불가능하다(같은 POI 가 이웃 셀에 중복 계산됨).
+    거친 격자로 낮출 때는 합이 아니라 평균을 써야 한다.
+    """
+    coverage = {}
+
+    for lat, lng, layer, subtype, weight, radius in pois:
+        ci, cj = cell_of(lat, lng)
+        span = int(radius / CELL_SIZE_M) + 1
+        radius_sq = radius * radius
+
+        for i in range(ci - span, ci + span + 1):
+            for j in range(cj - span, cj + span + 1):
+                if (i, j) not in zone_cells:
+                    continue
+
+                cell_lat = LAT_ORIGIN + (i + 0.5) * D_LAT
+                cell_lng = LNG_ORIGIN + (j + 0.5) * D_LNG
+
+                dy = (cell_lat - lat) * LAT_M_PER_DEG
+                dx = (cell_lng - lng) * LNG_M_PER_DEG
+
+                if dx * dx + dy * dy > radius_sq:
+                    continue
+
+                key = (i, j, layer, subtype)
+                coverage[key] = coverage.get(key, 0) + weight
+
+    return coverage
 
 
 def build_apartment_cells():
@@ -281,7 +330,7 @@ def build_apartment_cells():
     return apartments, pairs, core_cells, extended_cells
 
 
-def write_db(counts, stats, apartments, pairs, core_cells, extended_cells):
+def write_db(counts, coverage, stats, apartments, pairs, core_cells, extended_cells):
     if os.path.exists(OUTPUT_PATH):
         os.remove(OUTPUT_PATH)
 
@@ -300,10 +349,23 @@ def write_db(counts, stats, apartments, pairs, core_cells, extended_cells):
             trust TEXT,
             note TEXT,
             poi_count INTEGER,
-            dropped_count INTEGER
+            dropped_count INTEGER,
+            radius_m INTEGER
         );
 
+        -- POI 가 위치한 셀 (개별 표시용). 셀 간 합산 가능.
         CREATE TABLE grid_cell (
+            i INTEGER NOT NULL,
+            j INTEGER NOT NULL,
+            layer TEXT NOT NULL,
+            subtype TEXT NOT NULL,
+            count REAL NOT NULL,
+            PRIMARY KEY (i, j, layer, subtype)
+        ) WITHOUT ROWID;
+
+        -- POI 가 영향을 주는 셀 (밀집도·접근성 표시용).
+        -- 이웃 셀에 같은 POI 가 중복 계산되므로 합산 불가. 거칠게 볼 때는 평균.
+        CREATE TABLE grid_coverage (
             i INTEGER NOT NULL,
             j INTEGER NOT NULL,
             layer TEXT NOT NULL,
@@ -349,15 +411,20 @@ def write_db(counts, stats, apartments, pairs, core_cells, extended_cells):
     )
 
     cursor.executemany(
-        "INSERT INTO layer_meta VALUES (?, ?, ?, ?, ?, ?)",
-        [(key, label, trust, note, kept, dropped)
-         for key, label, trust, note, kept, dropped in stats],
+        "INSERT INTO layer_meta VALUES (?, ?, ?, ?, ?, ?, ?)",
+        stats,
     )
 
     cursor.executemany(
         "INSERT INTO grid_cell VALUES (?, ?, ?, ?, ?)",
         [(i, j, layer, subtype, value)
          for (i, j, layer, subtype), value in counts.items()],
+    )
+
+    cursor.executemany(
+        "INSERT INTO grid_coverage VALUES (?, ?, ?, ?, ?)",
+        [(i, j, layer, subtype, value)
+         for (i, j, layer, subtype), value in coverage.items()],
     )
 
     cursor.executemany(
@@ -380,6 +447,7 @@ def write_db(counts, stats, apartments, pairs, core_cells, extended_cells):
 
     cursor.executescript("""
         CREATE INDEX idx_cell_layer ON grid_cell (layer, i, j);
+        CREATE INDEX idx_coverage_layer ON grid_coverage (layer, i, j);
         CREATE INDEX idx_zone_core ON grid_zone (in_core);
         CREATE INDEX idx_ga_apartment ON grid_apartment (apartment_id);
         CREATE INDEX idx_ga_cell ON grid_apartment (i, j);
@@ -393,7 +461,7 @@ def write_db(counts, stats, apartments, pairs, core_cells, extended_cells):
 def main():
     started = time.time()
 
-    counts, stats = build_poi_counts()
+    pois, stats = build_poi_list()
 
     print("[ZONE] 단지 생활권 셀 계산")
     apartments, pairs, core_cells, extended_cells = build_apartment_cells()
@@ -405,18 +473,19 @@ def main():
     )
 
     # 생활권 밖 셀은 저장하지 않는다.
-    inside = {
+    counts = {
         key: value
-        for key, value in counts.items()
+        for key, value in build_point_counts(pois).items()
         if (key[0], key[1]) in extended_cells
     }
 
-    print(
-        f"[TRIM] 집계 셀 {len({(k[0], k[1]) for k in counts}):,} → "
-        f"생활권 내 {len({(k[0], k[1]) for k in inside}):,}"
-    )
+    print(f"[CELL] 위치 집계 {len(counts):,}행")
 
-    write_db(inside, stats, apartments, pairs, core_cells, extended_cells)
+    print("[COVER] 영향권 집계 (반경 내 모든 셀)")
+    coverage = build_coverage(pois, extended_cells)
+    print(f"[COVER] 영향권 집계 {len(coverage):,}행")
+
+    write_db(counts, coverage, stats, apartments, pairs, core_cells, extended_cells)
 
     size_mb = os.path.getsize(OUTPUT_PATH) / 1e6
     print(
