@@ -68,6 +68,19 @@ D_LNG = CELL_SIZE_M / LNG_M_PER_DEG
 
 SEOUL_BOUNDS = (37.40, 37.72, 126.76, 127.19)
 
+# POI 수집 범위는 서울 경계보다 넓어야 한다. 생활권은 단지에서 1km 뻗고 각
+# 레이어는 거기서 다시 최대 1.5km(문화) 반경으로 집계하므로, 서울 밖 POI 를
+# 버리면 경계 근처 칸이 과소집계된다(실측: 서울 밖 칸의 CCTV 중앙값 0).
+# 전국/수도권 원본을 쓰는 레이어만 실질적으로 혜택을 본다.
+POI_MARGIN_DEG = 0.035  # 약 3.9km(위도) / 3.1km(경도)
+
+POI_BOUNDS = (
+    SEOUL_BOUNDS[0] - POI_MARGIN_DEG,
+    SEOUL_BOUNDS[1] + POI_MARGIN_DEG,
+    SEOUL_BOUNDS[2] - POI_MARGIN_DEG,
+    SEOUL_BOUNDS[3] + POI_MARGIN_DEG,
+)
+
 
 def cell_of(lat, lng):
     return (
@@ -76,8 +89,8 @@ def cell_of(lat, lng):
     )
 
 
-def in_seoul(lat, lng):
-    min_lat, max_lat, min_lng, max_lng = SEOUL_BOUNDS
+def in_poi_range(lat, lng):
+    min_lat, max_lat, min_lng, max_lng = POI_BOUNDS
     return min_lat <= lat <= max_lat and min_lng <= lng <= max_lng
 
 
@@ -223,7 +236,7 @@ def build_poi_list():
                 dropped += 1
                 continue
 
-            if not in_seoul(lat, lng):
+            if not in_poi_range(lat, lng):
                 dropped += 1
                 continue
 
@@ -241,7 +254,7 @@ def build_poi_list():
         lat = point["lat"]
         lng = point["lng"]
 
-        if not in_seoul(lat, lng):
+        if not in_poi_range(lat, lng):
             continue
 
         _, subtype = get_cctv_icon_and_subtype(point.get("purpose", ""))
