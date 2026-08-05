@@ -28,6 +28,7 @@
 """
 
 import csv
+import json
 import math
 import os
 import sqlite3
@@ -47,6 +48,7 @@ from services.preload_service import (
 
 
 OUTPUT_PATH = "data/grid.db"
+DISTRICT_GEOJSON = "data/boundary/seoul_municipalities.geojson"
 APARTMENT_BASELINE = "data/baseline/cctv_baseline.csv"
 
 CELL_SIZE_M = 100
@@ -362,6 +364,79 @@ def build_nearest_distance(pois, zone_cells):
     return nearest
 
 
+def rasterize_districts(zone_cells):
+    """행정경계 폴리곤을 격자에 칠해 셀 → 자치구를 정한다.
+
+    셀마다 25개 폴리곤을 점-다각형 판정하면 수천만 연산이 된다. 대신 폴리곤별로
+    셀 행(row)을 훑으며 그 위도에서의 교차점을 구해 구간을 칠하는 스캔라인
+    방식을 쓴다. 홀(구멍)은 even-odd 규칙에서 자동으로 처리된다.
+
+    반환되지 않은 셀은 서울 경계 밖(경기로 넘어간 생활권)이라 호출부에서
+    최근접 단지 구로 보완한다.
+    """
+    if not os.path.exists(DISTRICT_GEOJSON):
+        print(f"[SKIP] 행정경계 없음 ({DISTRICT_GEOJSON}) — 최근접 단지로 대체")
+        return {}
+
+    with open(DISTRICT_GEOJSON, encoding="utf-8") as file:
+        geo = json.load(file)
+
+    assigned = {}
+
+    for feature in geo["features"]:
+        name = feature["properties"].get("name")
+        geometry = feature["geometry"]
+
+        if geometry["type"] == "Polygon":
+            rings = geometry["coordinates"]
+        else:
+            rings = [r for poly in geometry["coordinates"] for r in poly]
+
+        edges = []
+        min_lat = min_lng = float("inf")
+        max_lat = max_lng = float("-inf")
+
+        for ring in rings:
+            for index in range(len(ring) - 1):
+                lng1, lat1 = ring[index][0], ring[index][1]
+                lng2, lat2 = ring[index + 1][0], ring[index + 1][1]
+
+                if lat1 != lat2:
+                    edges.append((lat1, lng1, lat2, lng2))
+
+                min_lat = min(min_lat, lat1)
+                max_lat = max(max_lat, lat1)
+                min_lng = min(min_lng, lng1)
+                max_lng = max(max_lng, lng1)
+
+        row_start = int(math.floor((min_lat - LAT_ORIGIN) / D_LAT))
+        row_end = int(math.ceil((max_lat - LAT_ORIGIN) / D_LAT))
+
+        for i in range(row_start, row_end + 1):
+            lat = LAT_ORIGIN + (i + 0.5) * D_LAT
+            crossings = []
+
+            for lat1, lng1, lat2, lng2 in edges:
+                if (lat1 <= lat < lat2) or (lat2 <= lat < lat1):
+                    t = (lat - lat1) / (lat2 - lat1)
+                    crossings.append(lng1 + t * (lng2 - lng1))
+
+            if not crossings:
+                continue
+
+            crossings.sort()
+
+            for k in range(0, len(crossings) - 1, 2):
+                j_start = int(math.floor((crossings[k] - LNG_ORIGIN) / D_LNG))
+                j_end = int(math.floor((crossings[k + 1] - LNG_ORIGIN) / D_LNG))
+
+                for j in range(j_start, j_end + 1):
+                    if (i, j) in zone_cells:
+                        assigned[(i, j)] = name
+
+    return assigned
+
+
 def build_apartment_cells():
     """단지별 생활권 셀. 겹쳐도 셀 집계는 한 번만 하고 관계만 저장한다."""
     apartments = []
@@ -412,8 +487,8 @@ def build_apartment_cells():
     return apartments, pairs, core_cells, extended_cells, nearest_apartment
 
 
-def write_db(counts, coverage, nearest_distance, nearest, stats, apartments,
-             pairs, core_cells, extended_cells):
+def write_db(counts, coverage, nearest_distance, nearest, districts, stats,
+             apartments, pairs, core_cells, extended_cells):
     if os.path.exists(OUTPUT_PATH):
         os.remove(OUTPUT_PATH)
 
@@ -548,10 +623,16 @@ def write_db(counts, coverage, nearest_distance, nearest, stats, apartments,
         GROUP BY i, j
     """)
 
+    # gu 는 행정경계 폴리곤 판정을 우선하고, 경계 밖(경기로 넘어간 생활권)만
+    # 최근접 단지 값으로 보완한다. dong 은 경계 데이터가 없어 단지 기준이다.
     cursor.executemany(
         "UPDATE grid_zone SET gu = ?, dong = ? WHERE i = ? AND j = ?",
         [
-            (apartments[index][1], apartments[index][2], i, j)
+            (
+                districts.get((i, j)) or apartments[index][1],
+                apartments[index][2],
+                i, j,
+            )
             for (i, j), (_, index) in nearest.items()
         ],
     )
@@ -605,8 +686,13 @@ def main():
     nearest = build_nearest_distance(pois, extended_cells)
     print(f"[NEAR] 최근접 거리 {len(nearest):,}행")
 
-    write_db(counts, coverage, nearest, nearest_apartment, stats, apartments,
-             pairs, core_cells, extended_cells)
+    print("[GU] 행정경계 폴리곤으로 셀 자치구 판정")
+    districts = rasterize_districts(extended_cells)
+    outside = len(extended_cells) - len(districts)
+    print(f"[GU] 경계 내 {len(districts):,}셀 / 경계 밖 {outside:,}셀(최근접 단지로 보완)")
+
+    write_db(counts, coverage, nearest, nearest_apartment, districts, stats,
+             apartments, pairs, core_cells, extended_cells)
 
     size_mb = os.path.getsize(OUTPUT_PATH) / 1e6
     print(

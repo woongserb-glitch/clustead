@@ -142,7 +142,7 @@
         <p class="sub">
             아파트 생활권 {{ meta.cell_size_m }}m 격자.
             핵심 {{ meta.core_radius_m }}m / 확장 {{ meta.extended_radius_m }}m.<br>
-            구 경계는 최근접 단지 기준 근사입니다(행정경계 원본 아님).
+            구 경계는 통계청 행정구역경계(2013) 원본입니다.
         </p>
 
         <div class="warn" id="trust-warn" style="display:none"></div>
@@ -506,21 +506,26 @@ async function drawBoundaries() {
 
     const b = map.getBounds();
     const sw = b.getSouthWest(), ne = b.getNorthEast();
-    const pad = 0.004;
+    const pad = 0.01;
 
-    const visible = boundaryData.segments.filter(s =>
-        Math.min(s[0], s[2]) <= ne.getLat() + pad &&
-        Math.max(s[0], s[2]) >= sw.getLat() - pad &&
-        Math.min(s[1], s[3]) <= ne.getLng() + pad &&
-        Math.max(s[1], s[3]) >= sw.getLng() - pad
-    );
+    // 링 단위로 화면 교차 여부만 보고 거른다. 링 하나가 구 하나라 25개 남짓.
+    boundaryData.rings.forEach(ring => {
+        let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+        ring.path.forEach(([lat, lng]) => {
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+        });
 
-    visible.forEach(s => {
+        if (minLat > ne.getLat() + pad || maxLat < sw.getLat() - pad ||
+            minLng > ne.getLng() + pad || maxLng < sw.getLng() - pad) return;
+
         const line = new kakao.maps.Polyline({
-            path: [new kakao.maps.LatLng(s[0], s[1]), new kakao.maps.LatLng(s[2], s[3])],
+            path: ring.path.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng)),
             strokeWeight: 2,
             strokeColor: '#111827',
-            strokeOpacity: 0.65,
+            strokeOpacity: 0.7,
             zIndex: 5
         });
         line.setMap(map);

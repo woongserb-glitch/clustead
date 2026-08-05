@@ -9,11 +9,13 @@ grid.db 는 읽기 전용이고 요청마다 커넥션을 새로 연다. 격자 
     nearest  최근접 거리           → MIN
 """
 
+import json
 import os
 import sqlite3
 from contextlib import closing
 
 GRID_DB_PATH = "data/grid.db"
+DISTRICT_GEOJSON_SIMPLE = "data/boundary/seoul_municipalities_simple.geojson"
 
 MODES = ("point", "coverage", "nearest")
 
@@ -406,113 +408,74 @@ def query_compare(layer_a, layer_b, bounds, factor=1,
 
 
 def get_boundaries():
-    """자치구 경계선과 라벨 위치.
+    """자치구 경계 폴리곤과 라벨 위치.
 
-    행정경계 원본이 아니라 격자에서 유도한 근사다. 각 셀은 최근접 단지의 구를
-    물려받고(생활권 셀은 정의상 1km 안에 단지가 있어 항상 정해진다), 이웃 셀의
-    구가 갈리는 자리가 경계가 된다.
+    행정경계 원본(통계청 센서스용 행정구역경계 2013, southkorea/seoul-maps)을
+    쓴다. 서울 자치구 경계는 1995년 이후 변동이 없어 자치구 단위로는 현행과
+    같다. 그리기용으로는 정점을 줄인 simple 판을 쓴다(1,374점 / 57KB).
 
-    주거지가 조밀한 곳에서는 실제 경계와 거의 일치하지만, 산·하천·대규모
-    비주거지처럼 단지가 없는 구간은 최대 1km 어긋날 수 있다. 지도 위 기준선
-    용도이지 행정 경계의 정본이 아니다.
-
-    100m 단위 선분을 그대로 내보내면 수천 개가 되므로 같은 직선 위의 연속
-    구간을 하나로 합친다.
+    라벨은 폴리곤 중심이 아니라 그 구에 속한 격자 셀의 무게중심에 둔다.
+    오목한 구는 폴리곤 중심이 구 밖으로 나가고, 산지처럼 단지가 없는 곳에
+    이름이 찍혀도 쓸모가 없다.
     """
     if _boundary_cache:
         return _boundary_cache[0]
 
+    if not os.path.exists(DISTRICT_GEOJSON_SIMPLE):
+        return {"rings": [], "labels": [], "note": "행정경계 파일이 없습니다."}
+
+    with open(DISTRICT_GEOJSON_SIMPLE, encoding="utf-8") as file:
+        geo = json.load(file)
+
+    rings = []
+
+    for feature in geo["features"]:
+        gu = feature["properties"].get("name")
+        geometry = feature["geometry"]
+
+        if geometry["type"] == "Polygon":
+            groups = [geometry["coordinates"]]
+        else:
+            groups = geometry["coordinates"]
+
+        for group in groups:
+            for ring in group:
+                # GeoJSON 은 [경도, 위도] 순서라 뒤집어 내보낸다.
+                rings.append({
+                    "gu": gu,
+                    "path": [[point[1], point[0]] for point in ring],
+                })
+
     meta = get_meta()
+    labels = []
 
-    if meta is None:
-        return {"segments": [], "labels": []}
+    if meta is not None:
+        cell_size = float(meta["cell_size_m"])
+        lat_origin = float(meta["lat_origin"])
+        lng_origin = float(meta["lng_origin"])
+        d_lat = cell_size / float(meta["lat_m_per_deg"])
+        d_lng = cell_size / float(meta["lng_m_per_deg"])
 
-    cell_size = float(meta["cell_size_m"])
-    lat_origin = float(meta["lat_origin"])
-    lng_origin = float(meta["lng_origin"])
-    d_lat = cell_size / float(meta["lat_m_per_deg"])
-    d_lng = cell_size / float(meta["lng_m_per_deg"])
-
-    with closing(_connect()) as connection:
-        cells = {
-            (row["i"], row["j"]): row["gu"]
-            for row in connection.execute(
-                "SELECT i, j, gu FROM grid_zone WHERE gu IS NOT NULL"
-            )
-        }
-
-    # 경계 후보: 오른쪽·위쪽 이웃과 구가 다른 경우만. 생활권 밖(이웃 없음)은
-    # 행정 경계가 아니라 분석 범위의 끝이라 긋지 않는다.
-    vertical = {}    # j 경계 → [i, ...]
-    horizontal = {}  # i 경계 → [j, ...]
-
-    for (i, j), gu in cells.items():
-        right = cells.get((i, j + 1))
-        if right is not None and right != gu:
-            vertical.setdefault(j + 1, []).append(i)
-
-        above = cells.get((i + 1, j))
-        if above is not None and above != gu:
-            horizontal.setdefault(i + 1, []).append(j)
-
-    segments = []
-
-    for j_edge, rows in vertical.items():
-        lng = lng_origin + j_edge * d_lng
-        for start, end in _merge_runs(rows):
-            segments.append([
-                lat_origin + start * d_lat, lng,
-                lat_origin + (end + 1) * d_lat, lng,
-            ])
-
-    for i_edge, cols in horizontal.items():
-        lat = lat_origin + i_edge * d_lat
-        for start, end in _merge_runs(cols):
-            segments.append([
-                lat, lng_origin + start * d_lng,
-                lat, lng_origin + (end + 1) * d_lng,
-            ])
-
-    # 라벨은 그 구 셀들의 무게중심.
-    sums = {}
-
-    for (i, j), gu in cells.items():
-        entry = sums.setdefault(gu, [0, 0, 0])
-        entry[0] += i
-        entry[1] += j
-        entry[2] += 1
-
-    labels = [
-        {
-            "gu": gu,
-            "lat": lat_origin + (total_i / n + 0.5) * d_lat,
-            "lng": lng_origin + (total_j / n + 0.5) * d_lng,
-            "cells": n,
-        }
-        for gu, (total_i, total_j, n) in sorted(sums.items())
-    ]
+        with closing(_connect()) as connection:
+            for gu, avg_i, avg_j, n in connection.execute(
+                "SELECT gu, AVG(i), AVG(j), COUNT(*) FROM grid_zone "
+                "WHERE gu IS NOT NULL GROUP BY gu ORDER BY gu"
+            ):
+                labels.append({
+                    "gu": gu,
+                    "lat": lat_origin + (avg_i + 0.5) * d_lat,
+                    "lng": lng_origin + (avg_j + 0.5) * d_lng,
+                    "cells": n,
+                })
 
     result = {
-        "segments": segments,
+        "rings": rings,
         "labels": labels,
-        "note": "행정경계 원본이 아니라 최근접 단지 기준 근사입니다.",
+        "source": "통계청 센서스용 행정구역경계 2013 (southkorea/seoul-maps, Apache 2.0)",
     }
 
     _boundary_cache.append(result)
     return result
-
-
-def _merge_runs(values):
-    """[3,4,5,9,10] → [(3,5), (9,10)]"""
-    runs = []
-
-    for value in sorted(values):
-        if runs and value == runs[-1][1] + 1:
-            runs[-1][1] = value
-        else:
-            runs.append([value, value])
-
-    return [tuple(run) for run in runs]
 
 
 def query_clusters(layer_a, layer_b, threshold=40, subtypes_a=None,
