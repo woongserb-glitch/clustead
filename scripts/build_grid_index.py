@@ -163,8 +163,10 @@ LAYERS = [
      "위도", "경도", simple("호선"), 1500, "high", ""),
 
     ("bus_stop", "버스정류장", "data/bus/seoul_bus_stops.csv",
-     "Y좌표", "X좌표", simple("정류소 타입"), 400, "high",
-     "X/Y 컬럼명이 경도/위도로 뒤바뀌어 있음"),
+     "Y좌표", "X좌표", simple("정류소 타입"), 500, "high",
+     "X/Y 컬럼명이 경도/위도로 뒤바뀌어 있음. "
+     "반경은 build_bus_category_summary 의 500m 기준"
+     "(POI_META 의 400m 는 미사용 잔재)"),
 
     ("bike", "따릉이", "data/bike/bike_station_seoul.csv",
      "위도", "경도", constant("대여소"), 500, "high", ""),
@@ -176,7 +178,19 @@ LAYERS = [
      "lat", "lng", simple("subtype"), 1500, "medium", ""),
 ]
 
-CCTV_RADIUS_M = 500
+# CCTV 는 '작용형'이라 도달형 반경을 쓰면 안 된다. 카메라 유효 감시 범위는
+# 수십 미터인데 500m 안의 146대(중앙값)가 이 칸을 지켜준다는 건 사실이 아니다.
+# 200m 로 좁히면 22% 의 칸이 0 이 되어 사각지대가 실제로 드러난다(500m 는 7%).
+# 기존 단지 점수(cctv_count_500m)는 '내 생활반경 안에 얼마나 있나'라는 다른
+# 질문이므로 500m 를 그대로 둔다. 같은 장소에 두 숫자가 공존한다.
+CCTV_RADIUS_M = 200
+
+# 희소하면서 효과가 점적인 레이어는 개수보다 최근접 거리가 체감에 가깝다.
+# (반경 내 역이 몇 개냐보다 가장 가까운 역까지 몇 m냐)
+DISTANCE_LAYERS = {"subway", "school", "hospital", "pharmacy", "child_zone"}
+
+# 최근접 거리 탐색 상한. 이보다 멀면 NULL 로 두고 UI 에서 '권역 밖'으로 처리.
+MAX_DISTANCE_M = 3000
 
 
 def build_poi_list():
@@ -287,6 +301,61 @@ def build_coverage(pois, zone_cells):
     return coverage
 
 
+def build_nearest_distance(pois, zone_cells):
+    """셀 중심에서 레이어별 최근접 POI 까지의 거리(m).
+
+    개수 집계로는 안 잡히는 성질을 본다. 반경 안에 역이 3개든 1개든, 실제
+    체감은 '가장 가까운 역까지 몇 m'로 결정된다.
+
+    좁은 반경부터 넓혀가며 탐색해 전 조합 거리계산을 피한다.
+    """
+    nearest = {}
+    by_layer = {}
+
+    for lat, lng, layer, _, _, _ in pois:
+        if layer in DISTANCE_LAYERS:
+            by_layer.setdefault(layer, []).append((lat, lng))
+
+    for layer, points in by_layer.items():
+        buckets = {}
+
+        for lat, lng in points:
+            buckets.setdefault(cell_of(lat, lng), []).append((lat, lng))
+
+        for i, j in zone_cells:
+            cell_lat = LAT_ORIGIN + (i + 0.5) * D_LAT
+            cell_lng = LNG_ORIGIN + (j + 0.5) * D_LNG
+
+            best = None
+            ring = 0
+            max_ring = int(MAX_DISTANCE_M / CELL_SIZE_M) + 1
+
+            while ring <= max_ring:
+                # 이미 찾은 최근접이 현재 링의 최소 도달거리보다 가까우면 종료.
+                if best is not None and best <= (ring - 1) * CELL_SIZE_M:
+                    break
+
+                for di in range(-ring, ring + 1):
+                    for dj in range(-ring, ring + 1):
+                        if max(abs(di), abs(dj)) != ring:
+                            continue
+
+                        for lat, lng in buckets.get((i + di, j + dj), ()):
+                            dy = (cell_lat - lat) * LAT_M_PER_DEG
+                            dx = (cell_lng - lng) * LNG_M_PER_DEG
+                            distance = math.hypot(dx, dy)
+
+                            if best is None or distance < best:
+                                best = distance
+
+                ring += 1
+
+            if best is not None and best <= MAX_DISTANCE_M:
+                nearest[(i, j, layer)] = round(best)
+
+    return nearest
+
+
 def build_apartment_cells():
     """단지별 생활권 셀. 겹쳐도 셀 집계는 한 번만 하고 관계만 저장한다."""
     apartments = []
@@ -330,7 +399,8 @@ def build_apartment_cells():
     return apartments, pairs, core_cells, extended_cells
 
 
-def write_db(counts, coverage, stats, apartments, pairs, core_cells, extended_cells):
+def write_db(counts, coverage, nearest, stats, apartments, pairs,
+             core_cells, extended_cells):
     if os.path.exists(OUTPUT_PATH):
         os.remove(OUTPUT_PATH)
 
@@ -372,6 +442,16 @@ def write_db(counts, coverage, stats, apartments, pairs, core_cells, extended_ce
             subtype TEXT NOT NULL,
             count REAL NOT NULL,
             PRIMARY KEY (i, j, layer, subtype)
+        ) WITHOUT ROWID;
+
+        -- 셀 중심에서 레이어별 최근접 POI 까지 거리(m). 개수로는 안 잡히는 성질.
+        -- 값이 없으면 3km 안에 해당 시설이 없다는 뜻.
+        CREATE TABLE grid_nearest (
+            i INTEGER NOT NULL,
+            j INTEGER NOT NULL,
+            layer TEXT NOT NULL,
+            distance_m INTEGER NOT NULL,
+            PRIMARY KEY (i, j, layer)
         ) WITHOUT ROWID;
 
         CREATE TABLE grid_zone (
@@ -428,6 +508,12 @@ def write_db(counts, coverage, stats, apartments, pairs, core_cells, extended_ce
     )
 
     cursor.executemany(
+        "INSERT INTO grid_nearest VALUES (?, ?, ?, ?)",
+        [(i, j, layer, distance)
+         for (i, j, layer), distance in nearest.items()],
+    )
+
+    cursor.executemany(
         "INSERT INTO apartment VALUES (?, ?, ?, ?, ?, ?)",
         [(index, name, gu, dong, lat, lng)
          for index, (name, gu, dong, lat, lng) in enumerate(apartments)],
@@ -448,6 +534,7 @@ def write_db(counts, coverage, stats, apartments, pairs, core_cells, extended_ce
     cursor.executescript("""
         CREATE INDEX idx_cell_layer ON grid_cell (layer, i, j);
         CREATE INDEX idx_coverage_layer ON grid_coverage (layer, i, j);
+        CREATE INDEX idx_nearest_layer ON grid_nearest (layer, i, j);
         CREATE INDEX idx_zone_core ON grid_zone (in_core);
         CREATE INDEX idx_ga_apartment ON grid_apartment (apartment_id);
         CREATE INDEX idx_ga_cell ON grid_apartment (i, j);
@@ -485,7 +572,12 @@ def main():
     coverage = build_coverage(pois, extended_cells)
     print(f"[COVER] 영향권 집계 {len(coverage):,}행")
 
-    write_db(counts, coverage, stats, apartments, pairs, core_cells, extended_cells)
+    print(f"[NEAR] 최근접 거리 계산 ({', '.join(sorted(DISTANCE_LAYERS))})")
+    nearest = build_nearest_distance(pois, extended_cells)
+    print(f"[NEAR] 최근접 거리 {len(nearest):,}행")
+
+    write_db(counts, coverage, nearest, stats, apartments, pairs,
+             core_cells, extended_cells)
 
     size_mb = os.path.getsize(OUTPUT_PATH) / 1e6
     print(
