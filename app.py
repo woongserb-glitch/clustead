@@ -104,6 +104,7 @@ from services.preload_service import ev_charger_baseline_data, ev_charger_baseli
 from services.preload_service import medical_baseline_data, medical_baseline_index, load_medical_baseline_data
 from services.preload_service import get_indexed_baseline_row, iter_baseline_columns
 from services import analytics_service
+from services import grid_service
 from scripts.baseline_metric_config import (
     BASELINE_METRIC_CONFIG,
     HIGHER_BETTER,
@@ -5634,6 +5635,117 @@ def admin_analytics():
         selected_period=period,
         admin_token=request.args.get("admin_token", ""),
     )
+
+
+def _grid_bounds_from_args():
+    """?bbox=minLat,minLng,maxLat,maxLng 파싱. 잘못되면 None."""
+    raw = clean_text(request.args.get("bbox", ""))
+    parts = raw.split(",")
+
+    if len(parts) != 4:
+        return None
+
+    try:
+        min_lat, min_lng, max_lat, max_lng = (float(p) for p in parts)
+    except ValueError:
+        return None
+
+    if min_lat > max_lat or min_lng > max_lng:
+        return None
+
+    return (min_lat, min_lng, max_lat, max_lng)
+
+
+@app.route("/admin/grid")
+def admin_grid():
+    _require_admin()
+
+    meta = grid_service.get_meta()
+
+    return render_template(
+        "admin_grid.html",
+        meta=meta,
+        kakao_javascript_key=KAKAO_JAVASCRIPT_KEY,
+        admin_token=request.args.get("admin_token", ""),
+    )
+
+
+@app.route("/admin/grid/cells")
+def admin_grid_cells():
+    _require_admin()
+
+    bounds = _grid_bounds_from_args()
+
+    if bounds is None:
+        return jsonify({"error": "bbox 형식이 올바르지 않습니다"}), 400
+
+    layer = clean_text(request.args.get("layer", ""))
+    mode = clean_text(request.args.get("mode", "coverage"))
+
+    if mode not in grid_service.MODES:
+        mode = "coverage"
+
+    try:
+        factor = int(request.args.get("factor", "1"))
+    except ValueError:
+        factor = 1
+
+    subtypes = [
+        clean_text(value)
+        for value in request.args.getlist("subtype")
+        if clean_text(value)
+    ]
+
+    result = grid_service.query_cells(
+        layer,
+        mode,
+        bounds,
+        factor=factor,
+        subtypes=subtypes or None,
+        core_only=request.args.get("core") == "1",
+    )
+
+    result["layer"] = layer
+    result["mode"] = mode
+    result["factor"] = factor
+
+    return jsonify(result)
+
+
+@app.route("/admin/grid/points")
+def admin_grid_points():
+    _require_admin()
+
+    bounds = _grid_bounds_from_args()
+
+    if bounds is None:
+        return jsonify({"error": "bbox 형식이 올바르지 않습니다"}), 400
+
+    subtypes = [
+        clean_text(value)
+        for value in request.args.getlist("subtype")
+        if clean_text(value)
+    ]
+
+    return jsonify(
+        grid_service.query_points(
+            clean_text(request.args.get("layer", "")),
+            bounds,
+            subtypes=subtypes or None,
+        )
+    )
+
+
+@app.route("/admin/grid/cell/<int:i>/<int:j>")
+def admin_grid_cell_detail(i, j):
+    _require_admin()
+
+    detail = grid_service.get_cell_detail(i, j)
+
+    if detail is None:
+        return jsonify({"error": "grid.db 가 없습니다"}), 404
+
+    return jsonify(detail)
 
 
 FEATURE_OPTIONS = [

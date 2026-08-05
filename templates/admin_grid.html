@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Clustead Grid</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f7fb;
+            --panel: #ffffff;
+            --text: #172033;
+            --muted: #667085;
+            --line: #d8dee9;
+            --accent: #2563eb;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; background: var(--bg); color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 13px;
+        }
+        .shell { display: flex; height: 100vh; }
+        .side {
+            width: 300px; flex: none; background: var(--panel);
+            border-right: 1px solid var(--line); overflow-y: auto; padding: 16px;
+        }
+        .map-wrap { flex: 1; position: relative; }
+        #map { width: 100%; height: 100%; }
+        h1 { margin: 0 0 4px; font-size: 18px; }
+        .sub { color: var(--muted); margin: 0 0 16px; font-size: 12px; line-height: 1.5; }
+        fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 14px; padding: 10px 12px; }
+        legend { font-weight: 600; padding: 0 4px; font-size: 12px; }
+        label { display: flex; align-items: center; gap: 6px; padding: 3px 0; cursor: pointer; }
+        .layer-row { justify-content: space-between; }
+        .trust {
+            font-size: 10px; padding: 1px 5px; border-radius: 3px;
+            border: 1px solid var(--line); color: var(--muted);
+        }
+        .trust-high { border-color: #16a34a; color: #16a34a; }
+        .trust-normalized { border-color: #2563eb; color: #2563eb; }
+        .trust-medium { border-color: #d97706; color: #d97706; }
+        .trust-low { border-color: #dc2626; color: #dc2626; }
+        .subtypes { margin: 4px 0 8px 18px; display: none; }
+        .subtypes.open { display: block; }
+        .subtypes label { font-size: 12px; color: var(--muted); }
+        select, button {
+            width: 100%; padding: 6px 8px; border: 1px solid var(--line);
+            border-radius: 5px; background: #fff; font-size: 13px; margin-bottom: 6px;
+        }
+        .status {
+            position: absolute; top: 10px; right: 10px; z-index: 5;
+            background: rgba(255,255,255,0.94); border: 1px solid var(--line);
+            border-radius: 6px; padding: 8px 12px; font-size: 12px; min-width: 190px;
+        }
+        .legend-bar { height: 10px; border-radius: 3px; margin: 6px 0 3px; }
+        .legend-ends { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+        .note { color: var(--muted); font-size: 11px; line-height: 1.5; margin-top: 6px; }
+        .detail { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+        .detail table { width: 100%; border-collapse: collapse; }
+        .detail td { padding: 2px 0; font-size: 12px; }
+        .detail td:last-child { text-align: right; color: var(--muted); }
+        .warn { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412;
+                padding: 8px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+{% if not meta %}
+    <main style="padding:40px">
+        <h1>Clustead Grid</h1>
+        <p class="sub">
+            <code>data/grid.db</code> 가 없습니다.
+            <code>python scripts/build_grid_index.py</code> 로 먼저 생성하세요.
+        </p>
+    </main>
+{% else %}
+<div class="shell">
+    <aside class="side">
+        <h1>Clustead Grid</h1>
+        <p class="sub">
+            아파트 생활권 {{ meta.cell_size_m }}m 격자.
+            핵심 {{ meta.core_radius_m }}m / 확장 {{ meta.extended_radius_m }}m.
+        </p>
+
+        <div class="warn" id="trust-warn" style="display:none"></div>
+
+        <fieldset>
+            <legend>표시</legend>
+            <select id="mode">
+                <option value="coverage">영향권 (반경 내 개수)</option>
+                <option value="point">위치 (그 칸의 시설 수)</option>
+                <option value="nearest">최근접 거리</option>
+            </select>
+            <label><input type="checkbox" id="core-only"> 핵심 생활권({{ meta.core_radius_m }}m)만</label>
+        </fieldset>
+
+        <fieldset>
+            <legend>레이어</legend>
+            <div id="layers"></div>
+        </fieldset>
+
+        <div id="detail" class="detail" style="display:none"></div>
+    </aside>
+
+    <div class="map-wrap">
+        <div id="map"></div>
+        <div class="status">
+            <div id="status-line">불러오는 중…</div>
+            <div class="legend-bar" id="legend-bar"></div>
+            <div class="legend-ends"><span id="legend-min">0</span><span id="legend-max">-</span></div>
+            <div class="note" id="mode-note"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 프로토콜 상대경로(//)는 로컬 http 미리보기에서 http 로 해석돼 실패한다. -->
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_javascript_key }}"></script>
+<script>
+const META = {{ meta | tojson }};
+const ADMIN_TOKEN = {{ admin_token | tojson }};
+
+const CELL = parseFloat(META.cell_size_m);
+const LAT0 = parseFloat(META.lat_origin);
+const LNG0 = parseFloat(META.lng_origin);
+const DLAT = CELL / parseFloat(META.lat_m_per_deg);
+const DLNG = CELL / parseFloat(META.lng_m_per_deg);
+
+// 확대 수준별 집계 배수. 카카오 level 은 작을수록 확대.
+function factorFor(level) {
+    if (level <= 3) return 1;
+    if (level <= 5) return 3;
+    return 9;
+}
+
+const MODE_NOTE = {
+    coverage: '반경 내 시설 수. 거친 격자에서는 평균(합산 불가).',
+    point: '그 칸에 실제로 위치한 시설 수. 거친 격자에서는 합산.',
+    nearest: '가장 가까운 시설까지 거리(m). 값이 작을수록 가깝다.'
+};
+
+let map, tiles = [], selected = null, reqSeq = 0;
+
+function withToken(url) {
+    return ADMIN_TOKEN ? url + (url.includes('?') ? '&' : '?') + 'admin_token=' + encodeURIComponent(ADMIN_TOKEN) : url;
+}
+
+function currentLayer() {
+    const checked = document.querySelector('input[name="layer"]:checked');
+    return checked ? checked.value : null;
+}
+
+function currentSubtypes(layer) {
+    return Array.from(
+        document.querySelectorAll('.subtypes[data-layer="' + layer + '"] input:checked')
+    ).map(el => el.value);
+}
+
+// 낮을수록 파랑, 높을수록 빨강. nearest 는 의미가 반대라 뒤집는다.
+function colorFor(t) {
+    const hue = 220 - 220 * Math.max(0, Math.min(1, t));
+    return 'hsl(' + hue + ', 75%, 50%)';
+}
+
+function clearTiles() {
+    tiles.forEach(t => t.setMap(null));
+    tiles = [];
+}
+
+async function refresh() {
+    const layer = currentLayer();
+    if (!layer) { clearTiles(); return; }
+    if (!map) { return; }   // SDK 미로드 시 패널만 동작
+
+    const mode = document.getElementById('mode').value;
+    const bounds = map.getBounds();
+    const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
+    const factor = factorFor(map.getLevel());
+    const seq = ++reqSeq;
+
+    const params = new URLSearchParams({
+        bbox: [sw.getLat(), sw.getLng(), ne.getLat(), ne.getLng()].join(','),
+        layer: layer,
+        mode: mode,
+        factor: String(factor)
+    });
+    if (document.getElementById('core-only').checked) params.set('core', '1');
+    currentSubtypes(layer).forEach(s => params.append('subtype', s));
+
+    document.getElementById('status-line').textContent = '불러오는 중…';
+
+    const res = await fetch(withToken('/admin/grid/cells?' + params.toString()));
+    const data = await res.json();
+    if (seq !== reqSeq) return;   // 오래된 응답 폐기
+
+    render(data, factor, mode);
+}
+
+function render(data, factor, mode) {
+    clearTiles();
+    const cells = data.cells || [];
+
+    if (!cells.length) {
+        document.getElementById('status-line').textContent = '이 범위에 데이터 없음';
+        document.getElementById('legend-max').textContent = '-';
+        return;
+    }
+
+    const values = cells.map(c => c[2]);
+    const max = Math.max(...values), min = Math.min(...values);
+    const span = max - min || 1;
+
+    cells.forEach(([gi, gj, value]) => {
+        const i = gi * factor, j = gj * factor;
+        const south = LAT0 + i * DLAT, west = LNG0 + j * DLNG;
+        const north = south + DLAT * factor, east = west + DLNG * factor;
+
+        let t = (value - min) / span;
+        if (mode === 'nearest') t = 1 - t;
+
+        const rect = new kakao.maps.Rectangle({
+            bounds: new kakao.maps.LatLngBounds(
+                new kakao.maps.LatLng(south, west),
+                new kakao.maps.LatLng(north, east)
+            ),
+            strokeWeight: 0,
+            fillColor: colorFor(t),
+            fillOpacity: 0.55
+        });
+        rect.setMap(map);
+        kakao.maps.event.addListener(rect, 'click', () => showDetail(i, j));
+        tiles.push(rect);
+    });
+
+    const unit = mode === 'nearest' ? 'm' : '';
+    document.getElementById('status-line').textContent =
+        cells.length.toLocaleString() + '칸 · ' + (CELL * factor) + 'm 격자'
+        + (data.truncated ? ' (일부 생략)' : '');
+    document.getElementById('legend-min').textContent = min.toLocaleString() + unit;
+    document.getElementById('legend-max').textContent = max.toLocaleString() + unit;
+    document.getElementById('legend-bar').style.background =
+        mode === 'nearest'
+            ? 'linear-gradient(to right, hsl(0,75%,50%), hsl(220,75%,50%))'
+            : 'linear-gradient(to right, hsl(220,75%,50%), hsl(0,75%,50%))';
+    document.getElementById('mode-note').textContent = MODE_NOTE[mode];
+}
+
+async function showDetail(i, j) {
+    const res = await fetch(withToken('/admin/grid/cell/' + i + '/' + j));
+    const d = await res.json();
+    const box = document.getElementById('detail');
+
+    const rows = (d.coverage || []).map(c =>
+        '<tr><td>' + c.layer + ' · ' + c.subtype + '</td><td>' + c.count.toLocaleString() + '</td></tr>'
+    ).join('');
+    const near = Object.entries(d.nearest || {}).map(([k, v]) =>
+        '<tr><td>최근접 ' + k + '</td><td>' + v + 'm</td></tr>'
+    ).join('');
+    const apts = (d.apartments || []).slice(0, 8).map(a =>
+        '<tr><td>' + a.name + '</td><td>' + a.gu + ' ' + a.dong + '</td></tr>'
+    ).join('');
+
+    box.style.display = 'block';
+    box.innerHTML =
+        '<strong>셀 (' + i + ', ' + j + ')</strong>'
+        + '<p class="note">' + (d.in_core ? '핵심 생활권' : '확장 생활권')
+        + ' · 관련 단지 ' + d.apartment_count + '개</p>'
+        + '<table>' + near + rows + '</table>'
+        + (apts ? '<p class="note">이 칸을 생활권에 포함하는 단지</p><table>' + apts + '</table>' : '');
+}
+
+function buildLayerControls() {
+    const host = document.getElementById('layers');
+
+    META.layers.forEach((layer, index) => {
+        const wrap = document.createElement('div');
+
+        const row = document.createElement('label');
+        row.className = 'layer-row';
+        row.innerHTML =
+            '<span><input type="radio" name="layer" value="' + layer.layer + '"'
+            + (index === 0 ? ' checked' : '') + '> ' + layer.label
+            + ' <span style="color:var(--muted)">' + layer.radius_m + 'm</span></span>'
+            + '<span class="trust trust-' + layer.trust + '">' + layer.trust + '</span>';
+        wrap.appendChild(row);
+
+        if (layer.subtypes.length > 1) {
+            const box = document.createElement('div');
+            box.className = 'subtypes';
+            box.dataset.layer = layer.layer;
+            box.innerHTML = layer.subtypes.map(s =>
+                '<label><input type="checkbox" value="' + s + '"> ' + s + '</label>'
+            ).join('');
+            wrap.appendChild(box);
+        }
+
+        host.appendChild(wrap);
+    });
+
+    host.addEventListener('change', () => {
+        const layer = currentLayer();
+        document.querySelectorAll('.subtypes').forEach(el => {
+            el.classList.toggle('open', el.dataset.layer === layer);
+        });
+
+        const meta = META.layers.find(l => l.layer === layer);
+        const warn = document.getElementById('trust-warn');
+        if (meta && meta.note) {
+            warn.style.display = 'block';
+            warn.textContent = meta.note;
+        } else {
+            warn.style.display = 'none';
+        }
+
+        refresh();
+    });
+}
+
+function initMap() {
+    map = new kakao.maps.Map(document.getElementById('map'), {
+        center: new kakao.maps.LatLng(37.5045, 127.0495),
+        level: 5
+    });
+
+    let timer = null;
+    const debounced = () => { clearTimeout(timer); timer = setTimeout(refresh, 220); };
+    kakao.maps.event.addListener(map, 'idle', debounced);
+
+    refresh();
+}
+
+// 지도 SDK 와 무관하게 패널은 항상 세운다. SDK 로드가 실패해도 레이어 목록과
+// 신뢰등급은 읽을 수 있어야 하고, 그래야 원인 파악도 된다.
+buildLayerControls();
+document.getElementById('mode').addEventListener('change', refresh);
+document.getElementById('core-only').addEventListener('change', refresh);
+document.getElementById('layers').dispatchEvent(new Event('change'));
+
+if (window.kakao && window.kakao.maps) {
+    kakao.maps.load(initMap);
+} else {
+    document.getElementById('status-line').textContent =
+        'Kakao 지도 SDK 로드 실패 — 패널만 사용 가능';
+}
+</script>
+{% endif %}
+</body>
+</html>
