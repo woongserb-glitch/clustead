@@ -5775,6 +5775,13 @@ def admin_grid_compare():
     return jsonify(result)
 
 
+@app.route("/admin/grid/boundaries")
+def admin_grid_boundaries():
+    _require_admin()
+
+    return jsonify(grid_service.get_boundaries())
+
+
 @app.route("/admin/grid/clusters")
 def admin_grid_clusters():
     _require_admin()

@@ -104,6 +104,13 @@
         .cluster-head { display: flex; justify-content: space-between; font-weight: 600; }
         .cluster-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
 
+        /* 자치구 이름 라벨 */
+        .gu-label {
+            font-size: 12px; font-weight: 700; color: #1f2937;
+            text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+            white-space: nowrap; pointer-events: none;
+        }
+
         /* 단지 마커 */
         .apt-dot {
             width: 11px; height: 11px; border-radius: 50%;
@@ -134,7 +141,8 @@
         <h1>Clustead Grid</h1>
         <p class="sub">
             아파트 생활권 {{ meta.cell_size_m }}m 격자.
-            핵심 {{ meta.core_radius_m }}m / 확장 {{ meta.extended_radius_m }}m.
+            핵심 {{ meta.core_radius_m }}m / 확장 {{ meta.extended_radius_m }}m.<br>
+            구 경계는 최근접 단지 기준 근사입니다(행정경계 원본 아님).
         </p>
 
         <div class="warn" id="trust-warn" style="display:none"></div>
@@ -150,6 +158,7 @@
             <select id="layer2" style="display:none"></select>
             <label><input type="checkbox" id="core-only"> 핵심 생활권({{ meta.core_radius_m }}m)만</label>
             <label><input type="checkbox" id="absolute" checked> 절대 스케일(서울 생활권 백분위)</label>
+            <label><input type="checkbox" id="show-gu" checked> 자치구 경계·이름</label>
         </fieldset>
 
         <fieldset id="cluster-box" style="display:none">
@@ -473,6 +482,69 @@ function drawApartments(apartments) {
     });
 }
 
+// 자치구 경계 — 정적이라 한 번만 받아두고, 화면에 걸리는 선분만 그린다.
+// 1,755개를 전부 Polyline 으로 올리면 지도가 무거워진다.
+let boundaryData = null, boundaryLines = [], guLabels = [];
+
+function clearBoundaries() {
+    boundaryLines.forEach(l => l.setMap(null));
+    guLabels.forEach(l => l.setMap(null));
+    boundaryLines = [];
+    guLabels = [];
+}
+
+async function drawBoundaries() {
+    if (!map) return;
+
+    clearBoundaries();
+
+    if (!document.getElementById('show-gu').checked) return;
+
+    if (!boundaryData) {
+        boundaryData = await (await fetch(withToken('/admin/grid/boundaries'))).json();
+    }
+
+    const b = map.getBounds();
+    const sw = b.getSouthWest(), ne = b.getNorthEast();
+    const pad = 0.004;
+
+    const visible = boundaryData.segments.filter(s =>
+        Math.min(s[0], s[2]) <= ne.getLat() + pad &&
+        Math.max(s[0], s[2]) >= sw.getLat() - pad &&
+        Math.min(s[1], s[3]) <= ne.getLng() + pad &&
+        Math.max(s[1], s[3]) >= sw.getLng() - pad
+    );
+
+    visible.forEach(s => {
+        const line = new kakao.maps.Polyline({
+            path: [new kakao.maps.LatLng(s[0], s[1]), new kakao.maps.LatLng(s[2], s[3])],
+            strokeWeight: 2,
+            strokeColor: '#111827',
+            strokeOpacity: 0.65,
+            zIndex: 5
+        });
+        line.setMap(map);
+        boundaryLines.push(line);
+    });
+
+    // 라벨은 넓게 볼 때만. 확대하면 화면 밖 중심점이라 오히려 헷갈린다.
+    if (map.getLevel() >= 5) {
+        boundaryData.labels.forEach(l => {
+            const node = document.createElement('div');
+            node.className = 'gu-label';
+            node.textContent = l.gu;
+
+            const overlay = new kakao.maps.CustomOverlay({
+                position: new kakao.maps.LatLng(l.lat, l.lng),
+                content: node,
+                zIndex: 6
+            });
+            overlay.setMap(map);
+            guLabels.push(overlay);
+        });
+    }
+}
+
 // 불균형 클러스터 — 뷰포트가 아니라 서울 전체 기준이라 한 번 찾아두면
 // 지도를 옮겨도 목록이 그대로다.
 let clusterOutlines = [];
@@ -685,10 +757,14 @@ function initMap() {
     });
 
     let timer = null;
-    const debounced = () => { clearTimeout(timer); timer = setTimeout(refresh, 220); };
+    const debounced = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { refresh(); drawBoundaries(); }, 220);
+    };
     kakao.maps.event.addListener(map, 'idle', debounced);
 
     refresh();
+    drawBoundaries();
 }
 
 // 지도 SDK 와 무관하게 패널은 항상 세운다. SDK 로드가 실패해도 레이어 목록과
@@ -706,6 +782,7 @@ document.getElementById('core-only').addEventListener('change', refresh);
 document.getElementById('absolute').addEventListener('change', refresh);
 document.getElementById('cell-close').addEventListener('click', closeCellPanel);
 document.getElementById('find-clusters').addEventListener('click', findClusters);
+document.getElementById('show-gu').addEventListener('change', drawBoundaries);
 document.getElementById('layers').dispatchEvent(new Event('change'));
 
 if (window.kakao && window.kakao.maps) {

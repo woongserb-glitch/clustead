@@ -136,8 +136,11 @@ def constant(value):
     return extract
 
 
-# 영향권 반경은 기존 서비스(POI_META)의 카테고리별 생활반경을 그대로 쓴다.
-# 학교/어린이보호구역은 POI_META 에 없어 여기서 정의한다(통학 도보권 / 법정 기준).
+# 영향권 반경은 '결과 페이지에 실제로 표시되는 반경'을 기준으로 한다.
+# POI_META 에는 쓰이지 않는 잔재가 섞여 있어 그대로 읽으면 안 된다
+# (bus=400 이지만 실제 500, subway=1500 이지만 실제 500).
+# 검증법: 결과 페이지에서 '반경 N 내 …' 문구를 직접 확인할 것.
+# 학교/어린이보호구역은 제품에 없는 레이어라 여기서 정의한다.
 #
 # (키, 라벨, 경로, 위도컬럼, 경도컬럼, 서브타입함수, 반경m, 신뢰등급, 비고)
 LAYERS = [
@@ -154,13 +157,14 @@ LAYERS = [
      "법정 지정구역(반경 300m). cctvNumber 는 구별 기입률 편차로 미사용"),
 
     ("hospital", "병원", "data/medical/hospital_seoul.csv",
-     "WGS84LAT", "WGS84LON", hospital_subtype, 700, "medium", ""),
+     "WGS84LAT", "WGS84LON", hospital_subtype, 500, "medium", ""),
 
     ("pharmacy", "약국", "data/medical/pharmacy_hours_seoul.csv",
-     "WGS84LAT", "WGS84LON", constant("약국"), 700, "medium", ""),
+     "WGS84LAT", "WGS84LON", constant("약국"), 500, "medium", ""),
 
     ("subway", "지하철", "data/subway/subway_station_master.csv",
-     "위도", "경도", simple("호선"), 1500, "high", ""),
+     "위도", "경도", simple("호선"), 500, "high",
+     "반경은 결과 페이지 표기(500m) 기준. POI_META 의 1500m 는 미사용 잔재"),
 
     ("bus_stop", "버스정류장", "data/bus/seoul_bus_stops.csv",
      "Y좌표", "X좌표", simple("정류소 타입"), 500, "high",
@@ -172,7 +176,9 @@ LAYERS = [
      "위도", "경도", constant("대여소"), 500, "high", ""),
 
     ("ev_charger", "전기차 충전기", "data/ev_chargers/ev_chargers_seoul_filtered.csv",
-     "lat", "lng", constant("충전소"), 1000, "medium", ""),
+     "lat", "lng", constant("충전소"), 1000, "medium",
+     "결과 페이지 표기는 1km 인데 점수는 ev_charger_count_500m 기준이라 제품 내부가 "
+     "어긋나 있다. 격자는 표기(1km)를 따른다"),
 
     ("culture", "문화시설", "data/culture/culture_filtered.csv",
      "lat", "lng", simple("subtype"), 1500, "medium", ""),
@@ -372,6 +378,9 @@ def build_apartment_cells():
     pairs = []
     core_cells = set()
     extended_cells = set()
+    # 셀 → (최근접 단지까지 거리², 단지 index). 지도에 구 경계를 그리는 데 쓴다.
+    # 생활권 셀은 정의상 1km 안에 단지가 있어 항상 값이 정해진다.
+    nearest_apartment = {}
     span = int(EXTENDED_RADIUS_M / CELL_SIZE_M) + 1
 
     for index, (name, gu, dong, lat, lng) in enumerate(apartments):
@@ -396,11 +405,15 @@ def build_apartment_cells():
                 if is_core:
                     core_cells.add((i, j))
 
-    return apartments, pairs, core_cells, extended_cells
+                best = nearest_apartment.get((i, j))
+                if best is None or distance_sq < best[0]:
+                    nearest_apartment[(i, j)] = (distance_sq, index)
+
+    return apartments, pairs, core_cells, extended_cells, nearest_apartment
 
 
-def write_db(counts, coverage, nearest, stats, apartments, pairs,
-             core_cells, extended_cells):
+def write_db(counts, coverage, nearest_distance, nearest, stats, apartments,
+             pairs, core_cells, extended_cells):
     if os.path.exists(OUTPUT_PATH):
         os.remove(OUTPUT_PATH)
 
@@ -454,11 +467,15 @@ def write_db(counts, coverage, nearest, stats, apartments, pairs,
             PRIMARY KEY (i, j, layer)
         ) WITHOUT ROWID;
 
+        -- gu/dong 은 최근접 단지에서 물려받은 값이다(행정경계 원본이 아님).
+        -- 지도에 기준선을 그리고 셀을 행정구역으로 묶는 용도.
         CREATE TABLE grid_zone (
             i INTEGER NOT NULL,
             j INTEGER NOT NULL,
             in_core INTEGER NOT NULL,
             apartment_count INTEGER NOT NULL,
+            gu TEXT,
+            dong TEXT,
             PRIMARY KEY (i, j)
         ) WITHOUT ROWID;
 
@@ -510,7 +527,7 @@ def write_db(counts, coverage, nearest, stats, apartments, pairs,
     cursor.executemany(
         "INSERT INTO grid_nearest VALUES (?, ?, ?, ?)",
         [(i, j, layer, distance)
-         for (i, j, layer), distance in nearest.items()],
+         for (i, j, layer), distance in nearest_distance.items()],
     )
 
     cursor.executemany(
@@ -530,6 +547,16 @@ def write_db(counts, coverage, nearest, stats, apartments, pairs,
         FROM grid_apartment
         GROUP BY i, j
     """)
+
+    cursor.executemany(
+        "UPDATE grid_zone SET gu = ?, dong = ? WHERE i = ? AND j = ?",
+        [
+            (apartments[index][1], apartments[index][2], i, j)
+            for (i, j), (_, index) in nearest.items()
+        ],
+    )
+
+    cursor.execute("CREATE INDEX idx_zone_gu ON grid_zone (gu)")
 
     cursor.executescript("""
         CREATE INDEX idx_cell_layer ON grid_cell (layer, i, j);
@@ -551,7 +578,9 @@ def main():
     pois, stats = build_poi_list()
 
     print("[ZONE] 단지 생활권 셀 계산")
-    apartments, pairs, core_cells, extended_cells = build_apartment_cells()
+    apartments, pairs, core_cells, extended_cells, nearest_apartment = (
+        build_apartment_cells()
+    )
 
     print(
         f"[ZONE] 단지 {len(apartments):,}개 → "
@@ -576,8 +605,8 @@ def main():
     nearest = build_nearest_distance(pois, extended_cells)
     print(f"[NEAR] 최근접 거리 {len(nearest):,}행")
 
-    write_db(counts, coverage, nearest, stats, apartments, pairs,
-             core_cells, extended_cells)
+    write_db(counts, coverage, nearest, nearest_apartment, stats, apartments,
+             pairs, core_cells, extended_cells)
 
     size_mb = os.path.getsize(OUTPUT_PATH) / 1e6
     print(
