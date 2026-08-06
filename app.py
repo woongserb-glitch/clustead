@@ -8200,7 +8200,42 @@ def _warm_explore_caches():
         print(f"[WARMUP] explore scenarios 실패: {exc}")
 
 
+def _warm_grid_caches():
+    """격자 조회 캐시를 기동 시점에 채운다.
+
+    서버(1코어 / RAM 961MB)에서는 grid.db 126MB 가 페이지 캐시에 못 올라가
+    콜드 첫 호출이 매우 느리다 — 실측 transit-gap 21초, cells 4.2초.
+    캐시가 차면 2~20ms 다.
+
+    preload_app=True 라 부모에서 채우면 fork CoW 로 전 워커가 상속한다.
+    21초짜리 요청이 워커를 붙잡아 일반 사용자 요청을 밀어내는 일이 없어진다.
+    (백그라운드 스레드로 돌리면 fork 를 넘지 못하므로 동기로 둔다.)
+    """
+    if not grid_service.grid_available():
+        print("[WARMUP] grid 없음 — 건너뜀")
+        return
+
+    import time
+    start = time.perf_counter()
+
+    try:
+        grid_service.get_meta()
+        grid_service.get_boundaries()
+
+        # 첫 화면(레벨 5 = factor 3)과 확대 한 단계.
+        for factor in (3, 1):
+            grid_service.get_scale("cctv", "coverage", factor=factor)
+
+        # 주력 산출물. 가장 비싸고 가장 먼저 눌린다.
+        grid_service.query_transit_gap()
+
+        print(f"[WARMUP] grid caches {(time.perf_counter() - start) * 1000:.0f}ms 완료")
+    except Exception as exc:
+        print(f"[WARMUP] grid caches 실패: {exc}")
+
+
 _warm_explore_caches()
+_warm_grid_caches()
 
 
 if __name__ == "__main__":
