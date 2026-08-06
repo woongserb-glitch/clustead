@@ -156,6 +156,32 @@ def pharmacy_subtype(row):
     return "일반"
 
 
+def ev_charger_subtype(row):
+    """개방 여부와 급속 여부. 전체를 한 덩어리로 세면 안 된다.
+
+    2,987곳 중 1,094곳(37%)이 아파트 입주민 전용 등 이용제한이다. 그 칸에
+    사는 사람이 실제로 쓸 수 있는 충전기가 아닌데 '주변에 충전기 있음' 으로
+    잡히면 공급을 그만큼 부풀려 세게 된다.
+
+    충전'소' 단위 레코드라 한 곳에 제한·개방이 섞인 경우가 198곳 있다.
+    개방분이 하나라도 있으면 개방으로 본다.
+    """
+    def count(key):
+        try:
+            return int(float(row.get(key) or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    use_time = row.get("use_time") or ""
+    restricted = count("restricted_count")
+    public = count("public_count")
+
+    if (restricted > 0 and public == 0) or "입주민" in use_time:
+        return "이용제한"
+
+    return "급속(개방)" if count("fast_count") > 0 else "완속(개방)"
+
+
 def simple(field, default="기타"):
     def extract(row):
         return (row.get(field) or "").strip() or default
@@ -209,12 +235,15 @@ LAYERS = [
      "(POI_META 의 400m 는 미사용 잔재)"),
 
     ("bike", "따릉이", "data/bike/bike_station_seoul.csv",
-     "위도", "경도", constant("대여소"), 500, "high", ""),
+     "위도", "경도", constant("대여소"), 500, "high",
+     "원본에 대여소ID·주소·좌표만 있어 서브타입 재료가 없다(거치대 수 없음). "
+     "좌표가 0 인 77건(2.2%)은 자동 제외된다"),
 
     ("ev_charger", "전기차 충전기", "data/ev_chargers/ev_chargers_seoul_filtered.csv",
-     "lat", "lng", constant("충전소"), 1000, "medium",
+     "lat", "lng", ev_charger_subtype, 1000, "medium",
      "결과 페이지 표기는 1km 인데 점수는 ev_charger_count_500m 기준이라 제품 내부가 "
-     "어긋나 있다. 격자는 표기(1km)를 따른다"),
+     "어긋나 있다. 격자는 표기(1km)를 따른다. "
+     "37% 가 입주민 전용 등 이용제한이라 '개방' 서브타입으로 걸러야 한다"),
 
     # 문화시설 제외 — culture_filtered.csv 는 시설이 아니라 '서울시
     # 공공서비스예약 프로그램' 목록이다. service_name 이 "2026년
