@@ -106,6 +106,29 @@ def load_transaction_index():
     return index
 
 
+def rows_by_gu_name(tx_index, gu, tx_name):
+    """동(洞) 표기가 어긋난 단지 구제 — 같은 구·같은 이름이 '한 동'에만 있을 때만.
+
+    단지 마스터의 동과 국토부 실거래의 동이 갈리는 단지가 있다. 마곡동 단지
+    5곳(삼성·현대·청구·우림필유·푸르지오)은 마스터에 **방화동**으로, 실거래에는
+    **마곡동**으로 적혀 있고, 광화문스페이스본은 **신문로2가 vs 사직동**이다.
+    조회 키에 동이 들어 있어 이 단지들은 실거래(41~179건)가 통째로 안 붙었다.
+
+    이름만으로 넓히면 같은 구 안의 동명이 단지를 잘못 이어붙일 수 있으므로,
+    후보가 **한 동에만 존재할 때만** 받아들인다. 두 동 이상이면 어느 쪽인지
+    판단할 근거가 없으니 붙이지 않는다(= 기존 동작 유지).
+    """
+    by_dong = {}
+    for key, items in tx_index.items():
+        if key[0] == gu and key[2] == tx_name:
+            by_dong.setdefault(key[1], []).extend(items)
+
+    if len(by_dong) != 1:
+        return []
+
+    return next(iter(by_dong.values()))
+
+
 def find_rows(apartment, mapping, tx_index):
     if not mapping or not trusted_mapping(mapping):
         return []
@@ -122,6 +145,8 @@ def find_rows(apartment, mapping, tx_index):
             for key, items in tx_index.items():
                 if key[0] == gu and key[1] == dong and key[2] == tx_name:
                     rows.extend(items)
+        if not rows:
+            rows.extend(rows_by_gu_name(tx_index, gu, tx_name))
     return rows
 
 
