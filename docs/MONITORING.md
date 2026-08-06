@@ -135,13 +135,35 @@ nginx 설정 자체를 바꿀 땐 반드시 `nginx -t` 통과 후 `systemctl rel
 (10:45·12:21·13:45)이 전부 이것이었다. `WORKER TIMEOUT` 24건, `[WORKER STUCK]`
 57~60초. 서비스 다운은 없었고(컨테이너 재시작 0), 자원이 아니라 워커 블로킹이다.
 
-호스트 nginx `location ^~ /apartments/` 에서 해당 UA 면 **429 + Retry-After: 10**.
-적용 직후 점검 11회 연속 OK, 워커 타임아웃 0.
+**1차(전면 차단)**: 호스트 nginx `location ^~ /apartments/` 에서 해당 UA 면 무조건
+429. 즉효였지만(점검 11회 연속 OK, 워커 타임아웃 0) **AI 검색 색인을 포기하는**
+대가가 있었다.
 
-> ⚠️ **이건 레이트리밋이 아니라 전면 차단이다.** AI 검색 색인을 포기하는 대가를
-> 치르고 있다. 원래 방향은 `limit_req` 존(6r/m, Crawl-delay 와 동일)으로 완화해
-> 색인은 유지하고 속도만 제한하는 것. Googlebot·일반 사용자는 영향 없다
-> (UA 매칭이 이 봇 한정 — 배포 후 429/200/200 으로 검증함).
+**2차(현재 — 속도 제한)**: 같은 날 `limit_req` 로 완화했다. 색인은 계속되고
+서버는 10초에 1건씩만 받는다.
+
+```nginx
+map $http_user_agent $claude_searchbot {
+    default              "";
+    "~*Claude-SearchBot" "claudebot";
+}
+limit_req_zone $claude_searchbot zone=claudebot:1m rate=6r/m;   # = Crawl-delay 10
+```
+
+- `map`·`limit_req_zone` 은 **http 컨텍스트 전용**이라 server 블록 안에 못 넣는다.
+  `sites-enabled/*` 가 http 안에서 include 되므로 설정 파일 최상단이 자리다.
+- **키가 비면 nginx 는 집계 자체를 안 한다.** 봇이 아닌 요청은 `default ""` 로
+  떨어져 제한을 아예 받지 않는다 — 일반 사용자·Googlebot 무영향이 이걸로 보장된다.
+- `burst=2 nodelay` — 연속 2건까지 즉시 통과, 초과분만 429. `delay` 를 쓰지 않는
+  이유는 **대기시킨 요청이 결국 앱 워커를 잡기 때문**이다. 원하는 건 '천천히
+  처리'가 아니라 '초과분은 거절'.
+- 적용 범위는 `/apartments/` 한정. 봇은 `/area` 도 훑지만(그날 297건) 워커를
+  60초씩 물고 늘어진 건 상세 렌더뿐이었다. 재발하면 `limit_req` 를 server 블록으로
+  올려 사이트 전체에 걸면 된다 — 키 조건이 같아 일반 사용자엔 여전히 무영향.
+
+**검증(적용 직후)**: 봇 UA 8연타 → `404 404 404 429 429 429 429 429`, 11초 뒤
+1건 통과(토큰 회복), 429 에 `Retry-After: 10`. 일반 UA 8연타·Googlebot 5연타는
+전부 통과.
 
 **설정 파일 추적**: 운영 호스트 nginx 설정은
 [`deploy/nginx/clustead-host.conf`](../deploy/nginx/clustead-host.conf) 에
