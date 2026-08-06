@@ -139,6 +139,23 @@ def hospital_subtype(row):
     return "의원"
 
 
+def pharmacy_subtype(row):
+    """야간 영업 여부. 약국 전체는 병원과 r=0.96 으로 사실상 같은 지표지만,
+    22시 이후 영업(5,510 중 444, 8%)은 분포가 다르고 심야 의료 공백이라는
+    독립된 정책 질문에 답한다.
+
+    일요일 영업(DUTYTIME7C)은 5,483/5,510 이 채워져 있어 기입 오류로 보고
+    쓰지 않는다.
+    """
+    for day in range(1, 6):
+        value = (row.get(f"DUTYTIME{day}C") or "").strip()
+
+        if len(value) >= 3 and value[:2].isdigit() and int(value[:2]) >= 22:
+            return "야간(22시 이후)"
+
+    return "일반"
+
+
 def simple(field, default="기타"):
     def extract(row):
         return (row.get(field) or "").strip() or default
@@ -177,7 +194,9 @@ LAYERS = [
      "WGS84LAT", "WGS84LON", hospital_subtype, 500, "medium", ""),
 
     ("pharmacy", "약국", "data/medical/pharmacy_hours_seoul.csv",
-     "WGS84LAT", "WGS84LON", constant("약국"), 500, "medium", ""),
+     "WGS84LAT", "WGS84LON", pharmacy_subtype, 500, "medium",
+     "약국 전체는 병원과 r=0.96 이라 사실상 같은 지표다. "
+     "'야간(22시 이후)' 서브타입으로 걸러야 의미가 생긴다"),
 
     ("subway", "지하철", "data/subway/subway_station_master.csv",
      "위도", "경도", simple("호선"), 500, "high",
@@ -197,8 +216,12 @@ LAYERS = [
      "결과 페이지 표기는 1km 인데 점수는 ev_charger_count_500m 기준이라 제품 내부가 "
      "어긋나 있다. 격자는 표기(1km)를 따른다"),
 
-    ("culture", "문화시설", "data/culture/culture_filtered.csv",
-     "lat", "lng", simple("subtype"), 1500, "medium", ""),
+    # 문화시설 제외 — culture_filtered.csv 는 시설이 아니라 '서울시
+    # 공공서비스예약 프로그램' 목록이다. service_name 이 "2026년
+    # 미니솟대만들기(매주 일)" 같은 강좌이고, 628행 중 고유 장소는 355개라
+    # 한 장소가 최대 22번 중복 계산된다(천왕산 목공 체험장).
+    # 모든 레이어와 상관이 0.10~0.29 로 낮았던 건 '독립적 신호' 가 아니라
+    # 잘못 들어온 데이터였다. 실제 문화 인프라(공연/전시)는 87건뿐이다.
 ]
 
 # CCTV 는 '작용형'이라 도달형 반경을 쓰면 안 된다. 카메라 유효 감시 범위는
