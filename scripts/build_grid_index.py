@@ -44,6 +44,8 @@ from services.preload_service import (
     cctv_data,
     cctv_camera_weights,
     get_cctv_icon_and_subtype,
+    load_apartment_data,
+    apartment_data,
 )
 
 
@@ -450,6 +452,59 @@ def rasterize_districts(zone_cells):
     return assigned
 
 
+def build_household_coverage(zone_cells):
+    """셀 반경 안의 세대수. 레이어 반경별로 따로 구한다.
+
+    시설 절대량만 보면 '사람이 많으니 시설도 많다' 와 구분되지 않는다. 강남이
+    항상 빨간 건 발견이 아니다. 공급(시설)과 수요(세대)를 **같은 반경**에서
+    재야 비율이 성립하므로, 레이어가 쓰는 반경마다 따로 집계한다.
+
+    세대수는 `k-전체세대수`(단지 2,860/2,861 보유, 총 172만 세대).
+    """
+    load_apartment_data()
+    apartments = []
+
+    for row in apartment_data:
+        try:
+            households = int(str(row.get("household_count", "")).strip())
+            lat = float(row["lat"])
+            lng = float(row["lng"])
+        except (TypeError, ValueError, KeyError):
+            continue
+
+        if households > 0:
+            apartments.append((lat, lng, households))
+
+    radii = sorted({radius for *_, radius, _, _ in LAYERS} | {CCTV_RADIUS_M})
+    result = {}
+
+    for radius in radii:
+        span = int(radius / CELL_SIZE_M) + 1
+        radius_sq = radius * radius
+
+        for lat, lng, households in apartments:
+            ci, cj = cell_of(lat, lng)
+
+            for i in range(ci - span, ci + span + 1):
+                for j in range(cj - span, cj + span + 1):
+                    if (i, j) not in zone_cells:
+                        continue
+
+                    cell_lat = LAT_ORIGIN + (i + 0.5) * D_LAT
+                    cell_lng = LNG_ORIGIN + (j + 0.5) * D_LNG
+
+                    dy = (cell_lat - lat) * LAT_M_PER_DEG
+                    dx = (cell_lng - lng) * LNG_M_PER_DEG
+
+                    if dx * dx + dy * dy > radius_sq:
+                        continue
+
+                    key = (i, j, radius)
+                    result[key] = result.get(key, 0) + households
+
+    return result, len(apartments)
+
+
 def build_boundary_distance(zone_cells):
     """셀 중심에서 서울 행정경계까지의 거리(m).
 
@@ -553,8 +608,8 @@ def build_apartment_cells():
 
 
 def write_db(counts, coverage, nearest_distance, nearest, districts,
-             boundary_distance, stats, apartments, pairs, core_cells,
-             extended_cells):
+             boundary_distance, households, stats, apartments, pairs,
+             core_cells, extended_cells):
     if os.path.exists(OUTPUT_PATH):
         os.remove(OUTPUT_PATH)
 
@@ -600,6 +655,16 @@ def write_db(counts, coverage, nearest_distance, nearest, districts,
 
         -- 셀 중심에서 레이어별 최근접 POI 까지 거리(m). 개수로는 안 잡히는 성질.
         -- 값이 없으면 3km 안에 해당 시설이 없다는 뜻.
+        -- 셀 반경 안의 세대수. 공급(시설)과 수요(세대)를 같은 반경에서 재야
+        -- 비율이 성립하므로 레이어 반경별로 따로 담는다.
+        CREATE TABLE grid_household (
+            i INTEGER NOT NULL,
+            j INTEGER NOT NULL,
+            radius_m INTEGER NOT NULL,
+            households INTEGER NOT NULL,
+            PRIMARY KEY (i, j, radius_m)
+        ) WITHOUT ROWID;
+
         CREATE TABLE grid_nearest (
             i INTEGER NOT NULL,
             j INTEGER NOT NULL,
@@ -667,6 +732,11 @@ def write_db(counts, coverage, nearest_distance, nearest, districts,
     )
 
     cursor.executemany(
+        "INSERT INTO grid_household VALUES (?, ?, ?, ?)",
+        [(i, j, r, n) for (i, j, r), n in households.items()],
+    )
+
+    cursor.executemany(
         "INSERT INTO grid_nearest VALUES (?, ?, ?, ?)",
         [(i, j, layer, distance)
          for (i, j, layer), distance in nearest_distance.items()],
@@ -718,6 +788,7 @@ def write_db(counts, coverage, nearest_distance, nearest, districts,
         CREATE INDEX idx_cell_layer ON grid_cell (layer, i, j);
         CREATE INDEX idx_coverage_layer ON grid_coverage (layer, i, j);
         CREATE INDEX idx_nearest_layer ON grid_nearest (layer, i, j);
+        CREATE INDEX idx_household_r ON grid_household (radius_m, i, j);
         CREATE INDEX idx_zone_core ON grid_zone (in_core);
         CREATE INDEX idx_ga_apartment ON grid_apartment (apartment_id);
         CREATE INDEX idx_ga_cell ON grid_apartment (i, j);
@@ -773,9 +844,13 @@ def main():
         print(f"[EDGE]   반경 {limit:>4}m 영향 칸 {n:>6,} "
               f"({100 * n / len(extended_cells):.0f}%)")
 
+    print("[HH] 반경별 세대수 집계")
+    households, hh_apts = build_household_coverage(extended_cells)
+    print(f"[HH] 단지 {hh_apts:,}개 / {len(households):,}행")
+
     write_db(counts, coverage, nearest, nearest_apartment, districts,
-             boundary_distance, stats, apartments, pairs, core_cells,
-             extended_cells)
+             boundary_distance, households, stats, apartments, pairs,
+             core_cells, extended_cells)
 
     size_mb = os.path.getsize(OUTPUT_PATH) / 1e6
     print(

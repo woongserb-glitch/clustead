@@ -168,6 +168,7 @@
             <select id="layer2" style="display:none"></select>
             <label><input type="checkbox" id="core-only"> 핵심 생활권({{ meta.core_radius_m }}m)만</label>
             <label><input type="checkbox" id="absolute" checked> 절대 스케일(서울 생활권 백분위)</label>
+            <label><input type="checkbox" id="per-hh"> 세대수 정규화 (1,000세대당)</label>
             <label><input type="checkbox" id="show-gu" checked> 자치구 경계·이름</label>
         </fieldset>
 
@@ -313,6 +314,7 @@ async function refresh() {
         factor: String(factor)
     });
     if (document.getElementById('core-only').checked) params.set('core', '1');
+    if (document.getElementById('per-hh').checked) params.set('per_hh', '1');
     currentSubtypes(layer).forEach(s => params.append('subtype', s));
 
     let url = '/admin/grid/cells?';
@@ -393,7 +395,8 @@ function render(data, factor, mode) {
         tiles.push(rect);
     });
 
-    const unit = mode === 'nearest' ? 'm' : '';
+    const perHousehold = (data.scale || {}).per_households;
+    const unit = mode === 'nearest' ? 'm' : (perHousehold ? '/천세대' : '');
     const scale = data.scale || {};
 
     document.getElementById('status-line').textContent =
@@ -423,6 +426,9 @@ function render(data, factor, mode) {
                 : 'linear-gradient(to right, hsl(220,75%,50%), hsl(0,75%,50%))';
 
     let note = MODE_NOTE[mode];
+    if (perHousehold) {
+        note += ' 값은 같은 반경 안 1,000세대당 시설 수(200세대 미만 칸 제외).';
+    }
     if (isCompare) {
         // diff = A백분위 - B백분위. 크게 양수면 A 는 높은데 B 가 낮다는 뜻.
         const gaps = values.filter(v => v >= 40).length;
@@ -680,6 +686,7 @@ async function findClusters() {
         threshold: document.getElementById('threshold').value
     });
     if (document.getElementById('core-only').checked) params.set('core', '1');
+    if (document.getElementById('per-hh').checked) params.set('per_hh', '1');
     currentSubtypes(layer).forEach(s => params.append('subtype', s));
 
     box.innerHTML = '<p class="note">서울 전체를 훑는 중…</p>';
@@ -959,6 +966,7 @@ document.getElementById('layer2').addEventListener('change', () => {
 });
 document.getElementById('core-only').addEventListener('change', refresh);
 document.getElementById('absolute').addEventListener('change', refresh);
+document.getElementById('per-hh').addEventListener('change', refresh);
 document.getElementById('cell-close').addEventListener('click', closeCellPanel);
 document.getElementById('find-clusters').addEventListener('click', findClusters);
 document.getElementById('show-gu').addEventListener('change', drawBoundaries);

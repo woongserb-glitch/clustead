@@ -526,6 +526,16 @@ def robots_txt():
         "User-agent: BLEXBot",
         "Disallow: /",
         "",
+        # Claude 검색 크롤러는 허용하되, 상세 페이지 연속 크롤이 1GB 서버 워커를
+        # 포화시키지 않도록 robots.txt의 Crawl-delay 확장을 사용한다.
+        "User-agent: Claude-SearchBot",
+        "Crawl-delay: 10",
+        "Allow: /",
+        "Disallow: /admin/",
+        "Disallow: /api/",
+        "Disallow: /healthz",
+        "Disallow: /result/export.xlsx",
+        "",
         "User-agent: *",
         "Allow: /",
         "Disallow: /admin/",
@@ -540,7 +550,10 @@ def robots_txt():
         f"Sitemap: {_absolute_url('/sitemap.xml')}",
         "",
     ])
-    return Response(body, mimetype="text/plain; charset=utf-8")
+    resp = Response(body, mimetype="text/plain; charset=utf-8")
+    resp.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 
 @app.route("/sitemap.xml")
@@ -5702,6 +5715,8 @@ def admin_grid_cells():
         if clean_text(value)
     ]
 
+    per_households = request.args.get("per_hh") == "1"
+
     result = grid_service.query_cells(
         layer,
         mode,
@@ -5709,6 +5724,7 @@ def admin_grid_cells():
         factor=factor,
         subtypes=subtypes or None,
         core_only=request.args.get("core") == "1",
+        per_households=per_households,
     )
 
     result["layer"] = layer
@@ -5723,6 +5739,7 @@ def admin_grid_cells():
         factor=factor,
         subtypes=subtypes or None,
         core_only=request.args.get("core") == "1",
+        per_households=per_households,
     )
 
     return jsonify(result)
@@ -5766,6 +5783,7 @@ def admin_grid_compare():
         subtypes_a=subtype_list("subtype"),
         subtypes_b=subtype_list("subtype2"),
         core_only=request.args.get("core") == "1",
+        per_households=request.args.get("per_hh") == "1",
     )
 
     result["layer"] = layer_a
@@ -5813,6 +5831,7 @@ def admin_grid_clusters():
         subtypes_a=subtype_list("subtype"),
         subtypes_b=subtype_list("subtype2"),
         core_only=request.args.get("core") == "1",
+        per_households=request.args.get("per_hh") == "1",
     )
 
     result["layer"] = layer_a

@@ -40,6 +40,9 @@ MAX_CELLS = 20000
 # 절대 색상 스케일용 분위 경계 개수(p0..p100).
 SCALE_STEPS = 100
 
+# 세대수 정규화 시 분모 하한. 이보다 적으면 1,000세대당 값이 폭발하므로 뺀다.
+MIN_HOUSEHOLDS = 200
+
 # 격자 데이터는 정적이라 프로세스 내내 유효하다. 서브타입 조합이 임의라
 # 미리 구울 수 없어 요청 시 계산하고(50~200ms) 선택 단위로 캐시한다.
 # 뷰포트가 아니라 '선택'이 키라, 지도를 옮겨도 다시 계산하지 않는다.
@@ -169,11 +172,16 @@ def _edge_where(layer):
 
 def _cell_value_sql(layer, mode, factor, subtypes, core_only,
                     extra_where=None, extra_params=(), limit=None,
-                    exclude_edge=False):
-    """(SQL, params). 셀 안 집계 → 자식셀 간 집계 2단계로 만든다."""
+                    exclude_edge=False, per_households=False):
+    """(SQL, params). 셀 안 집계 → 자식셀 간 집계 2단계로 만든다.
+
+    per_households 를 켜면 1,000세대당 값으로 바꾼다. 시설 절대량만 보면
+    '사람이 많으니 시설도 많다' 와 구분되지 않는다. 공급(시설)과 수요(세대)를
+    같은 반경에서 재야 비율이 성립하므로 레이어 반경의 세대수로 나눈다.
+    """
     table, column, inner, outer = _MODE_TABLE[mode]
 
-    where = ["layer = ?"]
+    where = ["t.layer = ?"]
     params = [layer]
 
     if exclude_edge:
@@ -181,9 +189,27 @@ def _cell_value_sql(layer, mode, factor, subtypes, core_only,
         if edge:
             where.append(edge)
 
+    join = ""
+    value_expr = f"{inner}({column})"
+
+    if per_households and mode != "nearest":
+        radius = layer_radius(layer)
+
+        if radius is not None:
+            # 분모가 작으면 비율이 폭발한다. 최소 세대 미만은 아예 뺀다.
+            join = (
+                " JOIN grid_household h "
+                "ON h.i = t.i AND h.j = t.j "
+                f"AND h.radius_m = {int(radius)} "
+                f"AND h.households >= {MIN_HOUSEHOLDS}"
+            )
+            value_expr = (
+                f"{inner}({column}) * 1000.0 / MAX(h.households)"
+            )
+
     # nearest 는 서브타입이 없다.
     if subtypes and mode != "nearest":
-        where.append("subtype IN (" + ",".join("?" * len(subtypes)) + ")")
+        where.append("t.subtype IN (" + ",".join("?" * len(subtypes)) + ")")
         params.extend(subtypes)
 
     if core_only:
@@ -196,12 +222,13 @@ def _cell_value_sql(layer, mode, factor, subtypes, core_only,
         where.extend(extra_where)
         params.extend(extra_params)
 
+    # grid_household 를 조인하면 i/j 가 양쪽에 있어 모호해진다. 전부 한정한다.
     inner_sql = (
-        f"SELECT i / {factor} AS gi, j / {factor} AS gj, "
-        f"{inner}({column}) AS cell_value "
-        f"FROM {table} AS t "
+        f"SELECT t.i / {factor} AS gi, t.j / {factor} AS gj, "
+        f"{value_expr} AS cell_value "
+        f"FROM {table} AS t{join} "
         f"WHERE {' AND '.join(where)} "
-        f"GROUP BY i, j"
+        f"GROUP BY t.i, t.j"
     )
 
     sql = (
@@ -245,7 +272,8 @@ def _breaks_from(values, steps=SCALE_STEPS):
     ]
 
 
-def get_scale(layer, mode, factor=1, subtypes=None, core_only=False):
+def get_scale(layer, mode, factor=1, subtypes=None, core_only=False,
+              per_households=False):
     """서울 아파트 생활권 전체 분포 기준 분위 경계.
 
     뷰포트 최소~최대로 색을 칠하면 지도를 옮길 때마다 같은 값의 색이 달라져
@@ -261,13 +289,15 @@ def get_scale(layer, mode, factor=1, subtypes=None, core_only=False):
     if factor not in FACTORS:
         factor = 1
 
-    key = (layer, mode, factor, tuple(sorted(subtypes or ())), core_only)
+    key = (layer, mode, factor, tuple(sorted(subtypes or ())), core_only,
+           per_households)
 
     if key in _scale_cache:
         return _scale_cache[key]
 
     sql, params = _cell_value_sql(
-        layer, mode, factor, subtypes, core_only, exclude_edge=True
+        layer, mode, factor, subtypes, core_only, exclude_edge=True,
+        per_households=per_households,
     )
 
     with closing(_connect()) as connection:
@@ -279,7 +309,7 @@ def get_scale(layer, mode, factor=1, subtypes=None, core_only=False):
     values = sorted(row["value"] for row in rows)
     measured = len(values)
 
-    if mode != "nearest":
+    if mode != "nearest" and not per_households:
         missing = max(0, total_cells - measured)
         values = [0] * missing + values
 
@@ -290,6 +320,7 @@ def get_scale(layer, mode, factor=1, subtypes=None, core_only=False):
         "zero_cells": sum(1 for v in values if v == 0) if mode != "nearest" else None,
         "beyond_range": (total_cells - measured) if mode == "nearest" else None,
         "edge_radius_m": layer_radius(layer),
+        "per_households": per_households,
     }
 
     if len(_scale_cache) >= _SCALE_CACHE_MAX:
@@ -299,7 +330,8 @@ def get_scale(layer, mode, factor=1, subtypes=None, core_only=False):
     return scale
 
 
-def query_cells(layer, mode, bounds, factor=1, subtypes=None, core_only=False):
+def query_cells(layer, mode, bounds, factor=1, subtypes=None, core_only=False,
+                per_households=False):
     """뷰포트 내 셀 값. bounds = (min_lat, min_lng, max_lat, max_lng)."""
     if mode not in _MODE_TABLE:
         raise ValueError(f"알 수 없는 mode: {mode}")
@@ -316,9 +348,10 @@ def query_cells(layer, mode, bounds, factor=1, subtypes=None, core_only=False):
 
     sql, params = _cell_value_sql(
         layer, mode, factor, subtypes, core_only,
-        extra_where=["i BETWEEN ? AND ?", "j BETWEEN ? AND ?"],
+        extra_where=["t.i BETWEEN ? AND ?", "t.j BETWEEN ? AND ?"],
         extra_params=(min_i, max_i, min_j, max_j),
         limit=MAX_CELLS + 1,
+        per_households=per_households,
     )
 
     radius = layer_radius(layer)
@@ -370,7 +403,7 @@ def query_points(layer, bounds, subtypes=None, limit=2000):
     params = [layer, min_i, max_i, min_j, max_j]
 
     if subtypes:
-        where.append("subtype IN (" + ",".join("?" * len(subtypes)) + ")")
+        where.append("t.subtype IN (" + ",".join("?" * len(subtypes)) + ")")
         params.extend(subtypes)
 
     with closing(_connect()) as connection:
@@ -425,7 +458,8 @@ def _percentile_of(value, breaks):
 
 
 def query_compare(layer_a, layer_b, bounds, factor=1,
-                  subtypes_a=None, subtypes_b=None, core_only=False):
+                  subtypes_a=None, subtypes_b=None, core_only=False,
+                  per_households=False):
     """두 레이어의 불균형. 값 = A백분위 - B백분위 (-100 ~ +100).
 
     원시 비율(A/B)은 분모가 0 이면 폭발하고 단위가 달라 비교가 성립하지 않는다.
@@ -440,18 +474,20 @@ def query_compare(layer_a, layer_b, bounds, factor=1,
     if meta is None:
         return {"cells": [], "truncated": False}
 
-    scale_a = get_scale(layer_a, "coverage", factor, subtypes_a, core_only)
-    scale_b = get_scale(layer_b, "coverage", factor, subtypes_b, core_only)
+    scale_a = get_scale(layer_a, "coverage", factor, subtypes_a, core_only,
+                        per_households)
+    scale_b = get_scale(layer_b, "coverage", factor, subtypes_b, core_only,
+                        per_households)
 
     min_i, max_i, min_j, max_j = _cell_bounds(meta, *bounds)
-    extra = ["i BETWEEN ? AND ?", "j BETWEEN ? AND ?"]
+    extra = ["t.i BETWEEN ? AND ?", "t.j BETWEEN ? AND ?"]
     extra_params = (min_i, max_i, min_j, max_j)
 
     def fetch(layer, subtypes):
         sql, params = _cell_value_sql(
             layer, "coverage", factor, subtypes, core_only,
             extra_where=extra, extra_params=extra_params,
-            limit=MAX_CELLS + 1,
+            limit=MAX_CELLS + 1, per_households=per_households,
         )
         with closing(_connect()) as connection:
             return {
@@ -552,7 +588,8 @@ def get_boundaries():
 
 
 def query_clusters(layer_a, layer_b, threshold=40, subtypes_a=None,
-                   subtypes_b=None, core_only=False, min_cells=10, limit=40):
+                   subtypes_b=None, core_only=False, min_cells=10, limit=40,
+                   per_households=False):
     """인접한 불균형 칸을 묶어 실체로 만든다.
 
     뷰포트가 아니라 서울 생활권 전체에서 계산한다. 화면을 옮길 때마다 덩어리가
@@ -572,18 +609,21 @@ def query_clusters(layer_a, layer_b, threshold=40, subtypes_a=None,
     cache_key = (
         layer_a, layer_b, threshold,
         tuple(sorted(subtypes_a or ())), tuple(sorted(subtypes_b or ())),
-        core_only, min_cells, limit,
+        core_only, min_cells, limit, per_households,
     )
 
     if cache_key in _cluster_cache:
         return _cluster_cache[cache_key]
 
-    scale_a = get_scale(layer_a, "coverage", 1, subtypes_a, core_only)
-    scale_b = get_scale(layer_b, "coverage", 1, subtypes_b, core_only)
+    scale_a = get_scale(layer_a, "coverage", 1, subtypes_a, core_only,
+                        per_households)
+    scale_b = get_scale(layer_b, "coverage", 1, subtypes_b, core_only,
+                        per_households)
 
     def fetch(layer, subtypes):
         sql, params = _cell_value_sql(
-            layer, "coverage", 1, subtypes, core_only, exclude_edge=True
+            layer, "coverage", 1, subtypes, core_only, exclude_edge=True,
+            per_households=per_households,
         )
         with closing(_connect()) as connection:
             return {
