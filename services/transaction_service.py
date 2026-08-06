@@ -1,4 +1,5 @@
 import csv
+import functools
 import json
 import os
 import re
@@ -20,10 +21,8 @@ TRANSACTION_DETAIL_INDEX_PATH = Path("data/transactions/transaction_detail_index
 TRANSACTION_DETAIL_DIR = Path("data/transactions/detail_index")
 TRANSACTION_DETAIL_MANIFEST_PATH = TRANSACTION_DETAIL_DIR / "manifest.json"
 
-_BATCH_MASTER_CACHE = None
 _BATCH_MAPPING_CACHE = None
 _BATCH_SUMMARY_CACHE = None
-_BATCH_TRANSACTION_INDEX_CACHE = None
 _BATCH_DETAIL_CACHE = None
 _BATCH_DETAIL_MANIFEST_CACHE = None
 
@@ -116,30 +115,87 @@ def read_batch_csv(path):
         return []
 
 
-def load_batch_master():
-    global _BATCH_MASTER_CACHE
-    if _BATCH_MASTER_CACHE is None:
-        _BATCH_MASTER_CACHE = read_batch_csv(TRANSACTION_MASTER_PATH)
-    return _BATCH_MASTER_CACHE
+def _master_row_to_dict(header, row):
+    """csv.DictReader 와 같은 모양의 dict — 짧은 행은 None 으로 채운다."""
+    item = dict(zip(header, row))
+    if len(row) < len(header):
+        for name in header[len(row):]:
+            item[name] = None
+    return item
 
 
-def load_batch_transaction_index():
-    global _BATCH_TRANSACTION_INDEX_CACHE
-    if _BATCH_TRANSACTION_INDEX_CACHE is not None:
-        return _BATCH_TRANSACTION_INDEX_CACHE
+@functools.lru_cache(maxsize=32)
+def find_batch_master_rows(gu, dong, tx_name, tx_road):
+    """마스터 CSV 를 흘려 읽어 **해당 단지 거래 행만** 모은다.
 
-    index = {}
-    for row in load_batch_master():
-        key = (
-            str(row.get("gu") or "").strip(),
-            normalize_dong(row.get("dong")),
-            normalize_name(row.get("apt_name_raw")),
-            normalize_address(row.get("road_address")),
-        )
-        index.setdefault(key, []).append(row)
+    예전에는 마스터 495,366행을 통째로 dict 리스트로 올린 뒤((gu,dong,이름,도로명)
+    → 행목록) 전역 인덱스를 만들었다. 그 인덱스의 힙 사용량이 **1.23GB**인데
+    앱 컨테이너 상한은 768MB 다. 즉 이 경로를 밟은 워커는 cgroup OOM 으로
+    SIGKILL 됐다 — gunicorn 로그의 "Worker was sent SIGKILL! Perhaps out of
+    memory?" 가 그것이다. 컨테이너 자체는 살아 있어 `.State.OOMKilled` 는 false
+    라 원인이 오래 가려져 있었다.
 
-    _BATCH_TRANSACTION_INDEX_CACHE = index
-    return index
+    실제로 이 경로가 필요한 단지는 **2,861개 중 6개**(마곡 5개 + 광화문스페이스본)
+    뿐이다. 전역 인덱스를 만들 이유가 없어, 요청된 키에 맞는 행만 모은다.
+    메모리는 매칭 행 수에 비례하고(수십~수백 행), 스캔은 lru_cache 로 단지당
+    한 번만 돈다.
+
+    속도: 구(gu)가 다르면 정규화(정규식 4회)를 아예 건너뛴다. 49만 행 중 대부분이
+    문자열 비교 한 번으로 걸러져, DictReader 로 전수 파싱하던 것보다 빠르다.
+
+    반환 순서는 옛 인덱스 조회와 같다 — 도로명까지 맞는 그룹이 있으면 그것,
+    없으면 (구·동·이름)이 같은 그룹들을 첫 등장 순서로 이어붙인다.
+    """
+    path = TRANSACTION_MASTER_PATH
+    if not path.exists():
+        return []
+
+    groups = {}
+
+    try:
+        with path.open("r", newline="", encoding="utf-8-sig") as handle:
+            reader = csv.reader(handle)
+
+            try:
+                header = next(reader)
+            except StopIteration:
+                return []
+
+            col = {name: i for i, name in enumerate(header)}
+            i_gu = col.get("gu")
+            i_dong = col.get("dong")
+            i_name = col.get("apt_name_raw")
+            i_road = col.get("road_address")
+
+            if i_gu is None or i_name is None:
+                return []
+
+            for row in reader:
+                try:
+                    if str(row[i_gu] or "").strip() != gu:
+                        continue
+                    if normalize_dong(row[i_dong] if i_dong is not None else "") != dong:
+                        continue
+                    if normalize_name(row[i_name]) != tx_name:
+                        continue
+                    road = normalize_address(row[i_road] if i_road is not None else "")
+                except IndexError:
+                    continue
+
+                groups.setdefault(road, []).append(_master_row_to_dict(header, row))
+
+    except Exception as exc:
+        print(f"[TRANSACTION] master scan failed: {path} {exc}")
+        return []
+
+    exact = groups.get(tx_road)
+    if exact:
+        return exact
+
+    rows = []
+    for items in groups.values():
+        rows.extend(items)
+    return rows
 
 
 def load_batch_mapping():
@@ -283,12 +339,7 @@ def get_batch_transaction_summary(apartment):
     if not tx_name:
         return None
 
-    transaction_index = load_batch_transaction_index()
-    rows = list(transaction_index.get((gu, dong, tx_name, tx_road), []))
-    if not rows:
-        for key, items in transaction_index.items():
-            if key[0] == gu and key[1] == dong and key[2] == tx_name:
-                rows.extend(items)
+    rows = list(find_batch_master_rows(gu, dong, tx_name, tx_road))
 
     sale_items = []
     jeonse_items = []
