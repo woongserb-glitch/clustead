@@ -151,3 +151,16 @@ docker compose exec nginx nginx -s reload
 - CI/CD: `tests/snapshot_result.py check` + `tests/test_correctness.py` 를 머지 게이트로 자동화.
 - 데이터 갱신 파이프라인 cron 화(현재 수동).
 - 워드마크 폰트(Jost) self-host 로 로고 렌더 정밀도 향상(현재 시스템 지오메트릭 폴백).
+
+
+## 격자 (grid.db)
+
+데이터 갱신 후 격자를 다시 구울 때는 **스냅샷을 반드시 함께 남긴다.**
+
+```bash
+python scripts/build_grid_index.py
+python scripts/snapshot_grid.py "8월 정기갱신"
+```
+
+스냅샷을 빠뜨리면 그 달의 상태는 영원히 복구할 수 없다. 자세한 내용은
+[GRID.md](GRID.md) 3-1-1.
