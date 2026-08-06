@@ -52,6 +52,7 @@ from services.poi_service import (
 from services.kakao_local_service import get_real_pois
 from services.preload_service import load_cctv_data
 from services.preload_service import cctv_data
+from services.preload_service import get_cctv_index
 from services.geo_service import filter_pois_by_radius, get_distance_m
 from services.transaction_service import (
     empty_transaction_summary,
@@ -89,6 +90,7 @@ from services.preload_service import school_data, load_school_data
 from services.preload_service import school_zone_baseline_data, load_school_zone_baseline_data
 
 from services.preload_service import bus_stop_data, load_bus_stop_data
+from services.preload_service import get_bus_stop_index
 from services.preload_service import bus_route_data, load_bus_route_data
 
 from services.preload_service import bus_baseline_data, bus_baseline_index, load_bus_baseline_data
@@ -2427,20 +2429,13 @@ def build_bus_map_pois(apartment):
     route_map = build_bus_route_map()
     bus_pois = []
 
-    for stop in bus_stop_data:
-        try:
-            distance = get_distance_m(
-                apartment["lat"],
-                apartment["lng"],
-                stop["lat"],
-                stop["lng"],
-            )
-        except Exception:
-            continue
-
-        if distance > 500:
-            continue
-
+    # 정류장 1.1만 개 전수 스캔 대신 격자 인덱스. candidates 가 (거리, 원본순번)
+    # 순으로 주므로 아래 sorted 와 합쳐 원본과 같은 순서가 나온다.
+    for distance, _order, stop in get_bus_stop_index().candidates(
+        apartment["lat"],
+        apartment["lng"],
+        500,
+    ):
         routes = get_bus_routes_for_stop(stop, route_map)
         subtypes = get_bus_subtypes(routes)
         subtype = subtypes[0] if subtypes else "기타"
@@ -7405,8 +7400,9 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
     else:
         pois = get_sample_pois(apartment)
 
-    nearby_cctvs = filter_pois_by_radius(
-        cctv_data,
+    # 6만 개 전수 스캔 대신 격자 인덱스. 결과는 filter_pois_by_radius 와 동일하다
+    # (거리 병합 + 거리순, 동점은 원본 순서) — geo_service.RadiusIndex 참고.
+    nearby_cctvs = get_cctv_index().within(
         apartment["lat"],
         apartment["lng"],
         500

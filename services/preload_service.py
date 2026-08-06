@@ -4,6 +4,8 @@ import re
 import os
 import statistics
 
+from services.geo_service import RadiusIndex
+
 # 일부 baseline CSV는 한 셀에 POI 목록 등 매우 큰 문자열을 담는다.
 # csv 모듈 기본 필드 한도(131072B)를 넘으면 읽기가 실패하므로 한도를 올린다.
 # (구 pandas read_csv에는 이 제한이 없었음 → 동작 동등성 유지)
@@ -24,6 +26,10 @@ def preload_log(*args):
 cctv_data = []
 # (lat, lng) -> 카메라 대수 가중치. build_cctv_camera_weights 참고.
 cctv_camera_weights = {}
+# 상세 렌더가 요청마다 훑던 두 목록(CCTV 6만·정류장 1.1만)의 반경 질의 인덱스.
+# 스캔이 만지는 메모리를 줄이는 게 목적이다 — geo_service.RadiusIndex 참고.
+cctv_index = None
+bus_stop_index = None
 # 지주당 행 수가 이 값 미만이면 '행 = 지주' 등록으로 본다.
 # 행 = 카메라로 등록하는 기관은 1.89 이상이라 사이가 충분히 벌어져 있다.
 POLE_ROWS_PER_COORD_MAX = 1.2
@@ -457,6 +463,9 @@ def load_cctv_data():
 
             cctv_data.clear()
             cctv_data.extend(loaded)
+
+            global cctv_index
+            cctv_index = RadiusIndex(cctv_data)
 
             print(f"[PRELOAD] CCTV {len(cctv_data)}개 로드 완료")
             return
@@ -1217,7 +1226,26 @@ def load_bus_stop_data():
         except Exception:
             continue
 
+    global bus_stop_index
+    bus_stop_index = RadiusIndex(bus_stop_data)
+
     print(f"[PRELOAD] BUS STOP {len(bus_stop_data)}개 로드 완료")
+
+
+def get_cctv_index():
+    """CCTV 반경 인덱스. 없거나 원본과 길이가 어긋나면(재로드) 다시 만든다."""
+    global cctv_index
+    if cctv_index is None or cctv_index.source_len != len(cctv_data):
+        cctv_index = RadiusIndex(cctv_data)
+    return cctv_index
+
+
+def get_bus_stop_index():
+    """버스 정류장 반경 인덱스. 갱신 규칙은 get_cctv_index 와 같다."""
+    global bus_stop_index
+    if bus_stop_index is None or bus_stop_index.source_len != len(bus_stop_data):
+        bus_stop_index = RadiusIndex(bus_stop_data)
+    return bus_stop_index
 
 
 def load_bus_route_data():
