@@ -2151,7 +2151,7 @@ def apply_subway_baseline_to_ui(category_summaries, preference_tags, domain_summ
         "seoul_percentile": subway_info.get("seoul_percentile"),
         "gu_percentile": None,
         "district": apartment.get("district", ""),
-        "nearest_name": subway_summary.get("nearest_poi", {}).get("label", ""),
+        "nearest_name": (subway_summary.get("nearest_poi") or {}).get("label", ""),
         "nearest_distance": subway_info.get("nearest_distance", None),
     })
 

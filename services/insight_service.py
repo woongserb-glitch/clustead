@@ -135,7 +135,7 @@ def build_apartment_insight(apartment, category_summaries, preference_tags=None,
 
     subway_distance = nearest_distance(subway)
     subway_text = " ".join([
-        str((subway or {}).get("nearest_poi", {}).get("label", "")),
+        str(((subway or {}).get("nearest_poi") or {}).get("label", "")),
         " ".join(str(chip.get("name", "")) for chip in (subway or {}).get("subtype_chips", [])),
     ])
     transfer_chip = find_chip(subway, "환승")
