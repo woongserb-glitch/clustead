@@ -20,6 +20,9 @@ TRANSACTION_DETAIL_INDEX_PATH = TRANSACTION_DIR / "transaction_detail_index.json
 TRANSACTION_DETAIL_DIR = TRANSACTION_DIR / "detail_index"
 TRANSACTION_DETAIL_MANIFEST_PATH = TRANSACTION_DETAIL_DIR / "manifest.json"
 TRANSACTION_MAPPING_AUDIT_PATH = BASE_DIR / "data" / "reports" / "transaction_mapping_audit.csv"
+# 단지 마스터의 동(洞)과 국토부 실거래의 동이 어긋난 단지 점검표.
+# build_transaction_summary 가 갱신 때마다 새로 쓴다.
+TRANSACTION_DONG_MISMATCH_PATH = BASE_DIR / "data" / "reports" / "transaction_dong_mismatch.csv"
 TRANSACTION_SUMMARY_PATH = BASE_DIR / "data" / "baseline" / "transaction_summary.csv"
 
 CSV_ENCODINGS = ("utf-8-sig", "utf-8", "cp949", "euc-kr")

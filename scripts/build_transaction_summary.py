@@ -7,6 +7,7 @@ from transaction_layer_utils import (
     TRANSACTION_DETAIL_INDEX_PATH,
     TRANSACTION_DETAIL_DIR,
     TRANSACTION_DETAIL_MANIFEST_PATH,
+    TRANSACTION_DONG_MISMATCH_PATH,
     TRANSACTION_MAPPING_PATH,
     TRANSACTION_MASTER_PATH,
     TRANSACTION_SUMMARY_PATH,
@@ -106,6 +107,15 @@ def load_transaction_index():
     return index
 
 
+def candidates_by_dong(tx_index, gu, tx_name):
+    """{동: 행목록} — 같은 구에서 이름만 같은 실거래 후보를 동별로 묶는다."""
+    by_dong = {}
+    for key, items in tx_index.items():
+        if key[0] == gu and key[2] == tx_name:
+            by_dong.setdefault(key[1], []).extend(items)
+    return by_dong
+
+
 def rows_by_gu_name(tx_index, gu, tx_name):
     """동(洞) 표기가 어긋난 단지 구제 — 같은 구·같은 이름이 '한 동'에만 있을 때만.
 
@@ -116,12 +126,10 @@ def rows_by_gu_name(tx_index, gu, tx_name):
 
     이름만으로 넓히면 같은 구 안의 동명이 단지를 잘못 이어붙일 수 있으므로,
     후보가 **한 동에만 존재할 때만** 받아들인다. 두 동 이상이면 어느 쪽인지
-    판단할 근거가 없으니 붙이지 않는다(= 기존 동작 유지).
+    판단할 근거가 없으니 붙이지 않는다(= 기존 동작 유지). 그렇게 보류된 건은
+    build_dong_mismatch_report 가 목록으로 남겨 사람이 확인하게 한다.
     """
-    by_dong = {}
-    for key, items in tx_index.items():
-        if key[0] == gu and key[2] == tx_name:
-            by_dong.setdefault(key[1], []).extend(items)
+    by_dong = candidates_by_dong(tx_index, gu, tx_name)
 
     if len(by_dong) != 1:
         return []
@@ -129,25 +137,45 @@ def rows_by_gu_name(tx_index, gu, tx_name):
     return next(iter(by_dong.values()))
 
 
-def find_rows(apartment, mapping, tx_index):
+def dong_matched_rows(tx_index, gu, dong, tx_name, tx_road):
+    """동까지 일치하는 정상 경로 — 도로명까지 맞는 키, 없으면 (구·동·이름)."""
+    rows = list(tx_index.get((gu, dong, tx_name, tx_road), []))
+    if not rows:
+        for key, items in tx_index.items():
+            if key[0] == gu and key[1] == dong and key[2] == tx_name:
+                rows.extend(items)
+    return rows
+
+
+def mapping_keys(apartment, mapping):
+    """find_rows 가 쓰는 조회 키. 신뢰 못 할 매핑이면 None."""
     if not mapping or not trusted_mapping(mapping):
+        return None
+
+    tx_name = normalize_name(mapping.get("transaction_apt_name"))
+    if not tx_name:
+        return None
+
+    return (
+        clean_text(apartment["gu"]),
+        normalize_dong(apartment["dong"]),
+        tx_name,
+        normalize_address(mapping.get("transaction_road_address")),
+    )
+
+
+def find_rows(apartment, mapping, tx_index):
+    keys = mapping_keys(apartment, mapping)
+    if not keys:
         return []
 
-    gu = clean_text(apartment["gu"])
-    dong = normalize_dong(apartment["dong"])
-    tx_name = normalize_name(mapping.get("transaction_apt_name"))
-    tx_road = normalize_address(mapping.get("transaction_road_address"))
+    gu, dong, tx_name, tx_road = keys
 
-    rows = []
-    if tx_name:
-        rows.extend(tx_index.get((gu, dong, tx_name, tx_road), []))
-        if not rows:
-            for key, items in tx_index.items():
-                if key[0] == gu and key[1] == dong and key[2] == tx_name:
-                    rows.extend(items)
-        if not rows:
-            rows.extend(rows_by_gu_name(tx_index, gu, tx_name))
-    return rows
+    rows = dong_matched_rows(tx_index, gu, dong, tx_name, tx_road)
+    if rows:
+        return rows
+
+    return rows_by_gu_name(tx_index, gu, tx_name)
 
 
 def latest(rows, amount_field):
@@ -439,6 +467,63 @@ def summarize_apartment(apartment, rows, mapping, today):
     }
 
 
+DONG_MISMATCH_FIELDS = [
+    "status",
+    "name",
+    "gu",
+    "master_dong",
+    "transaction_dongs",
+    "row_count",
+    "transaction_apt_name",
+]
+
+
+def build_dong_mismatch_report(apartments, mapping_index, tx_index):
+    """단지 마스터의 동과 실거래의 동이 어긋난 단지 점검표.
+
+    왜 필요한가: 조회 키에 동이 들어가므로 두 출처의 동 표기가 갈리면 실거래가
+    통째로 안 붙는다. 2026-08-06 에 6개 단지(마곡 5 + 광화문스페이스본)가 이
+    상태였는데, 화면상 '거래 없음'과 구분이 안 돼 오래 묻혀 있었다.
+
+    두 가지를 남긴다.
+      - `구제됨`: 동이 어긋났지만 후보가 한 동뿐이라 rows_by_gu_name 이 붙인 건.
+        수가 갑자기 늘면 상류 데이터의 동 표기가 흔들렸다는 신호다.
+      - `보류`: 같은 구에 같은 이름이 두 동 이상 있어 판단을 포기한 건.
+        **사람이 봐야 하는 목록이다** — 진짜 동명이 단지면 그대로 두고,
+        같은 단지가 쪼개진 것이면 매핑을 수동으로 지정해야 한다.
+
+    거래 자체가 없는 단지(후보 0건)는 정상이므로 넣지 않는다.
+    """
+    rows = []
+
+    for apartment in apartments:
+        name = apartment["livefit_name"]
+        keys = mapping_keys(apartment, mapping_index.get(name, {}))
+        if not keys:
+            continue
+
+        gu, dong, tx_name, tx_road = keys
+        if dong_matched_rows(tx_index, gu, dong, tx_name, tx_road):
+            continue
+
+        by_dong = candidates_by_dong(tx_index, gu, tx_name)
+        if not by_dong:
+            continue
+
+        rows.append({
+            "status": "구제됨" if len(by_dong) == 1 else "보류",
+            "name": name,
+            "gu": gu,
+            "master_dong": apartment["dong"],
+            "transaction_dongs": "|".join(sorted(by_dong)),
+            "row_count": sum(len(items) for items in by_dong.values()),
+            "transaction_apt_name": mapping_index.get(name, {}).get("transaction_apt_name", ""),
+        })
+
+    rows.sort(key=lambda row: (row["status"], row["gu"], row["name"]))
+    return rows
+
+
 def build_summary():
     ensure_transaction_dirs()
     apartments = read_apartment_master()
@@ -473,8 +558,22 @@ def build_summary():
     # 모놀리식 transaction_detail_index.json 은 단지별 샤드(detail_index/ + manifest)와
     # 100% 중복이며 폴백 시 통째로 RAM에 올라가던 파일이라 더 이상 생성하지 않는다.
     # 런타임(transaction_service)은 파일 부재를 graceful 처리하고 샤드만 읽는다.
+    mismatch_rows = build_dong_mismatch_report(apartments, mapping_index, tx_index)
+    write_csv(TRANSACTION_DONG_MISMATCH_PATH, mismatch_rows, DONG_MISMATCH_FIELDS)
+    rescued = [row for row in mismatch_rows if row["status"] == "구제됨"]
+    pending = [row for row in mismatch_rows if row["status"] == "보류"]
+
     print(f"[OK] transaction_summary.csv rows={len(rows)} path={TRANSACTION_SUMMARY_PATH}")
     print(f"[OK] detail shards={len(detail_manifest)} dir={TRANSACTION_DETAIL_DIR}")
+    print(f"[OK] 동 불일치 점검: 구제 {len(rescued)}건 / 보류 {len(pending)}건 path={TRANSACTION_DONG_MISMATCH_PATH}")
+    if pending:
+        # 자동 판단을 포기한 건이라 사람이 봐야 한다. 빌드를 깨지는 않는다 —
+        # 동명이 단지라면 이 상태가 정상이기 때문.
+        print(f"[확인필요] 같은 구에 같은 이름이 여러 동에 있어 실거래를 붙이지 않은 단지 {len(pending)}건:")
+        for row in pending[:10]:
+            print(f"    - {row['gu']} {row['name']} (마스터 {row['master_dong']} vs 실거래 {row['transaction_dongs']}, {row['row_count']}건)")
+        if len(pending) > 10:
+            print(f"    ... 외 {len(pending) - 10}건, 전체는 {TRANSACTION_DONG_MISMATCH_PATH}")
     print(f"[OK] apartments_with_transactions={connected} apartments_without_transactions={len(rows) - connected}")
     if not tx_index:
         print("[WARNING] transaction_master.csv is empty or missing; summary was generated with empty transaction metrics.")
