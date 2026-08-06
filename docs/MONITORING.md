@@ -126,6 +126,29 @@ nginx 설정 자체를 바꿀 땐 반드시 `nginx -t` 통과 후 `systemctl rel
 > ```
 > 확인 후 반드시 제거할 것.
 
+### D. 크롤러 차단 (호스트 nginx)
+
+**2026-08-06**: `Claude-SearchBot` 이 하루 **1,787요청(전체 트래픽의 53%)** 을
+분당 40~50회로 `/apartments` 상세만 연속으로 훑었다. robots.txt 의
+`Crawl-delay: 10`(=6회/분)을 **7~8배 무시**한다. 상세 렌더가 5~42초인데 워커가
+2개뿐이라 워커가 통째로 막혀 healthz 가 10초 타임아웃 → 그날 알람 3건
+(10:45·12:21·13:45)이 전부 이것이었다. `WORKER TIMEOUT` 24건, `[WORKER STUCK]`
+57~60초. 서비스 다운은 없었고(컨테이너 재시작 0), 자원이 아니라 워커 블로킹이다.
+
+호스트 nginx `location ^~ /apartments/` 에서 해당 UA 면 **429 + Retry-After: 10**.
+적용 직후 점검 11회 연속 OK, 워커 타임아웃 0.
+
+> ⚠️ **이건 레이트리밋이 아니라 전면 차단이다.** AI 검색 색인을 포기하는 대가를
+> 치르고 있다. 원래 방향은 `limit_req` 존(6r/m, Crawl-delay 와 동일)으로 완화해
+> 색인은 유지하고 속도만 제한하는 것. Googlebot·일반 사용자는 영향 없다
+> (UA 매칭이 이 봇 한정 — 배포 후 429/200/200 으로 검증함).
+
+**설정 파일 추적**: 운영 호스트 nginx 설정은
+[`deploy/nginx/clustead-host.conf`](../deploy/nginx/clustead-host.conf) 에
+사본을 둔다. 같은 디렉터리의 `clustead.conf`·`clustead-ssl.conf` 는 **컨테이너
+nginx 용(full-stack 모드)이라 용도가 다르니 서버에 복사하면 안 된다.**
+서버에서 설정을 고치면 이 사본도 같이 갱신할 것.
+
 ---
 
 ## 5. 예상 비용
