@@ -769,7 +769,7 @@ def _describe_clusters(meta, clusters, flagged):
 
 
 def query_transit_gap(min_distance_m=800, bus_percentile=50, min_cells=20,
-                      limit=30, core_only=False):
+                      limit=30, core_only=False, exclude_brt=True):
     """철도 소외 생활권 — 버스는 되는데 철도가 안 되는 곳.
 
     격자가 찾아낸 가장 큰 구조가 이것이다. 지하철은 다른 모든 레이어와 상관이
@@ -780,6 +780,11 @@ def query_transit_gap(min_distance_m=800, bus_percentile=50, min_cells=20,
       철도 소외   최근접 지하철역 {min_distance_m}m 초과 (기본 800m = 도보 10분)
       생활권 성립  버스 영향권이 서울 상위 {100 - bus_percentile}% 이내
                  (버스는 신뢰등급 high, 점유율 88% 라 기준선으로 적합)
+      BRT 제외    중앙차로 정류장이 있는 칸은 뺀다(exclude_brt)
+
+    중앙차로는 위계상 준철도급이다. 서울 생활권의 19% 에만 있고(0인 칸 81%)
+    버스 전체와 상관이 0.29 로 낮아 별개 축이다. 중앙차로가 지나는 곳을
+    '철도 소외' 로 세면 실제 접근성을 과소평가하게 된다.
 
     '버스는 되는데 철도가 안 된다' 로 잡으면 산·개발제한구역처럼 원래 사람이
     안 사는 곳이 걸러지고, 대중교통 위계 불균형만 남는다.
@@ -794,7 +799,7 @@ def query_transit_gap(min_distance_m=800, bus_percentile=50, min_cells=20,
 
     cache_key = (
         "transit_gap", min_distance_m, bus_percentile,
-        min_cells, limit, core_only,
+        min_cells, limit, core_only, exclude_brt,
     )
 
     if cache_key in _cluster_cache:
@@ -822,9 +827,20 @@ def query_transit_gap(min_distance_m=800, bus_percentile=50, min_cells=20,
             )
         }
 
+        brt = set()
+
+        if exclude_brt:
+            brt = {
+                (row["i"], row["j"])
+                for row in connection.execute(
+                    "SELECT DISTINCT i, j FROM grid_coverage "
+                    "WHERE layer = 'bus_stop' AND subtype = '중앙차로'"
+                )
+            }
+
     flagged = {
         cell: near_subway.get(cell, MAX_REPORTED_DISTANCE_M)
-        for cell in bus_ok
+        for cell in bus_ok - brt
         if near_subway.get(cell, MAX_REPORTED_DISTANCE_M) > min_distance_m
     }
 
