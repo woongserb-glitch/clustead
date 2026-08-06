@@ -172,6 +172,25 @@
             <label><input type="checkbox" id="show-gu" checked> 자치구 경계·이름</label>
         </fieldset>
 
+        <fieldset>
+            <legend>🚇 철도 소외 생활권</legend>
+            <p class="note" style="margin-top:0">
+                버스는 되는데 철도가 안 되는 곳. 산·개발제한구역이 걸러지고
+                대중교통 위계 불균형만 남는다.
+            </p>
+            <label>역까지
+                <select id="tg-distance" style="width:auto; margin:0 0 0 6px">
+                    <option value="600">600m 초과</option>
+                    <option value="800" selected>800m 초과(도보 10분)</option>
+                    <option value="1000">1km 초과</option>
+                    <option value="1500">1.5km 초과</option>
+                </select>
+            </label>
+            <button id="find-transit-gap" style="margin-top:6px">찾기</button>
+            <div id="tg-summary" class="note"></div>
+            <div id="tg-list"></div>
+        </fieldset>
+
         <fieldset id="cluster-box" style="display:none">
             <legend>불균형 클러스터</legend>
             <label>기준 격차
@@ -719,6 +738,49 @@ async function findClusters() {
     });
 }
 
+async function findTransitGap() {
+    const box = document.getElementById('tg-list');
+    const sum = document.getElementById('tg-summary');
+    const params = new URLSearchParams({
+        distance: document.getElementById('tg-distance').value
+    });
+    if (document.getElementById('core-only').checked) params.set('core', '1');
+
+    box.innerHTML = '';
+    sum.textContent = '서울 전체를 훑는 중…';
+
+    const d = await (await fetch(withToken('/admin/grid/transit-gap?' + params))).json();
+    const list = d.clusters || [];
+
+    if (!list.length) {
+        sum.textContent = '조건을 넘는 구역이 없습니다.';
+        return;
+    }
+
+    sum.innerHTML = '<strong>' + d.total_households.toLocaleString() + '세대</strong>'
+        + ' · 단지 ' + d.total_apartments.toLocaleString() + '개'
+        + ' · ' + d.total_area_km2 + 'km²'
+        + ' · 구역 ' + d.cluster_count + '개';
+
+    box.innerHTML = list.map(x => {
+        const where = (x.places || []).map(p => p.gu + ' ' + p.dong).join(', ') || '—';
+        return '<div class="cluster-item" data-id="' + x.id + '">'
+            + '<div class="cluster-head"><span>' + where.split(',')[0] + '</span>'
+            + '<span>' + x.households.toLocaleString() + '세대</span></div>'
+            + '<div class="cluster-sub">단지 ' + x.apartment_count + '개 · '
+            + x.area_km2.toFixed(2) + 'km² · 역까지 중앙 '
+            + x.median_distance_m + 'm</div></div>';
+    }).join('');
+
+    box.querySelectorAll('.cluster-item').forEach(el => {
+        el.addEventListener('click', () => {
+            box.querySelectorAll('.cluster-item').forEach(
+                x => x.classList.toggle('active', x === el));
+            focusCluster(list.find(x => x.id === Number(el.dataset.id)));
+        });
+    });
+}
+
 function focusCluster(c) {
     if (!c || !map) return;
 
@@ -969,6 +1031,7 @@ document.getElementById('absolute').addEventListener('change', refresh);
 document.getElementById('per-hh').addEventListener('change', refresh);
 document.getElementById('cell-close').addEventListener('click', closeCellPanel);
 document.getElementById('find-clusters').addEventListener('click', findClusters);
+document.getElementById('find-transit-gap').addEventListener('click', findTransitGap);
 document.getElementById('show-gu').addEventListener('change', drawBoundaries);
 makePanelDraggable();
 document.getElementById('layers').dispatchEvent(new Event('change'));

@@ -43,6 +43,9 @@ SCALE_STEPS = 100
 # 세대수 정규화 시 분모 하한. 이보다 적으면 1,000세대당 값이 폭발하므로 뺀다.
 MIN_HOUSEHOLDS = 200
 
+# 최근접 거리 테이블의 상한(빌드 시 3km). 값이 없으면 이 값으로 본다.
+MAX_REPORTED_DISTANCE_M = 3000
+
 # 격자 데이터는 정적이라 프로세스 내내 유효하다. 서브타입 조합이 임의라
 # 미리 구울 수 없어 요청 시 계산하고(50~200ms) 선택 단위로 캐시한다.
 # 뷰포트가 아니라 '선택'이 키라, 지도를 옮겨도 다시 계산하지 않는다.
@@ -763,6 +766,180 @@ def _describe_clusters(meta, clusters, flagged):
         })
 
     return {"clusters": described}
+
+
+def query_transit_gap(min_distance_m=800, bus_percentile=50, min_cells=20,
+                      limit=30, core_only=False):
+    """철도 소외 생활권 — 버스는 되는데 철도가 안 되는 곳.
+
+    격자가 찾아낸 가장 큰 구조가 이것이다. 지하철은 다른 모든 레이어와 상관이
+    0.10~0.57 로 낮은 유일한 독립축이고, 불균형 총면적 상위 10개 쌍이 전부
+    지하철 조합이었다(학교↔지하철 189km², 다음 순위 쌍의 5~8배).
+
+    정의
+      철도 소외   최근접 지하철역 {min_distance_m}m 초과 (기본 800m = 도보 10분)
+      생활권 성립  버스 영향권이 서울 상위 {100 - bus_percentile}% 이내
+                 (버스는 신뢰등급 high, 점유율 88% 라 기준선으로 적합)
+
+    '버스는 되는데 철도가 안 된다' 로 잡으면 산·개발제한구역처럼 원래 사람이
+    안 사는 곳이 걸러지고, 대중교통 위계 불균형만 남는다.
+
+    산출 단위는 면적이 아니라 **세대수**다. 세대는 셀에 실제로 위치한 단지의
+    합이라 중복 계산이 없다.
+    """
+    meta = get_meta()
+
+    if meta is None:
+        return {"clusters": []}
+
+    cache_key = (
+        "transit_gap", min_distance_m, bus_percentile,
+        min_cells, limit, core_only,
+    )
+
+    if cache_key in _cluster_cache:
+        return _cluster_cache[cache_key]
+
+    bus_scale = get_scale("bus_stop", "coverage", 1, None, core_only)
+    bus_floor = bus_scale["breaks"][bus_percentile] if bus_scale["breaks"] else 0
+
+    sql, params = _cell_value_sql(
+        "bus_stop", "coverage", 1, None, core_only, exclude_edge=True
+    )
+
+    with closing(_connect()) as connection:
+        bus_ok = {
+            (row["gi"], row["gj"])
+            for row in connection.execute(sql, params)
+            if row["value"] >= bus_floor
+        }
+
+        # 지하철 최근접이 없는 칸(3km 밖)도 소외다.
+        near_subway = {
+            (row["i"], row["j"]): row["distance_m"]
+            for row in connection.execute(
+                "SELECT i, j, distance_m FROM grid_nearest WHERE layer = 'subway'"
+            )
+        }
+
+    flagged = {
+        cell: near_subway.get(cell, MAX_REPORTED_DISTANCE_M)
+        for cell in bus_ok
+        if near_subway.get(cell, MAX_REPORTED_DISTANCE_M) > min_distance_m
+    }
+
+    seen = set()
+    clusters = []
+
+    for start in flagged:
+        if start in seen:
+            continue
+
+        stack = [start]
+        seen.add(start)
+        members = []
+
+        while stack:
+            cell = stack.pop()
+            members.append(cell)
+            i, j = cell
+
+            for nb in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+                if nb in flagged and nb not in seen:
+                    seen.add(nb)
+                    stack.append(nb)
+
+        if len(members) >= min_cells:
+            clusters.append(members)
+
+    result = _describe_transit_clusters(meta, clusters, flagged, limit)
+
+    if len(_cluster_cache) >= _CLUSTER_CACHE_MAX:
+        _cluster_cache.clear()
+
+    _cluster_cache[cache_key] = result
+    return result
+
+
+def _describe_transit_clusters(meta, clusters, flagged, limit):
+    cell_size = float(meta["cell_size_m"])
+    lat_origin = float(meta["lat_origin"])
+    lng_origin = float(meta["lng_origin"])
+    d_lat = cell_size / float(meta["lat_m_per_deg"])
+    d_lng = cell_size / float(meta["lng_m_per_deg"])
+    cell_area_km2 = (cell_size / 1000.0) ** 2
+
+    with closing(_connect()) as connection:
+        connection.execute(
+            "CREATE TEMP TABLE tg_cell (cid INTEGER, i INTEGER, j INTEGER)"
+        )
+        connection.executemany(
+            "INSERT INTO tg_cell VALUES (?, ?, ?)",
+            [
+                (cid, i, j)
+                for cid, members in enumerate(clusters)
+                for i, j in members
+            ],
+        )
+        connection.execute("CREATE INDEX tmp_tg ON tg_cell (i, j)")
+
+        # 세대는 셀에 '위치한' 단지 기준이라 중복 계산이 없다.
+        loads = {
+            row["cid"]: (row["households"] or 0, row["apartments"])
+            for row in connection.execute(
+                "SELECT c.cid, SUM(a.households) AS households, "
+                "COUNT(*) AS apartments "
+                "FROM tg_cell c JOIN apartment a ON a.i = c.i AND a.j = c.j "
+                "GROUP BY c.cid"
+            )
+        }
+
+        places = {}
+
+        for cid, gu, dong, n in connection.execute(
+            "SELECT c.cid, a.gu, a.dong, SUM(a.households) n "
+            "FROM tg_cell c JOIN apartment a ON a.i = c.i AND a.j = c.j "
+            "GROUP BY c.cid, a.gu, a.dong ORDER BY n DESC"
+        ):
+            places.setdefault(cid, []).append(
+                {"gu": gu, "dong": dong, "households": n or 0}
+            )
+
+    described = []
+
+    for cid, members in enumerate(clusters):
+        households, apartments = loads.get(cid, (0, 0))
+        distances = [flagged[cell] for cell in members]
+        lats = [i for i, _ in members]
+        lngs = [j for _, j in members]
+
+        described.append({
+            "id": cid,
+            "cells": len(members),
+            "area_km2": round(len(members) * cell_area_km2, 3),
+            "households": households,
+            "apartment_count": apartments,
+            "median_distance_m": sorted(distances)[len(distances) // 2],
+            "max_distance_m": max(distances),
+            "places": (places.get(cid) or [])[:3],
+            "bounds": {
+                "min_lat": lat_origin + min(lats) * d_lat,
+                "max_lat": lat_origin + (max(lats) + 1) * d_lat,
+                "min_lng": lng_origin + min(lngs) * d_lng,
+                "max_lng": lng_origin + (max(lngs) + 1) * d_lng,
+            },
+        })
+
+    # 면적이 아니라 세대수로 줄 세운다. 정책 우선순위는 사람 수다.
+    described.sort(key=lambda x: -x["households"])
+
+    return {
+        "clusters": described[:limit],
+        "total_households": sum(x["households"] for x in described),
+        "total_apartments": sum(x["apartment_count"] for x in described),
+        "total_area_km2": round(sum(x["area_km2"] for x in described), 1),
+        "cluster_count": len(described),
+    }
 
 
 def get_cell_detail(i, j):

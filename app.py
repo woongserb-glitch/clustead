@@ -5793,6 +5793,26 @@ def admin_grid_compare():
     return jsonify(result)
 
 
+@app.route("/admin/grid/transit-gap")
+def admin_grid_transit_gap():
+    _require_admin()
+
+    def clamp(name, default, low, high):
+        try:
+            value = int(request.args.get(name, default))
+        except ValueError:
+            value = default
+        return max(low, min(high, value))
+
+    result = grid_service.query_transit_gap(
+        min_distance_m=clamp("distance", 800, 300, 3000),
+        bus_percentile=clamp("bus", 50, 0, 95),
+        core_only=request.args.get("core") == "1",
+    )
+
+    return jsonify(result)
+
+
 @app.route("/admin/grid/boundaries")
 def admin_grid_boundaries():
     _require_admin()

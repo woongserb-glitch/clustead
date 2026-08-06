@@ -502,7 +502,17 @@ def build_household_coverage(zone_cells):
                     key = (i, j, radius)
                     result[key] = result.get(key, 0) + households
 
-    return result, len(apartments)
+    lookup = {}
+
+    for row in apartment_data:
+        try:
+            lookup[(row["name"], row["gu"], row["dong"])] = int(
+                str(row.get("household_count", "")).strip()
+            )
+        except (TypeError, ValueError, KeyError):
+            continue
+
+    return result, len(apartments), lookup
 
 
 def build_boundary_distance(zone_cells):
@@ -608,8 +618,8 @@ def build_apartment_cells():
 
 
 def write_db(counts, coverage, nearest_distance, nearest, districts,
-             boundary_distance, households, stats, apartments, pairs,
-             core_cells, extended_cells):
+             boundary_distance, households, household_lookup, stats,
+             apartments, pairs, core_cells, extended_cells):
     if os.path.exists(OUTPUT_PATH):
         os.remove(OUTPUT_PATH)
 
@@ -689,7 +699,9 @@ def write_db(counts, coverage, nearest_distance, nearest, districts,
         CREATE TABLE apartment (
             id INTEGER PRIMARY KEY,
             name TEXT, gu TEXT, dong TEXT,
-            lat REAL, lng REAL
+            lat REAL, lng REAL,
+            households INTEGER,
+            i INTEGER, j INTEGER
         );
 
         CREATE TABLE grid_apartment (
@@ -743,10 +755,15 @@ def write_db(counts, coverage, nearest_distance, nearest, districts,
     )
 
     cursor.executemany(
-        "INSERT INTO apartment VALUES (?, ?, ?, ?, ?, ?)",
-        [(index, name, gu, dong, lat, lng)
-         for index, (name, gu, dong, lat, lng) in enumerate(apartments)],
+        "INSERT INTO apartment VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (index, name, gu, dong, lat, lng,
+             household_lookup.get((name, gu, dong)), *cell_of(lat, lng))
+            for index, (name, gu, dong, lat, lng) in enumerate(apartments)
+        ],
     )
+
+    cursor.execute("CREATE INDEX idx_apartment_cell ON apartment (i, j)")
 
     cursor.executemany(
         "INSERT INTO grid_apartment VALUES (?, ?, ?, ?)",
@@ -845,12 +862,14 @@ def main():
               f"({100 * n / len(extended_cells):.0f}%)")
 
     print("[HH] 반경별 세대수 집계")
-    households, hh_apts = build_household_coverage(extended_cells)
+    households, hh_apts, household_lookup = build_household_coverage(
+        extended_cells
+    )
     print(f"[HH] 단지 {hh_apts:,}개 / {len(households):,}행")
 
     write_db(counts, coverage, nearest, nearest_apartment, districts,
-             boundary_distance, households, stats, apartments, pairs,
-             core_cells, extended_cells)
+             boundary_distance, households, household_lookup, stats,
+             apartments, pairs, core_cells, extended_cells)
 
     size_mb = os.path.getsize(OUTPUT_PATH) / 1e6
     print(
