@@ -159,8 +159,12 @@ docker compose exec nginx nginx -s reload
 
 ```bash
 python scripts/build_grid_index.py
+python scripts/precompute_grid.py
 python scripts/snapshot_grid.py "8월 정기갱신"
 ```
+
+`precompute_grid.py` 는 약 5분 걸리며 **생략하면 안 된다.** 서버에서 무거운
+조합 하나가 58초씩 워커를 붙잡아 공개 사이트가 느려진다.
 
 스냅샷을 빠뜨리면 그 달의 상태는 영원히 복구할 수 없다. 자세한 내용은
 [GRID.md](GRID.md) 3-1-1.

@@ -373,7 +373,27 @@ python scripts/build_grid_index.py
 약 37초, `data/grid.db` 118MB 생성. baseline CSV 와 원본 POI 가 갱신된 뒤에만
 다시 돌리면 된다.
 
-### 3-1-1. 시계열 스냅샷 (격자 빌드 직후 매번)
+### 3-1-1. 사전 계산 (격자 빌드 직후 매번, 약 5분)
+
+```bash
+python scripts/precompute_grid.py
+```
+
+무거운 연산을 빌드 시점에 계산해 `grid.db` 의 `precomputed` 테이블에 굽는다.
+**서버 부하 대책의 핵심이다.** 서버(1코어/961MB)에서 미캐시 클러스터 조합이
+실측 58초 걸리는데 gunicorn timeout 이 60초, 워커는 2개뿐이다.
+
+| | 사전계산 전 | 후 |
+|---|---|---|
+| transit-gap | 21,245ms | **0.7ms** |
+| clusters | 최대 57,992ms | **0.9~1.1ms** |
+| scale | 수백 ms | **0.6ms** |
+
+굽는 대상은 화면에서 실제로 고를 수 있는 조합뿐이다(454건 / +7MB).
+서브타입을 끼우면 경우의 수가 무한해지므로 서브타입 없는 기본 조합만 담고,
+나머지는 런타임 계산으로 남는다(실측 890ms, `heavy_slot` 이 동시 실행을 막음).
+
+### 3-1-2. 시계열 스냅샷 (격자 빌드 직후 매번)
 
 ```bash
 python scripts/snapshot_grid.py "8월 정기갱신"

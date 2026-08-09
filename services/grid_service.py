@@ -73,6 +73,45 @@ class GridBusy(Exception):
     """무거운 격자 연산이 이미 돌고 있어 거절함."""
 
 
+def precompute_key(kind, **params):
+    """사전계산 키. 쓰는 쪽(scripts/precompute_grid.py)과 읽는 쪽이 같은
+    함수를 써야 어긋나지 않는다."""
+    parts = []
+
+    for name in sorted(params):
+        value = params[name]
+
+        if isinstance(value, (list, tuple, set)):
+            value = "|".join(sorted(str(v) for v in value))
+        elif isinstance(value, bool):
+            value = "1" if value else "0"
+
+        parts.append(f"{name}={value}")
+
+    return kind + ":" + ",".join(parts)
+
+
+def precomputed_get(key):
+    """빌드 시점에 구워둔 결과. 없으면 None.
+
+    서버(1코어/961MB)에서 미캐시 클러스터 조합이 실측 58초 걸린다. 워커가
+    2개뿐이라 그 시간 동안 절반이 묶인다. 빌드 때 미리 계산해두면 런타임은
+    단순 SELECT 다.
+    """
+    if not grid_available():
+        return None
+
+    try:
+        with closing(_connect()) as connection:
+            row = connection.execute(
+                "SELECT payload FROM precomputed WHERE key = ?", (key,)
+            ).fetchone()
+    except sqlite3.OperationalError:
+        return None  # 아직 사전계산 테이블이 없는 grid.db
+
+    return json.loads(row["payload"]) if row else None
+
+
 def grid_available():
     return os.path.exists(GRID_DB_PATH)
 
@@ -362,6 +401,15 @@ def get_scale(layer, mode, factor=1, subtypes=None, core_only=False,
 
     if key in _scale_cache:
         return _scale_cache[key]
+
+    baked = precomputed_get(precompute_key(
+        "scale", layer=layer, mode=mode, factor=factor,
+        subtypes=subtypes or (), core=core_only, per_hh=per_households,
+    ))
+
+    if baked is not None:
+        _scale_cache[key] = baked
+        return baked
 
     sql, params = _cell_value_sql(
         layer, mode, factor, subtypes, core_only, exclude_edge=True,
@@ -683,6 +731,16 @@ def query_clusters(layer_a, layer_b, threshold=40, subtypes_a=None,
     if cache_key in _cluster_cache:
         return _cluster_cache[cache_key]
 
+    baked = precomputed_get(precompute_key(
+        "clusters", a=layer_a, b=layer_b, threshold=threshold,
+        sa=subtypes_a or (), sb=subtypes_b or (), core=core_only,
+        min_cells=min_cells, limit=limit, per_hh=per_households,
+    ))
+
+    if baked is not None:
+        _cluster_cache[cache_key] = baked
+        return baked
+
     # 캐시 미적중은 실측 수십 초짜리다. 동시에 둘이 돌면 워커가 다 묶인다.
     with heavy_slot():
         if cache_key in _cluster_cache:
@@ -884,6 +942,15 @@ def query_transit_gap(min_distance_m=800, bus_percentile=50, min_cells=20,
 
     if cache_key in _cluster_cache:
         return _cluster_cache[cache_key]
+
+    baked = precomputed_get(precompute_key(
+        "transit_gap", distance=min_distance_m, bus=bus_percentile,
+        min_cells=min_cells, limit=limit, core=core_only, brt=exclude_brt,
+    ))
+
+    if baked is not None:
+        _cluster_cache[cache_key] = baked
+        return baked
 
     with heavy_slot():
         if cache_key in _cluster_cache:
