@@ -5799,11 +5799,14 @@ def admin_grid_transit_gap():
             value = default
         return max(low, min(high, value))
 
-    result = grid_service.query_transit_gap(
-        min_distance_m=clamp("distance", 800, 300, 3000),
-        bus_percentile=clamp("bus", 50, 0, 95),
-        core_only=request.args.get("core") == "1",
-    )
+    try:
+        result = grid_service.query_transit_gap(
+            min_distance_m=clamp("distance", 800, 300, 3000),
+            bus_percentile=clamp("bus", 50, 0, 95),
+            core_only=request.args.get("core") == "1",
+        )
+    except grid_service.GridBusy as exc:
+        return jsonify({"error": str(exc), "busy": True}), 429
 
     return jsonify(result)
 
@@ -5839,15 +5842,18 @@ def admin_grid_clusters():
             if clean_text(value)
         ] or None
 
-    result = grid_service.query_clusters(
-        layer_a,
-        layer_b,
-        threshold=threshold,
-        subtypes_a=subtype_list("subtype"),
-        subtypes_b=subtype_list("subtype2"),
-        core_only=request.args.get("core") == "1",
-        per_households=request.args.get("per_hh") == "1",
-    )
+    try:
+        result = grid_service.query_clusters(
+            layer_a,
+            layer_b,
+            threshold=threshold,
+            subtypes_a=subtype_list("subtype"),
+            subtypes_b=subtype_list("subtype2"),
+            core_only=request.args.get("core") == "1",
+            per_households=request.args.get("per_hh") == "1",
+        )
+    except grid_service.GridBusy as exc:
+        return jsonify({"error": str(exc), "busy": True}), 429
 
     result["layer"] = layer_a
     result["layer2"] = layer_b

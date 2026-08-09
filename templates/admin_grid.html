@@ -710,7 +710,14 @@ async function findClusters() {
 
     box.innerHTML = '<p class="note">서울 전체를 훑는 중…</p>';
 
-    const data = await (await fetch(withToken('/admin/grid/clusters?' + params))).json();
+    const res = await fetch(withToken('/admin/grid/clusters?' + params));
+    const data = await res.json();
+
+    if (res.status === 429) {
+        box.innerHTML = '<p class="note">' + (data.error || '잠시 후 다시 시도하세요.') + '</p>';
+        return;
+    }
+
     const clusters = data.clusters || [];
 
     if (!clusters.length) {
@@ -749,7 +756,14 @@ async function findTransitGap() {
     box.innerHTML = '';
     sum.textContent = '서울 전체를 훑는 중…';
 
-    const d = await (await fetch(withToken('/admin/grid/transit-gap?' + params))).json();
+    const res = await fetch(withToken('/admin/grid/transit-gap?' + params));
+    const d = await res.json();
+
+    if (res.status === 429) {
+        sum.textContent = d.error || '잠시 후 다시 시도하세요.';
+        return;
+    }
+
     const list = d.clusters || [];
 
     if (!list.length) {

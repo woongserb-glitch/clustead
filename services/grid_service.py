@@ -12,10 +12,15 @@ grid.db 는 읽기 전용이고 요청마다 커넥션을 새로 연다. 격자 
 import json
 import os
 import sqlite3
+import tempfile
+import time
 from contextlib import closing
 
 GRID_DB_PATH = "data/grid.db"
 DISTRICT_GEOJSON_SIMPLE = "data/boundary/seoul_municipalities_simple.geojson"
+
+# 워커 간 공유되는 잠금 파일. 컨테이너 안에서만 의미가 있다.
+HEAVY_LOCK_PATH = os.path.join(tempfile.gettempdir(), "clustead_grid_heavy.lock")
 
 MODES = ("point", "coverage", "nearest")
 
@@ -64,8 +69,68 @@ _CLUSTER_CACHE_MAX = 60
 _boundary_cache = []
 
 
+class GridBusy(Exception):
+    """무거운 격자 연산이 이미 돌고 있어 거절함."""
+
+
 def grid_available():
     return os.path.exists(GRID_DB_PATH)
+
+
+def heavy_slot(timeout=0.5):
+    """무거운 격자 연산을 한 번에 하나만 돌게 하는 프로세스 간 잠금.
+
+    이 서버는 워커가 2개뿐이고(gunicorn.conf.py), 미캐시 클러스터 조합이
+    실측 58초 걸린다(타임아웃 60초 직전). 두 개가 겹치면 워커가 모두 묶여
+    공개 사이트가 통째로 멈춘다 — 2026-07-28 '워커 스파이럴' 과 같은 패턴이다.
+
+    워커는 별도 프로세스라 스레드 락으로는 막을 수 없어 파일 락을 쓴다.
+    잠기면 곧바로 GridBusy 를 올려 429 로 돌려보낸다. 기다리게 하면 그 요청도
+    워커를 붙잡으므로 대기하지 않는 편이 낫다.
+
+    fcntl 이 없는 환경(Windows 개발)에서는 통과시킨다.
+    """
+    return _HeavySlot(timeout)
+
+
+class _HeavySlot:
+    def __init__(self, timeout):
+        self.timeout = timeout
+        self.handle = None
+
+    def __enter__(self):
+        try:
+            import fcntl
+        except ImportError:
+            return self
+
+        self.handle = open(HEAVY_LOCK_PATH, "w")
+
+        deadline = time.time() + self.timeout
+
+        while True:
+            try:
+                fcntl.flock(self.handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return self
+            except OSError:
+                if time.time() >= deadline:
+                    self.handle.close()
+                    self.handle = None
+                    raise GridBusy(
+                        "다른 격자 연산이 진행 중입니다. 잠시 후 다시 시도하세요."
+                    )
+                time.sleep(0.05)
+
+    def __exit__(self, *exc):
+        if self.handle is not None:
+            try:
+                import fcntl
+                fcntl.flock(self.handle, fcntl.LOCK_UN)
+            except Exception:
+                pass
+            self.handle.close()
+            self.handle = None
+        return False
 
 
 def _connect():
@@ -618,6 +683,21 @@ def query_clusters(layer_a, layer_b, threshold=40, subtypes_a=None,
     if cache_key in _cluster_cache:
         return _cluster_cache[cache_key]
 
+    # 캐시 미적중은 실측 수십 초짜리다. 동시에 둘이 돌면 워커가 다 묶인다.
+    with heavy_slot():
+        if cache_key in _cluster_cache:
+            return _cluster_cache[cache_key]
+
+        return _compute_clusters(
+            cache_key, layer_a, layer_b, threshold, subtypes_a, subtypes_b,
+            core_only, min_cells, limit, per_households,
+        )
+
+
+def _compute_clusters(cache_key, layer_a, layer_b, threshold, subtypes_a,
+                      subtypes_b, core_only, min_cells, limit, per_households):
+    meta = get_meta()
+
     scale_a = get_scale(layer_a, "coverage", 1, subtypes_a, core_only,
                         per_households)
     scale_b = get_scale(layer_b, "coverage", 1, subtypes_b, core_only,
@@ -805,6 +885,18 @@ def query_transit_gap(min_distance_m=800, bus_percentile=50, min_cells=20,
     if cache_key in _cluster_cache:
         return _cluster_cache[cache_key]
 
+    with heavy_slot():
+        if cache_key in _cluster_cache:
+            return _cluster_cache[cache_key]
+
+        return _compute_transit_gap(
+            cache_key, meta, min_distance_m, bus_percentile,
+            min_cells, limit, core_only, exclude_brt,
+        )
+
+
+def _compute_transit_gap(cache_key, meta, min_distance_m, bus_percentile,
+                         min_cells, limit, core_only, exclude_brt):
     bus_scale = get_scale("bus_stop", "coverage", 1, None, core_only)
     bus_floor = bus_scale["breaks"][bus_percentile] if bus_scale["breaks"] else 0
 
