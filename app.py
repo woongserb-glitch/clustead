@@ -728,7 +728,7 @@ NEAREST_ICON_BY_CATEGORY = {
     "fire-station": "🚒",
     "cctv": "🛡",
     "shopping": "🛍️",
-    "commercial": "🏙️",
+    "commercial": "🌃",
     "nightlife": "🍺",
 }
 
@@ -741,6 +741,15 @@ CCTV_ICON_BY_SUBTYPE = {
 }
 
 
+# 라벨 맨 앞의 장식용 아이콘을 걷어낸다. 아이콘 맵에 없는 이모지를 쓴 라벨도
+# 있어서(상권 라벨의 야경 이모지 등), 맵 기반 제거만으로는 특징 카드에서
+# 아이콘이 두 번 찍힌다.
+LEADING_ICON_RE = re.compile(
+    r"^(?:[\u2190-\u2bff\u2934\u2935\u3030\u303d\u3297\u3299"
+    r"\U0001f000-\U0001faff\ufe0f\u200d\u20e3]\s*)+"
+)
+
+
 def compact_label(text):
     value = clean_text(text)
     for icon in NEAREST_ICON_BY_CATEGORY.values():
@@ -749,6 +758,7 @@ def compact_label(text):
     for icon in CCTV_ICON_BY_SUBTYPE.values():
         value = value.replace(icon, "").strip()
         value = value.replace(icon.replace("\ufe0f", ""), "").strip()
+    value = LEADING_ICON_RE.sub("", value).strip()
     value = value.replace("\ufe0f", "").strip()
     return value
 

@@ -218,18 +218,21 @@ def build_apartment_insight(apartment, category_summaries, preference_tags=None,
 
     for summary in category_summaries:
         percentile = to_number(summary.get("seoul_percentile"))
+        # 카테고리 라벨에는 "🚌 버스 접근성"처럼 아이콘과 접미어가 붙어 있다.
+        # 카드에서 아이콘이 두 번 찍히거나 "접근성 접근성"이 되지 않도록 정리한다.
+        label_text = re.sub(r"\s*접근성$", "", clean_label(summary.get("label"))) or "생활 요소"
         if percentile is not None and percentile <= 20:
             add_message(
                 strengths,
                 "✓",
-                f"{summary.get('label', '생활 요소')} 서울 상위권",
+                f"{label_text} 서울 상위권",
                 f"서울 기준 상위 {max(1, int(percentile))}% 수준입니다.",
             )
         elif percentile is not None and percentile >= 85 and summary.get("key") not in {"nightlife", "school-environment"}:
             add_message(
                 cautions,
                 "ⓘ",
-                f"{summary.get('label', '생활 요소')} 접근성은 보통 이하",
+                f"{label_text} 접근성은 보통 이하",
                 "다른 장점과 함께 균형 있게 보는 편이 좋습니다.",
                 "info",
             )
