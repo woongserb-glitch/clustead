@@ -7269,6 +7269,14 @@ def build_explore_results(filters, limit=10, share_q=""):
             "dong": dong,
             "score": score,
             "sort_key": sort_key,
+            # 노선/역 필터는 통과/탈락만 판정하고 점수를 고정으로 준다. 그러면 조건에
+            # 걸린 단지가 전부 동점이 돼 순서가 구·동·이름 가나다순으로 떨어진다
+            # (2호선 236단지 전원 5점 -> 1위가 거리로는 223/236위였다). 역세권을
+            # 찾는 사용자의 기대는 "가까운 순"이므로 최근접 역 거리로 동점을 깬다.
+            "subway_sort_distance": (
+                insight_to_number(subway.get("nearest_subway_distance"))
+                if (line_filter or station_filter) else None
+            ),
             "matched_features": matched[:8] or ["생활 균형형"],
         })
 
@@ -7278,6 +7286,9 @@ def build_explore_results(filters, limit=10, share_q=""):
             parts.append(item["sort_key"])
         else:
             parts.append(-item["score"])
+            if line_filter or station_filter:
+                distance = item.get("subway_sort_distance")
+                parts.append(distance if distance is not None else float("inf"))
         parts.extend([item["gu"], item["dong"], item["name"]])
         return tuple(parts)
 
