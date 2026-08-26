@@ -3137,6 +3137,17 @@ def build_medical_info(apartment_name, gu=None, dong=None):
         "superior_hospital_items": superior_hospital_items,
         "pharmacy_items": pharmacy_items,
         "seoul_percentile": get_baseline_percentile(row, "medical_count_1km_seoul_percentile"),
+        # 종합병원·응급실·약국 카드는 곳수가 아니라 최근접 거리로 등급을 매긴다.
+        # 곳수를 쓰면 grade_from_score 가 그 값을 0~100 점수로 읽어 항상 D 가 된다.
+        "superior_hospital_percentile": get_baseline_percentile(
+            row, "nearest_superior_hospital_distance_seoul_percentile"
+        ),
+        "emergency_percentile": get_baseline_percentile(
+            row, "nearest_emergency_distance_seoul_percentile"
+        ),
+        "pharmacy_percentile": get_baseline_percentile(
+            row, "nearest_pharmacy_distance_seoul_percentile"
+        ),
     }
 
 
@@ -3289,7 +3300,7 @@ def build_medical_category_summaries(medical_info):
             "description": "반경 3km 기준 종합병원급 의료기관 접근성입니다.",
             "radius": SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M,
             "count": superior_hospital_count,
-            "seoul_percentile": None,
+            "seoul_percentile": medical_info.get("superior_hospital_percentile"),
             "gu_percentile": None,
             "source": "서울열린데이터광장",
             "nearest_poi": {
@@ -3311,7 +3322,7 @@ def build_medical_category_summaries(medical_info):
             "description": "반경 3km 기준 응급실 접근성입니다.",
             "radius": 3000,
             "count": to_int(medical_info.get("emergency_count_3km"), 0),
-            "seoul_percentile": None,
+            "seoul_percentile": medical_info.get("emergency_percentile"),
             "gu_percentile": None,
             "source": "서울열린데이터광장",
             "nearest_poi": {
@@ -3333,7 +3344,7 @@ def build_medical_category_summaries(medical_info):
             "description": "반경 500m와 1km 기준 약국 접근성입니다.",
             "radius": 500,
             "count": to_int(medical_info.get("pharmacy_count_500m"), 0),
-            "seoul_percentile": None,
+            "seoul_percentile": medical_info.get("pharmacy_percentile"),
             "gu_percentile": None,
             "source": "서울열린데이터광장",
             "nearest_poi": {

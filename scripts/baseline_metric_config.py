@@ -30,7 +30,12 @@ def metric_config(
     ranking_enabled=True,
     validation_enabled=True,
     debug_columns=None,
+    extra_metrics=None,
 ):
+    # extra_metrics: {컬럼: 방향}. 한 baseline 파일이 여러 카드를 먹이는 경우
+    # (medical -> 병원/응급실/종합병원/약국) 카드마다 백분위 축이 달라야 한다.
+    # primary_metric 은 랭킹·검증에 쓰이는 대표 지표로 그대로 두고, 여기에 더한
+    # 지표들은 percentile/score 컬럼만 추가로 생성된다.
     return {
         "label": label,
         "path": str(BASELINE_DIR / file),
@@ -42,6 +47,7 @@ def metric_config(
         "display_metric_label": display_metric_label,
         "metrics": {
             primary_metric: direction,
+            **(extra_metrics or {}),
         },
         "json_columns": json_columns or [],
         "radius_rules": radius_rules or [],
@@ -153,6 +159,15 @@ BASELINE_METRIC_CONFIG = {
             ("emergency_count_1km", "emergency_count_3km"),
             ("pharmacy_count_500m", "pharmacy_count_1km"),
         ],
+        # 종합병원·응급실·약국 카드는 백분위가 없어 등급이 곳수를 0~100 점수로
+        # 오독당했다(종합병원 최대 14곳 -> 항상 D). 이들은 "몇 곳이냐"보다
+        # "얼마나 가깝냐"가 자연스러운 시설이고 배지·필터도 최근접 거리 기준이라
+        # 거리 백분위로 등급 축을 맞춘다.
+        extra_metrics={
+            "nearest_superior_hospital_distance": LOWER_BETTER,
+            "nearest_emergency_distance": LOWER_BETTER,
+            "nearest_pharmacy_distance": LOWER_BETTER,
+        },
     ),
     "academy": metric_config(
         label="학원",
