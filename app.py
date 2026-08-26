@@ -7097,6 +7097,20 @@ def build_explore_results(filters, limit=10, share_q=""):
         for kind, subtypes in requested_derived_subtypes.items()
     }
     needs_subway_lookup = bool(line_filter or station_filter or not has_priority_sort)
+
+    # 2차 정렬용 조회(프로세스 캐시). 활성 필터가 있을 때만 만든다.
+    bus_stop_distances = (
+        _baseline_metric_lookup("bus_nearest_stop", "bus_baseline.csv", "nearest_bus_stop_distance")
+        if (bus_route or bus_type) else {}
+    )
+    assigned_elem_distances = (
+        _baseline_metric_lookup(
+            "school_zone_assigned_distance",
+            "school_zone_baseline.csv",
+            "assigned_elementary_distance_m",
+        )
+        if assigned_elem else {}
+    )
     preferences = get_preferences()
 
     results = []
@@ -7120,6 +7134,8 @@ def build_explore_results(filters, limit=10, share_q=""):
             subway = {}
         matched = []
         score = 0
+        school_sort_distance = float("inf")
+        price_sort_value = float("inf")
 
         if line_filter:
             # 노선 전체 일치(구조적). 부분문자열 매칭은 '1호선'→'공항철도1호선' 오선별을 유발했다.
@@ -7161,6 +7177,7 @@ def build_explore_results(filters, limit=10, share_q=""):
                 continue
             if school_dist > 1500:
                 continue
+            school_sort_distance = school_dist
             matched.append(f"🏫 {school_mh} {int(round(school_dist)):,}m")
             score += 2
 
@@ -7190,6 +7207,7 @@ def build_explore_results(filters, limit=10, share_q=""):
                 continue
             if price_bucket["max"] is not None and price >= price_bucket["max"]:
                 continue
+            price_sort_value = price
             type_label = "전세" if price_type == "jeonse" else "매매"
             matched.append(f"💰 {type_label} {price_bucket['label']}")
             score += 1
@@ -7263,20 +7281,40 @@ def build_explore_results(filters, limit=10, share_q=""):
             if nearest_emergency_distance is not None:
                 score += 1
 
+        # 2차 정렬 키. 활성 필터에 대해서만, 모든 단지에 동일한 순서로 쌓는다.
+        # 우선순위: 거리 기반(구체적·공간적) -> 규모 -> 가격.
+        filter_sort_parts = []
+        if line_filter or station_filter:
+            value = insight_to_number(subway.get("nearest_subway_distance"))
+            filter_sort_parts.append(value if value is not None else float("inf"))
+        if school_coords:
+            filter_sort_parts.append(school_sort_distance)
+        if assigned_elem:
+            value = assigned_elem_distances.get(apartment_key)
+            filter_sort_parts.append(value if value is not None else float("inf"))
+        if bus_route or bus_type:
+            value = bus_stop_distances.get(apartment_key)
+            filter_sort_parts.append(value if value is not None else float("inf"))
+        if household_bucket:
+            filter_sort_parts.append(-to_int(apartment.get("household_count"), 0))
+        if area_buckets:
+            filter_sort_parts.append(
+                -sum(to_int(apartment.get(_AREA_BUCKET_COL[b]), 0) for b in area_buckets)
+            )
+        if price_bucket:
+            filter_sort_parts.append(price_sort_value)
+
         results.append({
             "name": name,
             "gu": gu,
             "dong": dong,
             "score": score,
             "sort_key": sort_key,
-            # 노선/역 필터는 통과/탈락만 판정하고 점수를 고정으로 준다. 그러면 조건에
-            # 걸린 단지가 전부 동점이 돼 순서가 구·동·이름 가나다순으로 떨어진다
-            # (2호선 236단지 전원 5점 -> 1위가 거리로는 223/236위였다). 역세권을
-            # 찾는 사용자의 기대는 "가까운 순"이므로 최근접 역 거리로 동점을 깬다.
-            "subway_sort_distance": (
-                insight_to_number(subway.get("nearest_subway_distance"))
-                if (line_filter or station_filter) else None
-            ),
+            # 불린 필터(통과/탈락만 판정)는 점수를 고정으로 줘서 결과의 74~86% 가
+            # 동점이 되고, 순서가 구·동·이름 가나다순으로 떨어진다. 그러면 첫 화면이
+            # 사실상 "강남구 가나다순"이 된다(전체의 7% 인 강남구가 상위 20 을 100%
+            # 차지). 필터마다 그 필터가 실제로 찾는 것에 맞는 2차 키를 쌓는다.
+            "filter_sort": tuple(filter_sort_parts),
             "matched_features": matched[:8] or ["생활 균형형"],
         })
 
@@ -7286,9 +7324,7 @@ def build_explore_results(filters, limit=10, share_q=""):
             parts.append(item["sort_key"])
         else:
             parts.append(-item["score"])
-            if line_filter or station_filter:
-                distance = item.get("subway_sort_distance")
-                parts.append(distance if distance is not None else float("inf"))
+            parts.extend(item["filter_sort"])
         parts.extend([item["gu"], item["dong"], item["name"]])
         return tuple(parts)
 
