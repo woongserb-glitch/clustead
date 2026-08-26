@@ -196,6 +196,51 @@ def search_category(category, lat, lng):
     return pois
 
 
+def require_fetchable(category, lat, lng):
+    """빌드 전용 프리플라이트 — POI 를 실제로 가져올 수 있을 때만 통과시킨다.
+
+    2026-08-25: API 키가 셸에 없고 디스크 캐시도 30일 TTL 을 넘긴 상태에서
+    build_all_baselines 를 돌리자 cafe/convenience/mart 가 전 단지 0 으로 덮어써졌는데도
+    빌더는 SUCCESS 로 끝났고 validate 도 통과했다(구조만 보고 값은 안 봄).
+    런타임(app)은 POI 를 못 얻으면 빈 목록으로 degrade 하는 게 맞지만, 빌드는 그 빈 결과를
+    CSV 에 영구 기록하므로 반드시 중단해야 한다. 그래서 서비스 함수가 아니라 빌더
+    진입점에서만 호출한다.
+
+    표본 좌표 1건으로 (1) 캐시가 유효한지 (2) 아니면 실제 호출이 되는지 확인하고,
+    둘 다 아니면 CSV 를 열기 전에 SystemExit 으로 죽는다.
+    의도적으로 빈 baseline 을 만들 때만 CLUSTEAD_ALLOW_EMPTY_KAKAO=1 로 우회한다.
+    """
+    if clustead_env("ALLOW_EMPTY_KAKAO", "0") == "1":
+        safe_print(f"[PREFLIGHT] {category}: ALLOW_EMPTY_KAKAO=1 - 검사 생략")
+        return
+
+    if category not in CATEGORY_CONFIG:
+        raise SystemExit(f"[PREFLIGHT] 알 수 없는 카테고리: {category}")
+
+    if _cache_get(_cache_key(category, lat, lng)) is not None:
+        safe_print(f"[PREFLIGHT] {category}: 디스크 캐시 유효 - 빌드 진행")
+        return
+
+    if not os.getenv("KAKAO_REST_API_KEY", ""):
+        raise SystemExit("\n".join([
+            f"[PREFLIGHT] {category} 중단: KAKAO_REST_API_KEY 가 없고 캐시도 쓸 수 없다.",
+            f"  캐시 TTL({_CACHE_TTL_SECONDS}s)이 지났거나 해당 좌표 캐시가 없다.",
+            "  해결: .env 의 KAKAO_REST_API_KEY 를 환경에 로드하거나,",
+            "        기존 캐시를 그대로 쓰려면 CLUSTEAD_KAKAO_CACHE_TTL=0 을 설정할 것.",
+            "  (이대로 진행하면 baseline 이 전 단지 0 으로 덮어써진다)",
+        ]))
+
+    ok, _pois = _fetch_category(category, lat, lng)
+    if not ok:
+        raise SystemExit("\n".join([
+            f"[PREFLIGHT] {category} 중단: 키는 있으나 실제 API 호출이 실패했다.",
+            "  키 유효성·쿼터·네트워크를 확인할 것.",
+            "  (진행하면 baseline 이 전 단지 0 으로 덮어써진다)",
+        ]))
+
+    safe_print(f"[PREFLIGHT] {category}: API 호출 정상 - 빌드 진행")
+
+
 def _fetch_keyword(query, lat, lng, radius, category_group_code=None, label_category="mart"):
     """Kakao 키워드 검색. 브랜드명 + (선택)category_group_code 필터로 특정 브랜드를
     넓은 반경에서 정확히 수집(카테고리 검색의 45-cap 회피)."""

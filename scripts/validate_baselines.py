@@ -290,6 +290,37 @@ def validate_primary_metric(reporter, file_name, rows, primary_metric):
         reporter.ok(f"{file_name} primary metric {primary_metric} numeric")
 
 
+def validate_metric_not_collapsed(reporter, file_name, rows, primary_metric):
+    """주요 지표가 전건 0 이면 데이터 소실로 보고 ERROR.
+
+    2026-08-25: kakao 소스(cafe/convenience/mart)가 API 키 부재 + 캐시 TTL 만료로
+    전 단지 0 이 됐는데, 구조 검사만 하던 이 스크립트는 전부 통과시켰다.
+    0 이 정상인 지표도 있으므로(야간업소 69.6%, 한강 66.8%) 임계는 '100% 전건 0'으로
+    보수적으로 잡고, 95% 초과는 경고로만 알린다.
+    """
+    values = [to_number(row.get(primary_metric)) for row in rows]
+    values = [v for v in values if v is not None]
+
+    if not values:
+        return
+
+    zero = sum(1 for v in values if v == 0)
+    ratio = zero / len(values) * 100
+
+    if zero == len(values):
+        reporter.error(
+            f"{file_name} primary metric {primary_metric} 전건 0 "
+            f"({zero}/{len(values)}) - 데이터 소실 의심(빌드 시 원본/API 확인)"
+        )
+    elif ratio > 95:
+        reporter.warning(
+            f"{file_name} primary metric {primary_metric} 0 비율 {ratio:.1f}% "
+            f"({zero}/{len(values)})"
+        )
+    else:
+        reporter.ok(f"{file_name} primary metric {primary_metric} 0 비율 {ratio:.1f}% 정상")
+
+
 def validate_hangang_master(reporter):
     print("\n" + "=" * 60)
     print("[VALIDATE] hangang master reference")
@@ -439,6 +470,12 @@ def validate_baseline(reporter, key, config, expected_row_count):
         config["radius_rules"],
     )
     validate_primary_metric(
+        reporter,
+        file_name,
+        rows,
+        config["primary_metric"],
+    )
+    validate_metric_not_collapsed(
         reporter,
         file_name,
         rows,

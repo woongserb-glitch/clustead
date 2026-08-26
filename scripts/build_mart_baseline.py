@@ -12,6 +12,7 @@ from services.preload_service import (
 )
 
 from services.kakao_local_service import (
+    require_fetchable,
     search_category,
 )
 
@@ -26,6 +27,14 @@ from services.poi_service import MART_CATEGORY_GROUPS
 
 print("[BUILD] apartment preload")
 load_apartment_data()
+
+# POI 를 못 가져오는 상태(키 없음+캐시 만료)로 빌드가 진행되면 baseline 이
+# 전 단지 0 으로 덮어써진다. 첫 단지 좌표로 미리 확인하고 아니면 중단한다.
+require_fetchable(
+    "mart",
+    apartment_data[0]["lat"],
+    apartment_data[0]["lng"],
+)
 
 output_path = "data/baseline/mart_baseline.csv"
 STORE_LIST_PATH = "data/mart/large_warehouse_stores.csv"
