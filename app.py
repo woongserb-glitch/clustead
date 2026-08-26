@@ -1557,13 +1557,63 @@ def build_ranking_debug_options():
     return options
 
 
+_ADMIN_DEBUG_BASELINE_CACHE = {}
+
+
+def _admin_debug_baseline(path):
+    """admin 랭킹용 baseline 접근자.
+
+    기존에는 read_baseline_csv_for_debug 가 CSV 를 통째로 list(DictReader) 로
+    적재했다. medical 179MB·academy 128MB 라 RAM 961MB 서버에서 응답이 60초를
+    넘겨 gunicorn 이 워커를 SIGKILL 했고(워커 2개뿐이라 무관한 요청까지 막힘),
+    게다가 서버의 baseline CSV 는 두 달 묵어 있어 사이트가 실제로 서빙하는
+    baseline.db 값과 다른 값을 보여줬다. 테이블이 있으면 db 를 쓴다.
+    """
+    file_name = os.path.basename(path or "")
+    suffix = "_baseline.csv"
+    if not file_name.endswith(suffix):
+        return None
+    table = file_name[: -len(suffix)]
+    if table not in _ADMIN_DEBUG_BASELINE_CACHE:
+        baseline = None
+        try:
+            from services.preload_service import (
+                _SqliteBaseline,
+                _USE_SQLITE_BASELINE,
+                _baseline_conn,
+            )
+            if _USE_SQLITE_BASELINE and _baseline_conn().execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            ).fetchone():
+                baseline = _SqliteBaseline(table)
+        except Exception:
+            baseline = None
+        _ADMIN_DEBUG_BASELINE_CACHE[table] = baseline
+    return _ADMIN_DEBUG_BASELINE_CACHE[table]
+
+
 def get_admin_ranking_rows(config, sort_key, limit, bottom, gu_filter, dong_filter, query):
-    rows = read_baseline_csv_for_debug(config.get("path", ""))
     metric = config.get("primary_metric")
     percentile_column = config.get("primary_percentile_column")
     score_column = config.get("primary_score_column")
     direction = config.get("metrics", {}).get(metric)
     debug_columns = config.get("debug_columns", [])
+
+    baseline = _admin_debug_baseline(config.get("path", ""))
+    if baseline is not None:
+        wanted = ["name", "gu", "dong", metric, percentile_column, score_column]
+        wanted += list(debug_columns)
+        # 큰 items_json 을 절대 넣지 말 것 — SQLite 가 행마다 오버플로 페이지를 읽어
+        # CSV 를 통째로 읽던 시절로 되돌아간다.
+        columns = [
+            c for c in dict.fromkeys(wanted)
+            if c and _baseline_has_column(baseline, c)
+        ]
+        # total_count 가 len(rows) 를 쓰므로 실체화한다. 선택 컬럼이 작아(6~8개)
+        # 2,872행이라도 수백 KB 수준이다.
+        rows = list(iter_baseline_columns(baseline, columns))
+    else:
+        rows = read_baseline_csv_for_debug(config.get("path", ""))
 
     filtered = []
 

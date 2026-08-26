@@ -38,6 +38,10 @@ KEY_SEP = "\x1f"
 INDEXED_BASELINES = [
     "academy", "medical", "ev_charger", "shopping", "culture",
     "bus", "commercial", "bike", "fire_station", "nightlife", "hangang",
+    # 2026-08-26 추가. 런타임이 CSV 를 통째로 인메모리에 들고 있었고(RAM 961MB 서버에
+    # 약 50MB), /admin/ranking-debug 는 아예 CSV 파일을 다시 열어 두 달 묵은 값을
+    # 보여줬다. db 로 옮겨 지연 조회로 바꾼다.
+    "subway", "cctv", "cafe", "mart", "convenience", "school_zone", "park",
 ]
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
