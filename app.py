@@ -3205,8 +3205,11 @@ def build_medical_info(apartment_name, gu=None, dong=None):
         "emergency_percentile": get_baseline_percentile(
             row, "nearest_emergency_distance_seoul_percentile"
         ),
+        # 약국만 개수 기준이다. 카드가 "근처 N곳"을 전면에 보여주므로 등급이 거리로
+        # 매겨지면 화면 숫자와 어긋난다(1곳인데 S, 21곳인데 D 가 동시에 나왔다).
+        # 개수 동점은 enrich 가 최근접 거리로 깬다.
         "pharmacy_percentile": get_baseline_percentile(
-            row, "nearest_pharmacy_distance_seoul_percentile"
+            row, "pharmacy_count_500m_seoul_percentile"
         ),
     }
 

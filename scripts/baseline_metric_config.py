@@ -32,6 +32,7 @@ def metric_config(
     debug_columns=None,
     extra_metrics=None,
     tiebreaker=None,
+    metric_tiebreakers=None,
 ):
     # extra_metrics: {컬럼: 방향}. 한 baseline 파일이 여러 카드를 먹이는 경우
     # (medical -> 병원/응급실/종합병원/약국) 카드마다 백분위 축이 달라야 한다.
@@ -58,6 +59,8 @@ def metric_config(
         # 1,389단지=48.4%가 모두 C, A·D 는 아예 안 나옴). 보조 지표로 순위를
         # 나누면 분포가 펴진다.
         "tiebreaker": tiebreaker,
+        # 지표별 동점 깨기. extra_metrics 처럼 primary 가 아닌 지표에도 붙인다.
+        "metric_tiebreakers": metric_tiebreakers or {},
         "percentile_enabled": percentile_enabled,
         "ranking_enabled": ranking_enabled,
         "validation_enabled": validation_enabled,
@@ -177,6 +180,18 @@ BASELINE_METRIC_CONFIG = {
             "nearest_superior_hospital_distance": LOWER_BETTER,
             "nearest_emergency_distance": LOWER_BETTER,
             "nearest_pharmacy_distance": LOWER_BETTER,
+            # 약국만 개수 기준이다. 종합병원·응급실은 카드 개수의 변별력이 낮고
+            # 배지·필터도 거리로 통일했지만, 약국 카드는 "근처 N곳"을 전면에
+            # 보여주므로 등급이 거리로 매겨지면 화면 숫자와 어긋난다
+            # (1곳인데 S, 21곳인데 D 가 동시에 나왔다).
+            "pharmacy_count_500m": HIGHER_BETTER,
+        },
+        # 개수는 이산적이라 동점이 많다. 같은 개수면 가까울수록 낫다.
+        metric_tiebreakers={
+            "pharmacy_count_500m": {
+                "column": "nearest_pharmacy_distance",
+                "direction": LOWER_BETTER,
+            },
         },
     ),
     "academy": metric_config(

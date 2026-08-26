@@ -268,7 +268,9 @@ def enrich_baseline(key, config):
         # 3~4개로 줄어든다(지하철 0노선 1,389단지=48.4%가 모두 C). 보조 지표를
         # 두 번째 정렬 키로 써서 그룹 안에서 순위를 나눈다. primary_metric 에만
         # 적용한다 — extra_metrics 는 이미 연속값이라 동점이 거의 없다.
-        tie = config.get("tiebreaker") if metric == config.get("primary_metric") else None
+        tie = config.get("metric_tiebreakers", {}).get(metric)
+        if tie is None and metric == config.get("primary_metric"):
+            tie = config.get("tiebreaker")
         keys = None
         if tie:
             tie_col, tie_dir = tie["column"], tie["direction"]
