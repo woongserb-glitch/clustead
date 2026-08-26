@@ -31,6 +31,7 @@ def metric_config(
     validation_enabled=True,
     debug_columns=None,
     extra_metrics=None,
+    tiebreaker=None,
 ):
     # extra_metrics: {컬럼: 방향}. 한 baseline 파일이 여러 카드를 먹이는 경우
     # (medical -> 병원/응급실/종합병원/약국) 카드마다 백분위 축이 달라야 한다.
@@ -51,6 +52,12 @@ def metric_config(
         },
         "json_columns": json_columns or [],
         "radius_rules": radius_rules or [],
+        # 동점 깨기 보조 지표 {"column":…, "direction":…}.
+        # 값이 이산적인 지표는 같은 값이면 백분위가 같아 등급 종류가 3~4개로 줄고,
+        # 최빈값에 절반이 몰리면 그 그룹 전체가 한 등급에 묶인다(지하철 0노선
+        # 1,389단지=48.4%가 모두 C, A·D 는 아예 안 나옴). 보조 지표로 순위를
+        # 나누면 분포가 펴진다.
+        "tiebreaker": tiebreaker,
         "percentile_enabled": percentile_enabled,
         "ranking_enabled": ranking_enabled,
         "validation_enabled": validation_enabled,
@@ -71,6 +78,9 @@ BASELINE_METRIC_CONFIG = {
             ("subway_station_count_500m", "subway_station_count_800m"),
             ("subway_station_count_800m", "subway_station_count_1km"),
         ],
+        # 500m 내 노선수는 0~6 의 7종뿐이고 0 이 48.4%. 같은 노선수면 역이
+        # 가까울수록 낫다.
+        tiebreaker={"column": "nearest_subway_distance", "direction": LOWER_BETTER},
     ),
     "bus": metric_config(
         label="버스",
@@ -215,6 +225,9 @@ BASELINE_METRIC_CONFIG = {
         display_metric_label="500m 내 유흥시설 수",
         json_columns=["nightlife_items_json"],
         radius_rules=[("nightlife_count_500m", "nightlife_count_1km")],
+        # 동점 깨기 보류: 0 곳 단지 2,003개 전부 nearest_nightlife_distance 가
+        # 비어 있다(빌더가 반경 내 시설이 없으면 거리를 기록하지 않음). 쓰려면
+        # 빌더가 반경 밖 최근접까지 재도록 고쳐야 한다.
     ),
     "hangang": metric_config(
         label="한강공원",

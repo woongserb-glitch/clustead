@@ -130,6 +130,31 @@ def strictly_better_and_ties(values, target, direction):
     return strictly_better, ties
 
 
+def sort_key(value, direction, tie_value=None, tie_direction=None):
+    """비교용 키. 클수록 좋다로 정규화해 (주지표, 보조지표) 로 묶는다.
+
+    보조 지표가 비어 있으면 그 그룹 안에서 가장 나쁜 쪽으로 둔다(없는 값이
+    이득을 보면 안 된다).
+    """
+    primary = value if direction == HIGHER_BETTER else -value
+    if tie_direction is None:
+        return (primary,)
+    if tie_value is None:
+        return (primary, float("-inf"))
+    secondary = tie_value if tie_direction == HIGHER_BETTER else -tie_value
+    return (primary, secondary)
+
+
+def calculate_percentile_and_score_keyed(keys, target_key):
+    """복합 키(클수록 좋음) 기준 mid-rank 백분위."""
+    if target_key is None or not keys:
+        return "", ""
+    strictly_better = sum(1 for k in keys if k > target_key)
+    ties = sum(1 for k in keys if k == target_key)
+    top_percent = clamp_0_100((strictly_better + 0.5 * ties) / len(keys) * 100)
+    return format_percentile_value(top_percent), format_percentile_value(clamp_0_100(100 - top_percent))
+
+
 def calculate_percentile_and_score(values, target, direction):
     if target is None or not values:
         return "", ""
@@ -239,13 +264,41 @@ def enrich_baseline(key, config):
         valid_count = 0
         empty_count = 0
 
+        # 동점 깨기: 주지표만 쓰면 같은 값이 전부 같은 백분위를 받아 등급 종류가
+        # 3~4개로 줄어든다(지하철 0노선 1,389단지=48.4%가 모두 C). 보조 지표를
+        # 두 번째 정렬 키로 써서 그룹 안에서 순위를 나눈다. primary_metric 에만
+        # 적용한다 — extra_metrics 는 이미 연속값이라 동점이 거의 없다.
+        tie = config.get("tiebreaker") if metric == config.get("primary_metric") else None
+        keys = None
+        if tie:
+            tie_col, tie_dir = tie["column"], tie["direction"]
+            if tie_col in fieldnames:
+                keys = [
+                    sort_key(to_number(row.get(metric)), direction,
+                             to_number(row.get(tie_col)), tie_dir)
+                    for row in rows
+                    if to_number(row.get(metric)) is not None
+                ]
+            else:
+                print(f"[WARNING] {config['file']} tiebreaker 컬럼 없음: {tie_col}")
+                warning_count += 1
+                tie = None
+
         for row in rows:
             target = to_number(row.get(metric))
-            percentile, score = calculate_percentile_and_score(
-                valid_values,
-                target,
-                direction,
-            )
+            if tie and keys is not None:
+                target_key = (
+                    None if target is None
+                    else sort_key(target, direction,
+                                  to_number(row.get(tie["column"])), tie["direction"])
+                )
+                percentile, score = calculate_percentile_and_score_keyed(keys, target_key)
+            else:
+                percentile, score = calculate_percentile_and_score(
+                    valid_values,
+                    target,
+                    direction,
+                )
 
             if percentile == "":
                 empty_count += 1
