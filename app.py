@@ -3257,6 +3257,10 @@ def build_medical_map_pois(medical_info):
     return map_pois
 
 
+# 약국 카드 표시 반경. 빌더가 저장하는 목록은 1km 라 런타임에서 잘라 쓴다.
+PHARMACY_DISPLAY_RADIUS_M = 500
+
+
 HOSPITAL_CHIP_ORDER = [
     "내과",
     "소아과",
@@ -3325,7 +3329,16 @@ def build_medical_category_summaries(medical_info):
         <= SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M
     ]
     superior_hospital_count = len(superior_hospital_items)
-    pharmacy_items = medical_info.get("pharmacy_items", [])
+    # 빌더는 약국 목록을 1km 로 저장하는데(pharmacies_1km) 카드는 반경 500m·
+    # 개수 500m 로 선언한다. 그대로 두면 "반경 500m · 근처 N곳" 옆 목록에 995m
+    # 약국까지 나오고, 야간/주말/휴일 칩도 1km 기준으로 세어져 개수와 어긋난다.
+    # 다른 도보권 카테고리(병원·편의점·카페)처럼 목록을 반경으로 자른다.
+    # 최근접 POI 는 반경 밖이라도 안내하는 게 기존 동작이라 그대로 둔다(병원 카드와 동일).
+    pharmacy_items = [
+        item for item in medical_info.get("pharmacy_items", [])
+        if (parse_optional_float(item.get("distance")) or float("inf"))
+        <= PHARMACY_DISPLAY_RADIUS_M
+    ]
 
     return [
         {
@@ -3401,8 +3414,8 @@ def build_medical_category_summaries(medical_info):
             "domain_label": "🏥 의료",
             "score": f"{to_int(medical_info.get('pharmacy_count_500m'), 0)}곳",
             "score_class": "score-normal",
-            "description": "반경 500m와 1km 기준 약국 접근성입니다.",
-            "radius": 500,
+            "description": "도보권(반경 500m) 약국 접근성과 야간·주말 운영 분포입니다.",
+            "radius": PHARMACY_DISPLAY_RADIUS_M,
             "count": to_int(medical_info.get("pharmacy_count_500m"), 0),
             "seoul_percentile": medical_info.get("pharmacy_percentile"),
             "gu_percentile": None,
