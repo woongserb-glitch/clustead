@@ -76,6 +76,45 @@ def read_csv_rows(path, encodings=("utf-8-sig", "cp949")):
     return None, []
 
 
+
+def _create_ranking_index(conn, category, cols):
+    """admin 랭킹용 커버링 인덱스.
+
+    SQLite 는 레코드 뒤쪽 컬럼을 읽으려면 앞쪽 컬럼 데이터를 건너뛰어야 하고,
+    medical 처럼 items_json(59MB) 이 앞에 있으면 백분위 컬럼 하나를 읽자고
+    행마다 오버플로 페이지를 훑는다. 콜드 캐시인 서버에서 60초를 넘겨
+    gunicorn 이 워커를 죽였다. 필요한 컬럼만 담은 커버링 인덱스를 두면
+    SCAN ... USING COVERING INDEX 로 바뀌어 테이블 행에 접근하지 않는다
+    (실측 122ms -> 3ms).
+    """
+    try:
+        from baseline_metric_config import BASELINE_METRIC_CONFIG
+    except Exception:
+        return
+
+    wanted = []
+    for config in BASELINE_METRIC_CONFIG.values():
+        if os.path.basename(config.get("file", "")) != f"{category}_baseline.csv":
+            continue
+        for column in (
+            config.get("primary_metric"),
+            config.get("primary_percentile_column"),
+            config.get("primary_score_column"),
+            *config.get("debug_columns", []),
+        ):
+            if column and column in cols and column not in wanted:
+                wanted.append(column)
+
+    if not wanted:
+        return
+
+    index_cols = ["name", "gu", "dong"] + wanted
+    index_cols = [c for c in dict.fromkeys(index_cols) if c in cols]
+    col_sql = ", ".join(f'"{c}"' for c in index_cols)
+    conn.execute(f'DROP INDEX IF EXISTS "ix_{category}_rank"')
+    conn.execute(f'CREATE INDEX "ix_{category}_rank" ON "{category}" ({col_sql})')
+
+
 def build_table(conn, category):
     csv_path = os.path.join(ROOT, "data", "baseline", f"{category}_baseline.csv")
     if not os.path.exists(csv_path):
@@ -107,6 +146,7 @@ def build_table(conn, category):
     conn.executemany(insert_sql, payload)
     conn.execute(f'CREATE INDEX "ix_{category}_ck" ON "{category}" ("_ck")')
     conn.execute(f'CREATE INDEX "ix_{category}_nk" ON "{category}" ("_nk")')
+    _create_ranking_index(conn, category, cols)
     conn.commit()
 
     print(f"[OK] {category}: {len(payload)}행, {len(cols)}컬럼")

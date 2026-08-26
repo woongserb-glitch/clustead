@@ -1592,6 +1592,15 @@ def _admin_debug_baseline(path):
     return _ADMIN_DEBUG_BASELINE_CACHE[table]
 
 
+def _admin_ranking_scan(baseline, columns):
+    """랭킹에 필요한 컬럼만 커버링 인덱스로 훑는다(정렬은 호출부에서)."""
+    from services.preload_service import _baseline_conn, parse_csv_row
+
+    quoted = ", ".join(f'"{c}"' for c in columns)
+    cur = _baseline_conn().execute(f'SELECT {quoted} FROM "{baseline.table}"')
+    return [parse_csv_row({c: row[c] for c in columns}) for row in cur]
+
+
 def get_admin_ranking_rows(config, sort_key, limit, bottom, gu_filter, dong_filter, query):
     metric = config.get("primary_metric")
     percentile_column = config.get("primary_percentile_column")
@@ -1609,9 +1618,10 @@ def get_admin_ranking_rows(config, sort_key, limit, bottom, gu_filter, dong_filt
             c for c in dict.fromkeys(wanted)
             if c and _baseline_has_column(baseline, c)
         ]
-        # total_count 가 len(rows) 를 쓰므로 실체화한다. 선택 컬럼이 작아(6~8개)
-        # 2,872행이라도 수백 KB 수준이다.
-        rows = list(iter_baseline_columns(baseline, columns))
+        # ORDER BY rowid 를 붙이면 커버링 인덱스를 못 쓰고 테이블을 훑는다
+        # (medical 처럼 앞쪽에 거대 json 이 있으면 오버플로 페이지까지 읽어 60초).
+        # 랭킹은 어차피 아래에서 점수로 정렬하므로 저장 순서가 필요 없다.
+        rows = _admin_ranking_scan(baseline, columns)
     else:
         rows = read_baseline_csv_for_debug(config.get("path", ""))
 
