@@ -6298,6 +6298,27 @@ def _raise_csv_field_limit():
             limit = int(limit / 10)
 
 
+_BASELINE_COLUMN_CACHE = {}
+
+
+def _baseline_has_column(baseline_data, column):
+    """baseline 테이블에 해당 컬럼이 있는지(재빌드 전 db 대비 폴백 판정용)."""
+    table = getattr(baseline_data, "table", None)
+    if not table:
+        return False
+    if table not in _BASELINE_COLUMN_CACHE:
+        try:
+            from services.preload_service import _baseline_conn
+            cols = {
+                row[1]
+                for row in _baseline_conn().execute(f'PRAGMA table_info("{table}")')
+            }
+        except Exception:
+            cols = set()
+        _BASELINE_COLUMN_CACHE[table] = cols
+    return column in _BASELINE_COLUMN_CACHE[table]
+
+
 def _csv_key(row):
     return (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
 
@@ -6352,19 +6373,27 @@ def _derived_category_stats(kind, subtypes=None):
         emergency_label, superior_label = medical_subtypes[0], medical_subtypes[1]
         clinic_subtypes = tuple(medical_subtypes[2:4])
         clinic_requested = tuple(sub for sub in clinic_subtypes if sub in requested_subtypes)
+        # ⚠️ 이 경로는 기동 워밍업에서 전 서브타입으로 한 번 돌아간다. items_json 을
+        # SELECT 하면 SQLite 가 행마다 오버플로 페이지를 읽어 medical 테이블 129MB 를
+        # 통째로 훑고(2026-08-26 배포에서 23분 다운타임), 페이지 캐시가 식어 있으면
+        # 수백 KB/s 로 떨어진다. 필요한 값은 전부 숫자 컬럼으로 baseline 에 빼뒀으니
+        # 여기서 JSON 컬럼을 절대 요청하지 말 것.
+        superior_count_column = (
+            "superior_hospital_count_3km"
+            if _baseline_has_column(medical_baseline_data, "superior_hospital_count_3km")
+            else "superior_hospital_count_5km"
+        )
         columns = ["name", "gu", "dong"]
         if emergency_label in requested_subtypes:
             columns.extend(["emergency_count_1km", "nearest_emergency_distance"])
         if superior_label in requested_subtypes:
-            # 저장된 count 는 5km 라 카드 표시(3km)와 어긋난다. 항목 JSON 에 거리별
-            # distance 가 있으므로 여기서 3km 로 잘라 센다(5km 목록의 부분집합).
-            columns.extend([
-                "nearest_superior_hospital_distance",
-                "superior_hospital_items_json",
-            ])
+            columns.extend([superior_count_column, "nearest_superior_hospital_distance"])
         if clinic_requested:
-            columns.append("medical_items_json")
             columns.extend(f"{sub}_count_500m" for sub in clinic_requested)
+            columns.extend(
+                f"{sub}_nearest_500m" for sub in clinic_requested
+                if _baseline_has_column(medical_baseline_data, f"{sub}_nearest_500m")
+            )
         try:
             for row in iter_baseline_columns(medical_baseline_data, columns):
                 stats = {}
@@ -6374,38 +6403,15 @@ def _derived_category_stats(kind, subtypes=None):
                         parse_optional_float(row.get("nearest_emergency_distance")),
                     )
                 if superior_label in requested_subtypes:
-                    try:
-                        superior_items = json.loads(row.get("superior_hospital_items_json", "[]") or "[]")
-                    except Exception:
-                        superior_items = []
-                    superior_count = sum(
-                        1 for item in superior_items
-                        if (parse_optional_float(item.get("distance")) or float("inf"))
-                        <= SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M
-                    )
                     stats[superior_label] = (
-                        superior_count,
+                        to_int(row.get(superior_count_column), 0),
                         parse_optional_float(row.get("nearest_superior_hospital_distance")),
                     )
-                if clinic_requested:
-                    try:
-                        items = json.loads(row.get("medical_items_json", "[]") or "[]")
-                    except Exception:
-                        items = []
-                else:
-                    items = []
                 for sub in clinic_requested:
-                    near, json_cnt = None, 0
-                    for item in items:
-                        if clean_text(item.get("subtype", "")) == sub:
-                            dist = parse_optional_float(item.get("distance"))
-                            if dist is not None and dist <= 500:
-                                json_cnt += 1
-                                if near is None or dist < near:
-                                    near = dist
-                    col_val = row.get(f"{sub}_count_500m")
-                    count = to_int(col_val, 0) if (col_val not in (None, "")) else json_cnt
-                    stats[sub] = (count, near)
+                    stats[sub] = (
+                        to_int(row.get(f"{sub}_count_500m"), 0),
+                        parse_optional_float(row.get(f"{sub}_nearest_500m")),
+                    )
                 result[_csv_key(row)] = stats
         except Exception:
             pass

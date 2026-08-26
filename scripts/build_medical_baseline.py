@@ -21,6 +21,8 @@ OUTPUT_PATH = BASE_DIR / "data" / "baseline" / "medical_baseline.csv"
 # {진료과}_count_1km 컬럼 및 Explore 의료 랭킹과 정확히 일치한다.
 MAX_ITEMS = 9999
 SUPERIOR_HOSPITAL_RADIUS_M = 5000
+# 표시/판정 반경은 런타임(services/insight_service.py)과 같은 값이어야 한다.
+SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M = 3000
 
 # 진료과 분류 규칙. 복합명(소아치과·어린이안과 등)이 일반과로 흡수되지 않도록
 # 장기/접미 특화과를 먼저, 일반과(소아과·산부인과·내과·외과)를 나중에 매칭한다.
@@ -51,6 +53,14 @@ HOSPITAL_SPECIALTY_SUBTYPES = [subtype for subtype, _ in HOSPITAL_SUBTYPE_RULES]
 
 def specialty_count_column(subtype):
     return f"{subtype}_count_500m"
+
+
+# 진료과별 500m 최근접 거리. Explore 의 파생 통계가 이 값을 medical_items_json 을
+# 파싱해서 구하고 있었는데, 그 컬럼(59MB)을 SELECT 하면 SQLite 가 행마다 오버플로
+# 페이지를 읽어 기동 워밍업이 medical 테이블 129MB 를 통째로 훑는다. 숫자 컬럼으로
+# 미리 빼두면 워밍업이 작은 컬럼만 읽고 끝난다.
+def specialty_nearest_column(subtype):
+    return f"{subtype}_nearest_500m"
 
 
 def read_csv_with_fallback(path):
@@ -361,7 +371,9 @@ def main():
             "superior_hospital_count_5km",
             "pharmacy_count_500m",
             "pharmacy_count_1km",
+            "superior_hospital_count_3km",
             *[specialty_count_column(subtype) for subtype in HOSPITAL_SPECIALTY_SUBTYPES],
+            *[specialty_nearest_column(subtype) for subtype in HOSPITAL_SPECIALTY_SUBTYPES],
             "nearest_hospital_name",
             "nearest_hospital_distance",
             "nearest_emergency_name",
@@ -387,15 +399,31 @@ def main():
             emergency_1km = collect_within(apartment, hospitals, 1000, "emergency")
             emergency_3km = collect_within(apartment, hospitals, 3000, "emergency")
             superior_5km = collect_within(apartment, superior_hospitals, SUPERIOR_HOSPITAL_RADIUS_M)
+            # 카드/Explore 표시는 3km 기준. 런타임에서 items_json 을 파싱해 세던 것을
+            # 숫자 컬럼으로 미리 빼둔다(워밍업이 거대 JSON 컬럼을 안 읽게).
+            # ⚠️ collect_within 은 반경 판정 후에 반올림하므로 3km 로 다시 수집하면
+            # 실제거리 3000.4m 짜리가 json(반올림 3000)에는 남고 컬럼에는 빠져
+            # 카드 목록과 개수가 어긋난다. json 과 같은 반올림값으로 걸러야 한다.
+            superior_3km = [
+                item for item in superior_5km
+                if item["distance"] <= SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M
+            ]
             pharmacies_500m = collect_within(apartment, pharmacies, 500, "pharmacy")
             pharmacies_1km = collect_within(apartment, pharmacies, 1000, "pharmacy")
 
             # 진료과별 도보권(500m) 카운트 — 의원/치과/한의원은 걸어가는 시설.
             specialty_counts = {subtype: 0 for subtype in HOSPITAL_SPECIALTY_SUBTYPES}
+            specialty_nearest = {subtype: "" for subtype in HOSPITAL_SPECIALTY_SUBTYPES}
             for hospital in hospitals_500m:
                 subtype = hospital.get("subtype")
                 if subtype in specialty_counts:
                     specialty_counts[subtype] += 1
+                    distance = hospital.get("distance")
+                    if distance is not None and (
+                        specialty_nearest[subtype] == ""
+                        or distance < specialty_nearest[subtype]
+                    ):
+                        specialty_nearest[subtype] = distance
 
             nearest_hospital_name, nearest_hospital_distance = nearest_name_distance(hospitals_1km)
             nearest_emergency_name, nearest_emergency_distance = nearest_name_distance(emergency_3km)
@@ -419,9 +447,12 @@ def main():
                 "emergency_count_1km": len(emergency_1km),
                 "emergency_count_3km": len(emergency_3km),
                 "superior_hospital_count_5km": len(superior_5km),
+                "superior_hospital_count_3km": len(superior_3km),
                 "pharmacy_count_500m": len(pharmacies_500m),
                 "pharmacy_count_1km": len(pharmacies_1km),
                 **{specialty_count_column(subtype): specialty_counts[subtype]
+                   for subtype in HOSPITAL_SPECIALTY_SUBTYPES},
+                **{specialty_nearest_column(subtype): specialty_nearest[subtype]
                    for subtype in HOSPITAL_SPECIALTY_SUBTYPES},
                 "nearest_hospital_name": nearest_hospital_name,
                 "nearest_hospital_distance": nearest_hospital_distance,
