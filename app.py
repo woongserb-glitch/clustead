@@ -62,6 +62,7 @@ from services.insight_service import (
     build_apartment_insight,
     has_feature_from_rows,
     to_number as insight_to_number,
+    SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M,
 )
 
 from services.preload_service import load_park_data
@@ -3249,7 +3250,10 @@ def build_medical_category_summaries(medical_info):
     superior_hospital_items = [
         {**item, "subtype": "종합병원"}
         for item in medical_info.get("superior_hospital_items", [])
+        if (parse_optional_float(item.get("distance")) or float("inf"))
+        <= SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M
     ]
+    superior_hospital_count = len(superior_hospital_items)
     pharmacy_items = medical_info.get("pharmacy_items", [])
 
     return [
@@ -3280,11 +3284,11 @@ def build_medical_category_summaries(medical_info):
             "label": "🏥 종합병원",
             "domain": "medical",
             "domain_label": "🏥 의료",
-            "score": f"{to_int(medical_info.get('superior_hospital_count_5km'), 0)}곳",
+            "score": f"{superior_hospital_count}곳",
             "score_class": "score-normal",
-            "description": "반경 5km 기준 종합병원급 의료기관 접근성입니다.",
-            "radius": 5000,
-            "count": to_int(medical_info.get("superior_hospital_count_5km"), 0),
+            "description": "반경 3km 기준 종합병원급 의료기관 접근성입니다.",
+            "radius": SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M,
+            "count": superior_hospital_count,
             "seoul_percentile": None,
             "gu_percentile": None,
             "source": "서울열린데이터광장",
@@ -3294,7 +3298,7 @@ def build_medical_category_summaries(medical_info):
             } if medical_info.get("nearest_superior_hospital_name") else None,
             "subtype_chips": [],
             "pois": superior_hospital_items,
-            "empty": "반경 5km 내 종합병원급 공공데이터가 없습니다.",
+            "empty": "반경 3km 내 종합병원급 공공데이터가 없습니다.",
             "is_medical_public_summary": True,
         },
         {
@@ -3362,7 +3366,7 @@ def apply_medical_baseline_to_ui(category_summaries, preference_tags, domain_sum
     ]
     medical_tag_specs = [
         ("hospital", "🏥 병원", 500, medical_info.get("hospital_count_500m", 0), medical_summaries[0], medical_info.get("seoul_percentile")),
-        ("general-hospital", "🏥 종합병원", 5000, medical_info.get("superior_hospital_count_5km", 0), medical_summaries[1], None),
+        ("general-hospital", "🏥 종합병원", SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M, medical_summaries[1].get("count", 0), medical_summaries[1], None),
         ("emergency-room", "🚑 응급실", 3000, medical_info.get("emergency_count_3km", 0), medical_summaries[2], None),
         ("pharmacy", "💊 약국", 500, medical_info.get("pharmacy_count_500m", 0), medical_summaries[3], None),
     ]
@@ -6176,7 +6180,7 @@ SUBTYPE_SEARCH_CONFIG = {
         "icon": "🏥",
         "derived": "medical",
         "radius_label": "반경 500m이내",
-        "helper_text": "응급실은 반경 3km이내, 종합병원은 반경 5km이내 기준입니다.",
+        "helper_text": "응급실은 반경 3km이내, 종합병원은 반경 3km이내 기준입니다.",
         "subtypes": ["응급실", "종합병원", "소아과", "산부인과"],
     },
     "culture": {
@@ -6329,8 +6333,9 @@ def _derived_category_stats(kind, subtypes=None):
     result = {}
 
     if kind == "medical":
-        # 소아과/산부인과는 도보권(500m) 전체 카운트 컬럼(정확). 응급실(1km)·종합병원(5km)은
-        # 차량 이동 시설이라 각자 반경 baked 컬럼 사용. 최근접 거리는 json에서 보강.
+        # 소아과/산부인과는 도보권(500m) 전체 카운트 컬럼(정확). 응급실(1km)은
+        # 차량 이동 시설이라 반경 baked 컬럼 사용. 최근접 거리는 json에서 보강.
+        # 종합병원은 baked 컬럼이 5km 뿐이라 항목 json 을 3km 로 잘라 센다.
         # 진료과 500m 카운트 컬럼이 아직 없는(재빌드 전) CSV는 json 집계로 폴백.
         medical_subtypes = SUBTYPE_SEARCH_CONFIG["medical"]["subtypes"]
         emergency_label, superior_label = medical_subtypes[0], medical_subtypes[1]
@@ -6340,7 +6345,12 @@ def _derived_category_stats(kind, subtypes=None):
         if emergency_label in requested_subtypes:
             columns.extend(["emergency_count_1km", "nearest_emergency_distance"])
         if superior_label in requested_subtypes:
-            columns.extend(["superior_hospital_count_5km", "nearest_superior_hospital_distance"])
+            # 저장된 count 는 5km 라 카드 표시(3km)와 어긋난다. 항목 JSON 에 거리별
+            # distance 가 있으므로 여기서 3km 로 잘라 센다(5km 목록의 부분집합).
+            columns.extend([
+                "nearest_superior_hospital_distance",
+                "superior_hospital_items_json",
+            ])
         if clinic_requested:
             columns.append("medical_items_json")
             columns.extend(f"{sub}_count_500m" for sub in clinic_requested)
@@ -6353,8 +6363,17 @@ def _derived_category_stats(kind, subtypes=None):
                         parse_optional_float(row.get("nearest_emergency_distance")),
                     )
                 if superior_label in requested_subtypes:
+                    try:
+                        superior_items = json.loads(row.get("superior_hospital_items_json", "[]") or "[]")
+                    except Exception:
+                        superior_items = []
+                    superior_count = sum(
+                        1 for item in superior_items
+                        if (parse_optional_float(item.get("distance")) or float("inf"))
+                        <= SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M
+                    )
                     stats[superior_label] = (
-                        to_int(row.get("superior_hospital_count_5km"), 0),
+                        superior_count,
                         parse_optional_float(row.get("nearest_superior_hospital_distance")),
                     )
                 if clinic_requested:

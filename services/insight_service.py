@@ -1,6 +1,15 @@
 import re
 
 
+# 종합병원 표시/판정 반경. baseline 은 5km 로 수집하지만(superior_hospital_count_5km),
+# 5km 는 서울 2,872 단지 전부가 1곳 이상이라(최근접 최대 4,656m) 변별력이 0이었다.
+# 표시는 3km(빈 카드 4.1%)로 좁히고, "생활권" 판정은 최근접 1.5km(발동률 58%)로 나눈다.
+# 3km 이상을 판정에 쓰면 응급실 3km 지표와 99.4% 일치해 중복 지표가 된다.
+# 수집 반경은 그대로라 재빌드 없이 런타임에서 걸러 쓴다(5km 목록은 3km 의 상위집합).
+SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M = 3000
+SUPERIOR_HOSPITAL_LIVING_RADIUS_M = 1500
+
+
 def to_number(value, default=None):
     try:
         if value is None or value == "":
@@ -166,9 +175,11 @@ def build_apartment_insight(apartment, category_summaries, preference_tags=None,
     if emergency_distance is not None and emergency_distance <= 3000:
         add_feature(features, "🚑", "응급 의료 접근", "good", evidence(emergency, True, "3km 내", "응급실"), 12)
         lifestyle_types.append("의료안심형")
-    general_count = to_int((general_hospital or {}).get("count"))
-    if general_count > 0:
-        add_feature(features, "🏨", "종합병원 생활권", "good", evidence(general_hospital, True, "5km 내", "종합병원"), 16)
+    # 5km 는 전 단지가 1곳 이상이라 이 배지가 100% 발동했다. 응급실과 같은 거리 기준으로
+    # 바꿔 1.5km 로 판정한다(발동률 58%). 3km 이상은 응급실 지표와 99.4% 겹친다.
+    general_hospital_distance = nearest_distance(general_hospital)
+    if general_hospital_distance is not None and general_hospital_distance <= SUPERIOR_HOSPITAL_LIVING_RADIUS_M:
+        add_feature(features, "🏨", "종합병원 생활권", "good", f"{nearest_name(general_hospital) or '종합병원'} {format_meters(general_hospital_distance)}", 16)
     night_pharmacy = find_chip(pharmacy, "야간")
     if night_pharmacy:
         add_feature(features, "💊", "야간약국 접근", "good", f"{nearest_name(pharmacy) or '약국'} · 야간 {chip_count(night_pharmacy):,}곳", 24)
@@ -270,7 +281,7 @@ def has_feature_from_rows(feature_key, rows):
     if feature_key == "emergency":
         return to_number(medical.get("nearest_emergency_distance")) is not None and to_number(medical.get("nearest_emergency_distance")) <= 3000
     if feature_key == "general_hospital":
-        return to_int(medical.get("superior_hospital_count_5km")) > 0
+        return to_number(medical.get("nearest_superior_hospital_distance")) is not None and to_number(medical.get("nearest_superior_hospital_distance")) <= SUPERIOR_HOSPITAL_LIVING_RADIUS_M
     if feature_key == "costco":
         return to_number(mart.get("nearest_코스트코_distance")) is not None
     if feature_key == "nightlife_low":
