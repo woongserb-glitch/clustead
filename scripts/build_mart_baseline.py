@@ -39,6 +39,9 @@ require_fetchable(
 output_path = "data/baseline/mart_baseline.csv"
 STORE_LIST_PATH = "data/mart/large_warehouse_stores.csv"
 
+# 그룹 최근접 거리를 잴 때 쓰는 사실상 무제한 반경(서울 대각선보다 크다).
+UNBOUNDED_RADIUS_M = 100000
+
 # 대형/창고형은 서울 전체 70여 개뿐인 고정 점포 → 점포 리스트(build_mart_store_list.py
 # 로 생성, API 0콜)와 단지 좌표의 거리만 계산한다(API 0콜). 슈퍼마켓은 점포가 많고
 # 도보권 500m라 기존 MT1 카테고리 검색(1.5km 캐시)을 그대로 거른다.
@@ -96,7 +99,19 @@ def compute_group(group, places, lat, lng):
 
     group_count = sum(stat["count"] for stat in brand_stats.values())
     diversity = sum(1 for stat in brand_stats.values() if stat["count"] > 0)
-    return group_count, diversity, brand_stats, items
+    # 그룹 단위 최근접 거리. 개수가 이산적이라 동점이 많은데(슈퍼 6종/최빈 39%,
+    # 창고형 4종/최빈 40%) 브랜드별 거리만 있어 동점을 깰 수 없었다.
+    # ⚠️ 반경 안에서만 재면 0곳 단지가 전부 결측이 돼 최빈 그룹의 동점이 그대로
+    # 남는다(D 등급이 한 건도 안 나왔던 이유). 반경을 무시하고 후보 전체에서 잰다.
+    # 대형/창고형은 places 가 서울 전 점포라 실제 최근접이고, 슈퍼는 kakao 1.5km
+    # 캐시라 그 안에서의 최근접이다. 개수가 1 이상이면 최근접은 어차피 반경 안이라
+    # 기존 값과 같다.
+    items_unbounded = build_result_card_items("mart", lat, lng, places, UNBOUNDED_RADIUS_M)
+    group_nearest = min(
+        (item["distance"] for item in items_unbounded if item.get("subtype") in brands),
+        default="",
+    )
+    return group_count, diversity, group_nearest, brand_stats, items
 
 
 def build_header():
@@ -105,6 +120,7 @@ def build_header():
         radius = group["radius"]
         header.append(f"{gkey}_count_{radius}m")
         header.append(f"{gkey}_brand_diversity")
+        header.append(f"nearest_{gkey}_distance")
         for brand in group["brands"]:
             header.append(f"{brand}_count_{radius}m")
             header.append(f"nearest_{brand}_distance")
@@ -139,11 +155,12 @@ with open(output_path, "w", newline="", encoding="utf-8-sig") as file:
             log_counts = {}
 
             for gkey, group in MART_CATEGORY_GROUPS.items():
-                count, diversity, brand_stats, items = compute_group(
+                count, diversity, group_nearest, brand_stats, items = compute_group(
                     group, group_places[gkey], lat, lng
                 )
                 row.append(count)
                 row.append(diversity)
+                row.append(group_nearest)
                 for brand in group["brands"]:
                     row.append(brand_stats[brand]["count"])
                     row.append(brand_stats[brand]["nearest_distance"])

@@ -132,6 +132,9 @@ BASELINE_METRIC_CONFIG = {
         direction=HIGHER_BETTER,
         display_metric_label="도보권 500m 내 슈퍼마켓 수",
         json_columns=["super_mart_items_json"],
+        # 0~5 의 6종뿐이고 0 이 33.9%. 최하값(0곳)이 백분위 83 에 그쳐 D 가 한 건도
+        # 안 나왔다. 같은 개수면 가까울수록 낫다.
+        tiebreaker={"column": "nearest_super_mart_distance", "direction": LOWER_BETTER},
     ),
     "warehouse_mart": metric_config(
         label="창고형마트",
@@ -141,6 +144,8 @@ BASELINE_METRIC_CONFIG = {
         direction=HIGHER_BETTER,
         display_metric_label="5km 내 창고형마트(코스트코·트레이더스) 수",
         json_columns=["warehouse_mart_items_json"],
+        # 0~3 의 4종뿐이고 최빈값이 40%. D 가 한 건도 안 나왔다.
+        tiebreaker={"column": "nearest_warehouse_mart_distance", "direction": LOWER_BETTER},
     ),
     "cafe": metric_config(
         label="카페",
