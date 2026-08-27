@@ -6342,6 +6342,11 @@ SUBTYPE_SEARCH_CONFIG = {
         "radius_label": "반경 500m이내",
         "helper_text": "응급실은 반경 3km이내, 종합병원은 반경 3km이내 기준입니다.",
         "subtypes": ["응급실", "종합병원", "소아과", "산부인과"],
+        # "한 곳만 쓰는" 시설은 거리가 실질 지표다. 응급 상황에 3km 내 6곳이 있어도
+        # 가는 곳은 하나이고 중요한 건 거기까지 걸리는 시간이다. 카드 등급도
+        # 최근접 거리 백분위로 매기므로 정렬 기준을 맞춘다.
+        # 소아과·산부인과는 도보권 500m 밀집도가 의미 있어 개수 우선을 유지한다.
+        "distance_first": ("응급실", "종합병원"),
     },
     "culture": {
         "label": "문화",
@@ -6356,6 +6361,8 @@ SUBTYPE_SEARCH_CONFIG = {
         "derived": "park",
         "radius_label": "반경 내 가까운 순",
         "subtypes": ["일반공원", "한강공원", "대형공원"],
+        # radius_label 이 "가까운 순"이라고 안내하는데 정렬은 개수 우선이었다.
+        "distance_first": ("일반공원", "한강공원", "대형공원"),
     },
     "convenience": {
         "label": "편의점",
@@ -7346,8 +7353,13 @@ def build_explore_results(filters, limit=10, share_q=""):
                 if count < 1:                    # AND: 해당 서브타입 미보유/반경 밖 → 제외
                     priority_ok = False
                     break
-                sort_parts.append(-count)
-                sort_parts.append(nearest if nearest is not None else float("inf"))
+                nearest_key = nearest if nearest is not None else float("inf")
+                if subtype in (cfg.get("distance_first") or ()):
+                    sort_parts.append(nearest_key)
+                    sort_parts.append(-count)
+                else:
+                    sort_parts.append(-count)
+                    sort_parts.append(nearest_key)
                 if cfg.get("derived") == "park":
                     dist_label = f"{int(round(nearest))}m" if nearest is not None else "-"
                     matched.append(f"{cfg['icon']} {subtype} {dist_label}")
