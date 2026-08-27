@@ -245,9 +245,15 @@ BASELINE_METRIC_CONFIG = {
         display_metric_label="500m 내 유흥시설 수",
         json_columns=["nightlife_items_json"],
         radius_rules=[("nightlife_count_500m", "nightlife_count_1km")],
-        # 동점 깨기 보류: 0 곳 단지 2,003개 전부 nearest_nightlife_distance 가
-        # 비어 있다(빌더가 반경 내 시설이 없으면 거리를 기록하지 않음). 쓰려면
-        # 빌더가 반경 밖 최근접까지 재도록 고쳐야 한다.
+        # 69.7% 가 0 곳이고, LOWER_BETTER 라 0 곳이 최선인데 그 그룹 전체가 한
+        # 등급(B)에 묶여 S·A 가 한 건도 안 나왔다. 표시용 nearest_nightlife_distance
+        # 는 500m 안에서만 재서 0 곳 단지가 전부 결측이라 쓸 수 없었고, 빌더에
+        # nightlife_nearest_any_distance(반경 무관)를 새로 만들어 쓴다.
+        # 유흥은 멀수록 좋으므로 HIGHER_BETTER.
+        tiebreaker={
+            "column": "nightlife_nearest_any_distance",
+            "direction": HIGHER_BETTER,
+        },
     ),
     "hangang": metric_config(
         label="한강공원",

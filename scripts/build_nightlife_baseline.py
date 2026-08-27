@@ -148,6 +148,11 @@ def prepare_apartments():
 def build_baseline_row(apartment, places):
     items_500m = []
     count_1km = 0
+    # 동점 깨기 전용: 반경과 무관한 최근접 거리. 500m 내 0곳인 단지가 69.7% 인데
+    # 표시용 nearest_nightlife_distance 는 500m 안에서만 재서 그 2,003단지가 전부
+    # 결측이었다. 그래서 최빈 그룹의 동점이 안 깨져 S·A 가 한 건도 안 나왔다.
+    # 표시 컬럼은 그대로 두고(카드가 "반경 500m 내"를 말하므로) 별도 컬럼을 둔다.
+    nearest_any_distance = None
 
     for place in places:
         distance = round(
@@ -158,6 +163,9 @@ def build_baseline_row(apartment, places):
                 place["lng"],
             )
         )
+
+        if nearest_any_distance is None or distance < nearest_any_distance:
+            nearest_any_distance = distance
 
         if distance <= NIGHTLIFE_WIDE_RADIUS_M:
             count_1km += 1
@@ -200,6 +208,9 @@ def build_baseline_row(apartment, places):
         "nearest_nightlife_type": nearest.get("raw_type", ""),
         "nearest_nightlife_subtype": nearest.get("subtype", ""),
         "nearest_nightlife_distance": nearest.get("distance", ""),
+        "nightlife_nearest_any_distance": (
+            int(nearest_any_distance) if nearest_any_distance is not None else ""
+        ),
         **counts,
         "nightlife_items_json": json.dumps(items_500m[:MAX_ITEMS], ensure_ascii=False),
     }
