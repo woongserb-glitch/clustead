@@ -8,6 +8,7 @@ from services.preload_service import (
     cafe_baseline_index,
     convenience_baseline_index,
     mart_baseline_index,
+    park_baseline_index,
     get_indexed_baseline_row,
 )
 
@@ -259,7 +260,9 @@ CATEGORY_TO_DOMAIN = {
     "bike": "convenience",
 
     "hospital": "medical",
-    "pharmacy": "medical",
+    # 약국 제외(2026-08-26 확인). 병원 500m 개수와 상관계수 +0.837 로 사실상
+    # 같은 것을 두 번 세게 된다. 카드로는 보여주되 의료 도메인 점수에는 넣지 않는다.
+    # "pharmacy": "medical",
 
     "large_mart": "convenience",
     "super_mart": "convenience",
@@ -887,6 +890,27 @@ def get_category_summaries(apartment, preference_keys):
 
                 baked_score = _to_num(
                     convenience_row.get("convenience_count_500m_seoul_score")
+                )
+                if baked_score is not None:
+                    score = round(baked_score)
+
+        # 공원. 여기 분기가 없어 seoul_percentile 이 None 으로 남았고, 카드 점수가
+        # 백분위가 아닌 값(예: 69)으로 표시돼 도메인 점수(park_distance_seoul_score
+        # 39.69)와 어긋났다. 다른 카테고리와 같이 baseline 백분위를 쓴다.
+        if key == "park":
+            park_row = get_indexed_baseline_row(
+                park_baseline_index,
+                apartment.get("name"),
+                apartment.get("district"),
+                apartment.get("dong"),
+            )
+            if park_row:
+                seoul_percentile = _to_num(
+                    park_row.get("park_distance_seoul_percentile")
+                )
+                gu_percentile = None
+                baked_score = _to_num(
+                    park_row.get("park_distance_seoul_score")
                 )
                 if baked_score is not None:
                     score = round(baked_score)

@@ -12,6 +12,7 @@ from services.ranking_service import (
     RANKING_METRIC_KEYS,
 )
 
+import bisect
 import functools
 import os
 import time
@@ -4926,20 +4927,29 @@ def sort_category_summaries(summaries):
 
 
 def _score_to_grade(score):
-    if score >= 80:
+    """카드와 동일한 임계. 도메인 점수도 백분위로 정규화하므로 기준을 하나로 쓴다.
+
+    예전에는 도메인만 S>=80/A>=65/B>=50/C>=35 를 따로 썼다. 도메인 점수가 구성
+    카드 점수의 '평균' 이라 카드 수가 많을수록 값이 중앙으로 몰리고(생활편의 6개
+    표준편차 15.8 vs 문화생활 1개 28.8), 같은 임계를 쓰면 도메인마다 등급 희소성이
+    달라졌기 때문이다. 그런데 그 결과 카드 1개짜리 도메인(교육·문화생활)은 같은
+    점수가 위아래에서 다른 등급으로 보였다(점수 81 -> 카드 A, 도메인 S; 전 단지
+    43.3% 불일치). 이제 도메인 점수를 서울 백분위로 환산해 척도를 맞췄으므로
+    카드 임계를 그대로 쓴다.
+    """
+    if score >= 90:
         return "S"
-    if score >= 65:
+    if score >= 70:
         return "A"
-    if score >= 50:
+    if score >= 40:
         return "B"
-    if score >= 35:
+    if score >= 15:
         return "C"
     return "D"
 
 
-def compute_domain_profile(category_scores):
-    """카테고리 서울점수를 도메인별로 묶어 평균·등급을 내고, 큐레이션 가중치로 종합
-    대표점수를 산출한다. (점수는 이미 방향 보정됨 — 유흥 등 lower_better 포함)"""
+def raw_domain_scores(category_scores):
+    """도메인별 원점수 = 구성 카드 서울점수의 평균. (방향 보정은 이미 끝난 값)"""
     domain_values = {}
     for category, score in (category_scores or {}).items():
         if not isinstance(score, (int, float)):
@@ -4948,27 +4958,90 @@ def compute_domain_profile(category_scores):
         if not domain:
             continue
         domain_values.setdefault(domain, []).append(score)
+    return {
+        key: round(sum(values) / len(values))
+        for key, values in domain_values.items()
+    }
 
-    domains = []
+
+_DOMAIN_DISTRIBUTION_CACHE = None
+
+
+def _domain_distribution():
+    """{도메인: 서울 전 단지 원점수 정렬목록}. 기동 후 1회만 만든다."""
+    global _DOMAIN_DISTRIBUTION_CACHE
+    if _DOMAIN_DISTRIBUTION_CACHE is None:
+        from services.ranking_service import build_apartment_index
+
+        buckets = {}
+        representatives = []
+        for entry in build_apartment_index().values():
+            raw = raw_domain_scores(entry.get("category_scores"))
+            for key, value in raw.items():
+                buckets.setdefault(key, []).append(value)
+            representatives.append(_weighted_raw_representative(raw))
+        distribution = {key: sorted(values) for key, values in buckets.items()}
+        distribution["__representative__"] = sorted(representatives)
+        _DOMAIN_DISTRIBUTION_CACHE = distribution
+    return _DOMAIN_DISTRIBUTION_CACHE
+
+
+def reset_domain_distribution_cache():
+    global _DOMAIN_DISTRIBUTION_CACHE
+    _DOMAIN_DISTRIBUTION_CACHE = None
+
+
+def _weighted_raw_representative(raw_scores):
     weighted_sum = 0.0
     weight_total = 0.0
+    for key, value in (raw_scores or {}).items():
+        weight = DOMAIN_WEIGHTS.get(key, 1.0)
+        weighted_sum += value * weight
+        weight_total += weight
+    return round(weighted_sum / weight_total) if weight_total else 0
+
+
+def _percentile_of(values, target):
+    """mid-rank 백분위를 0~100 점수로 환산(클수록 좋음). enrich 와 같은 방식."""
+    if not values:
+        return target
+    total = len(values)
+    right = bisect.bisect_right(values, target)
+    left = bisect.bisect_left(values, target)
+    strictly_better = total - right
+    ties = right - left
+    top_percent = (strictly_better + 0.5 * ties) / total * 100
+    return round(max(0.0, min(100.0, 100.0 - top_percent)))
+
+
+def compute_domain_profile(category_scores):
+    """도메인별 점수·등급과 종합 대표점수.
+
+    원점수(구성 카드 평균)를 서울 분포 기준 백분위로 환산해 도메인 간 등급 의미를
+    맞춘다. 환산 전에는 같은 68점이 상권/활기에서는 상위 12.5%, 문화생활에서는
+    상위 32.4% 인데 둘 다 A 였다.
+    """
+    raw = raw_domain_scores(category_scores)
+    distribution = _domain_distribution()
+
+    domains = []
     for domain_key in DOMAIN_ORDER:
         meta = DOMAIN_META.get(domain_key)
-        values = domain_values.get(domain_key)
-        if not meta or not values:
+        if not meta or domain_key not in raw:
             continue
-        domain_score = round(sum(values) / len(values))
-        weight = DOMAIN_WEIGHTS.get(domain_key, 1.0)
-        weighted_sum += domain_score * weight
-        weight_total += weight
+        score = _percentile_of(distribution.get(domain_key) or [], raw[domain_key])
         domains.append({
             "key": domain_key,
             "label": meta["label"],
-            "score": domain_score,
-            "grade": _score_to_grade(domain_score),
+            "score": score,
+            "raw_score": raw[domain_key],
+            "grade": _score_to_grade(score),
         })
 
-    representative = round(weighted_sum / weight_total) if weight_total else 0
+    representative = _percentile_of(
+        distribution.get("__representative__") or [],
+        _weighted_raw_representative(raw),
+    )
     return {"representative": representative, "domains": domains}
 
 

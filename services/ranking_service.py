@@ -39,6 +39,11 @@ RANKING_SOURCES = {
     "fire-station": ("fire_station", "fire_station_baseline_data"),
     "ev-charger": ("ev_charger", "ev_charger_baseline_data"),
     "cctv": ("cctv", "cctv_baseline_data"),
+    # 공원. CATEGORY_TO_DOMAIN 에는 rest 로 잡혀 있었지만 여기 없어서 휴식/여가
+    # 도메인 점수에 반영되지 않았다(공원 카드가 B 여도 도메인은 카페+한강만으로
+    # 계산돼 D 가 나왔다). 한강 baseline 과는 대상이 겹치지 않는다 — 한강은
+    # 한강공원 시설 항목, park 는 남산·서울숲 등 일반 공원 133곳이다.
+    "park": ("park", "park_baseline_data"),
 }
 
 # Home/Explore 랭킹이 실제로 사용하는 baseline metric(config) 키 집합 = 단일 기준.

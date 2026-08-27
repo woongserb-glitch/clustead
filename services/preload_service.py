@@ -298,6 +298,10 @@ fire_station_baseline_data, fire_station_baseline_index = _make_baseline("fire_s
 shopping_baseline_data, shopping_baseline_index = _make_baseline("shopping")
 ev_charger_baseline_data, ev_charger_baseline_index = _make_baseline("ev_charger")
 medical_baseline_data, medical_baseline_index = _make_baseline("medical")
+# 공원. 런타임 카드는 _baseline_metric_lookup 으로 읽지만, 도메인(휴식/여가) 점수
+# 집계는 RANKING_SOURCES 를 통해 이 객체를 쓴다. 스캔이 아니라 조회 전용이라
+# SQLite 백엔드로 둔다.
+park_baseline_data, park_baseline_index = _make_baseline("park")
 
 
 def get_cctv_icon_and_subtype(purpose):
