@@ -41,7 +41,11 @@ def find_commercial_area_file():
     candidates = list(COMMERCIAL_DIR.glob("*.csv"))
     if not candidates:
         raise FileNotFoundError(f"상권영역 CSV 파일이 없습니다: {COMMERCIAL_DIR}")
-    return candidates[0]
+    # glob 순서에 맡기면 옛 파일을 읽을 수 있다. 실제로 다운로드가 파일명을
+    # "#Uc11c#Uc6b8..." 로 깨뜨려 저장하는 바람에 같은 디렉토리에 5월/9월 파일이
+    # 나란히 쌓였고, 정렬 순서에 따라 어느 쪽을 읽을지가 갈렸다.
+    # 가장 최근에 받은 파일을 쓴다.
+    return max(candidates, key=lambda path: path.stat().st_mtime)
 
 
 def haversine_m(lat1, lng1, lat2, lng2):
