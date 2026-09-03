@@ -1209,10 +1209,26 @@ def load_bus_stop_data():
 
     bus_stop_data.clear()
 
+    # 2026-09-03: 내려받은 원본이 본문을 통째로 두 번 담고 있어(헤더 1개 + 본문 x2)
+    # 모든 단지의 정류장 개수가 정확히 2배로 부풀었다. validate 는 값이 전건 0 인
+    # 경우만 잡아서 이 사고를 못 걸렀다. 원본을 고쳐도 같은 일이 재발할 수 있으므로
+    # 적재 단계에서 같은 정류장을 한 번만 담는다.
+    seen_stops = set()
+
     for row in rows:
         try:
             lat = float(row["Y좌표"])
             lng = float(row["X좌표"])
+
+            stop_key = (
+                str(row.get("정류소번호", "")).strip(),
+                str(row.get("노드 ID", "")).strip(),
+                lat,
+                lng,
+            )
+            if stop_key in seen_stops:
+                continue
+            seen_stops.add(stop_key)
 
             bus_stop_data.append({
                 # 정류장 CSV는 컬럼명과 실제 내용이 뒤바뀌어 있다: '노드 ID' 컬럼엔
@@ -1232,6 +1248,10 @@ def load_bus_stop_data():
 
     global bus_stop_index
     bus_stop_index = RadiusIndex(bus_stop_data)
+
+    skipped = len(rows) - len(bus_stop_data)
+    if skipped > 0:
+        print(f"[PRELOAD BUS STOP] 중복 {skipped}건 제외 (원본 {len(rows)}행)")
 
     print(f"[PRELOAD] BUS STOP {len(bus_stop_data)}개 로드 완료")
 
