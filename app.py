@@ -1958,7 +1958,9 @@ def build_complex_info(apartment, school_zone, category_summaries):
             ""
         )
 
-    if household_count:
+    # 소스(서울시 공동주택 정보)가 일부 단지의 세대수를 0으로 준다. 0은 값이
+    # 아니라 결측이므로 빈 문자열로 두고, 화면에서는 "-" 로 표시한다.
+    if household_count and household_count != "0":
         info["households"] = f"{household_count}세대"
 
     approval_year = get_year_from_date(

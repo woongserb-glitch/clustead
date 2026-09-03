@@ -79,12 +79,10 @@
                 </div>
                 {% endif %}
 
-                {% if complex_info.households %}
                 <div class="complex-info-item">
                     <span>🏢 세대수</span>
-                    <strong>{{ complex_info.households }}</strong>
+                    <strong>{{ complex_info.households or '-' }}</strong>
                 </div>
-                {% endif %}
 
                 {% if complex_info.builder %}
                 <div class="complex-info-item">
