@@ -5196,6 +5196,111 @@ def _area_domain_summary(rows):
     }
 
 
+# 동을 "그 영역이 강한 동" 으로 내세우려면 최소 이만큼의 단지가 있어야 한다.
+DONG_MIN_SAMPLE = 3
+
+
+def _area_domain_breakdown(rows, gu, apartment_limit=5):
+    """도메인별로 강점 단지·동을 뽑는다.
+
+    평균 대표점수는 지역 비교에 쓸 수 없다. 2026-09-03 실측에서 25 개 구의 등급이
+    B 23 / C 2 였고 점수 표준편차도 7.5 로, 도메인별 표준편차(9.7~19.4)보다 훨씬
+    작았다. 도메인 간 강약이 평균에서 서로 상쇄되기 때문이다(강남구 = 의료 66 ·
+    교육 59 인데 문화 15 에 눌려 대표 50). 그래서 하나의 숫자 대신 도메인별로
+    나눠 보여준다.
+    """
+    index = build_apartment_index()
+    scored = []
+    for apt in rows:
+        key = (apt.get("name"), apt.get("gu"), apt.get("dong"))
+        ranking = index.get(key)
+        if not ranking:
+            continue
+        profile = compute_domain_profile(ranking.get("category_scores"))
+        domains = profile.get("domains") or []
+        if not domains:
+            continue
+        scored.append({
+            "name": clean_text(apt.get("name", "")),
+            "gu": clean_text(apt.get("gu", "")),
+            "dong": clean_text(apt.get("dong", "")),
+            "key": key,
+            "scores": {domain["key"]: domain["score"] for domain in domains},
+        })
+
+    breakdown = []
+    for domain_key in DOMAIN_ORDER:
+        meta = DOMAIN_META.get(domain_key)
+        if not meta:
+            continue
+        having = [item for item in scored if domain_key in item["scores"]]
+        if not having:
+            continue
+
+        # 동별 평균. 단지 1~2 개짜리 동은 그 한 단지의 점수가 곧 동의 점수가 되어
+        # "교통이 강한 동 = 신설동(1개 단지)" 같은 오해를 부른다. 표본이 충분한
+        # 동을 우선하고, 그런 동이 하나도 없을 때만 전체에서 고른다.
+        by_dong = {}
+        for item in having:
+            if item["dong"]:
+                by_dong.setdefault(item["dong"], []).append(item["scores"][domain_key])
+
+        def _rank(entries):
+            return sorted(
+                entries,
+                key=lambda entry: (-entry["score"], -entry["apartment_count"], entry["label"]),
+            )
+
+        all_dongs = [
+            {
+                "label": name,
+                "url": area_landing_path(gu, name),
+                "score": round(sum(values) / len(values)),
+                "apartment_count": len(values),
+            }
+            for name, values in by_dong.items()
+        ]
+        sampled = [entry for entry in all_dongs if entry["apartment_count"] >= DONG_MIN_SAMPLE]
+        dong_ranked = _rank(sampled) if sampled else _rank(all_dongs)
+
+        top_apartments = sorted(
+            having, key=lambda item: (-item["scores"][domain_key], item["name"])
+        )[:apartment_limit]
+
+        values = [item["scores"][domain_key] for item in having]
+        score = round(sum(values) / len(values))
+        breakdown.append({
+            "key": domain_key,
+            "label": meta["label"],
+            "plain_label": _plain_domain_label(meta["label"]),
+            "description": meta.get("description", ""),
+            "score": score,
+            "grade": _score_to_grade(score),
+            "top_dong": dong_ranked[0] if dong_ranked else None,
+            "dongs": dong_ranked[:3],
+            "apartments": [
+                {
+                    "name": item["name"],
+                    "dong": item["dong"],
+                    "score": item["scores"][domain_key],
+                    "grade": _score_to_grade(item["scores"][domain_key]),
+                    "url": apartment_detail_path(item["name"], item["gu"], item["dong"]),
+                }
+                for item in top_apartments
+            ],
+        })
+    return breakdown, len(scored)
+
+
+def _area_strengths_weaknesses(domains, count=3):
+    """상위 count 개(강점)와 하위 count 개(아쉬움). 겹치면 강점을 우선한다."""
+    ranked = sorted(domains, key=lambda item: (-item.get("score", 0), item.get("plain_label", "")))
+    strengths = ranked[:count]
+    strength_keys = {item["key"] for item in strengths}
+    weaknesses = [item for item in reversed(ranked) if item["key"] not in strength_keys][:count]
+    return strengths, weaknesses
+
+
 def _area_recommendations(rows, limit=8):
     index = build_apartment_index()
     recommendations = []
@@ -5313,30 +5418,30 @@ def build_area_index_context():
     for gu in gu_names:
         rows = _area_apartment_rows(gu)
         total_apartments += len(rows)
-        domain_summary = _area_domain_summary(rows)
-        scored_total += domain_summary.get("scored_count", 0)
-        for domain in domain_summary.get("domains") or []:
+        # 카드에 필요한 값(도메인 점수·상위 단지)을 한 번의 순회로 모두 얻는다.
+        # 허브 페이지라 구마다 순회를 두 번 돌면 TTFB 가 그대로 두 배가 된다.
+        breakdown, scored_count = _area_domain_breakdown(rows, gu, apartment_limit=3)
+        scored_total += scored_count
+        for domain in breakdown:
             domain_totals.setdefault(domain["key"], []).append(domain["score"])
 
-        top_domains = sorted(
-            domain_summary.get("domains") or [],
-            key=lambda item: item.get("score", 0),
-            reverse=True,
-        )[:3]
-        # /area 에서 동 페이지로 나가는 링크. 구 페이지가 전 동을 이미 담고 있으므로
-        # 여기서는 대표 6 개만 둔다(카드가 링크 목록에 묻히지 않는 선).
+        strengths, weaknesses = _area_strengths_weaknesses(breakdown, count=3)
+        # 그 구에서 가장 앞선 영역의 상위 단지 — /area 에서 단지 상세로 바로 나가는
+        # 링크이자, 구를 한 줄로 설명하는 예시가 된다.
+        lead_domain = strengths[0] if strengths else None
         child_areas = _area_child_summaries(gu, limit=6)
         gu_cards.append({
             "label": gu,
             "url": area_landing_path(gu),
             "apartment_count": len(rows),
-            "score": domain_summary.get("representative", 0),
-            "grade": domain_summary.get("representative_grade", "D"),
-            "top_domains": top_domains,
+            "top_domains": strengths,
+            "low_domains": weaknesses[:2],
+            "lead_domain": lead_domain,
+            "lead_apartments": (lead_domain or {}).get("apartments") or [],
             "child_areas": child_areas,
         })
 
-    gu_cards.sort(key=lambda item: (-item["score"], item["label"]))
+    gu_cards.sort(key=lambda item: (-item["apartment_count"], item["label"]))
 
     hub_domains = []
     for domain_key in DOMAIN_ORDER:
@@ -5441,7 +5546,10 @@ def build_area_landing_context(gu, dong=None):
     scope_label = f"{gu} {dong}".strip()
     domain_summary = _area_domain_summary(rows)
     features = _build_area_features(scope_label, domain_summary["domains"])
-    recommendations = _area_recommendations(rows)
+    # 추천 단지 섹션은 생활영역별 상위 단지로 대체했다. 대표점수 정렬이라 영역 간
+    # 강약이 상쇄된 목록이었고, 전 단지를 한 번 더 순회하는 비용도 있었다.
+    domain_breakdown, _breakdown_scored = _area_domain_breakdown(rows, gu)
+    strengths, weaknesses = _area_strengths_weaknesses(domain_breakdown)
     is_dong = bool(dong)
     children = _area_sibling_summaries(gu, dong) if is_dong else _area_child_summaries(gu)
     child_title = f"{gu} 다른 동 보기" if is_dong else f"{gu} 동별 생활권"
@@ -5483,10 +5591,29 @@ def build_area_landing_context(gu, dong=None):
         f"{len(rows)}개 단지를 서울시 상대평가 데이터로 집계했습니다."
     )
 
+    # 구조화 데이터용 대표 단지 — 화면과 같은 근거(생활영역별 상위)를 쓰되
+    # 한 영역이 목록을 독점하지 않도록 영역을 번갈아 가며 5 개를 고른다.
+    featured = []
+    seen_featured = set()
+    for rank in range(3):
+        for domain in domain_breakdown:
+            apartments = domain.get("apartments") or []
+            if rank >= len(apartments):
+                continue
+            apt = apartments[rank]
+            if apt["url"] in seen_featured:
+                continue
+            seen_featured.add(apt["url"])
+            featured.append(apt)
+            if len(featured) >= 5:
+                break
+        if len(featured) >= 5:
+            break
+
     item_list = {
         "@context": "https://schema.org",
         "@type": "ItemList",
-        "name": f"{scope_label} 추천 아파트",
+        "name": f"{scope_label} 생활영역별 상위 아파트",
         "itemListElement": [
             {
                 "@type": "ListItem",
@@ -5494,7 +5621,7 @@ def build_area_landing_context(gu, dong=None):
                 "name": item["name"],
                 "url": _absolute_url(item["url"]),
             }
-            for idx, item in enumerate(recommendations[:5], start=1)
+            for idx, item in enumerate(featured, start=1)
         ],
     }
     breadcrumb_items = [
@@ -5517,8 +5644,12 @@ def build_area_landing_context(gu, dong=None):
             "is_dong": is_dong,
             "apartment_count": len(rows),
             "scored_count": domain_summary["scored_count"],
+            # 평균 대표점수/등급은 변별력이 없어 화면에서 뺐다(_area_domain_breakdown
+            # 주석 참고). 컨텍스트에는 남겨 두어 다른 소비처가 깨지지 않게 한다.
             "representative": domain_summary["representative"],
             "representative_grade": domain_summary["representative_grade"],
+            "strengths": strengths,
+            "weaknesses": weaknesses,
             "summary": features["summary"],
         },
         "seo": {
@@ -5544,7 +5675,7 @@ def build_area_landing_context(gu, dong=None):
         },
         "domains": domain_summary["domains"],
         "feature_cards": features["cards"],
-        "recommendations": recommendations,
+        "domain_breakdown": domain_breakdown,
         "child_areas": children,
         "child_title": child_title,
         "parent_area_url": area_landing_path(gu) if is_dong else "",

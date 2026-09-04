@@ -7,12 +7,50 @@
 
    변수: home_area_links = [{label, url, count}], wrap_class = 페이지별 스타일 클래스 #}
 {% if home_area_links %}
-<nav class="{{ wrap_class }}" aria-label="지역별 아파트 둘러보기">
+<nav class="{{ wrap_class }}" aria-label="지역별 아파트 둘러보기" data-arealinks>
     <a class="{{ wrap_class }}-hub" href="/area">지역별 보기</a>
-    <ul class="{{ wrap_class }}-list">
+    <button type="button" class="{{ wrap_class }}-arrow" data-arealinks-prev aria-label="이전 지역" hidden>‹</button>
+    <ul class="{{ wrap_class }}-list" data-arealinks-list>
         {% for area in home_area_links %}
         <li><a href="{{ area.url }}">{{ area.label }}<i>{{ area.count }}</i></a></li>
         {% endfor %}
     </ul>
+    <button type="button" class="{{ wrap_class }}-arrow" data-arealinks-next aria-label="다음 지역" hidden>›</button>
 </nav>
+<script>
+    // 좌우 화살표는 목록이 실제로 넘칠 때만 나온다. 홈은 한 줄 가로 스크롤이라
+    // 25 개 구가 다 안 들어가고, explore 는 flex-wrap 이라 넘치지 않으므로
+    // 같은 파셜을 써도 거기서는 화살표가 뜨지 않는다.
+    (function () {
+        var nav = document.currentScript.previousElementSibling;
+        if (!nav) return;
+        var list = nav.querySelector("[data-arealinks-list]");
+        var prev = nav.querySelector("[data-arealinks-prev]");
+        var next = nav.querySelector("[data-arealinks-next]");
+        if (!list || !prev || !next) return;
+
+        function step() { return Math.max(160, list.clientWidth * 0.8); }
+
+        function sync() {
+            var overflow = list.scrollWidth - list.clientWidth > 4;
+            prev.hidden = !overflow || list.scrollLeft <= 2;
+            next.hidden = !overflow || list.scrollLeft >= list.scrollWidth - list.clientWidth - 2;
+        }
+
+        // scrollBy({behavior:"smooth"}) 가 먹지 않는 환경이 있어서 scrollLeft 를
+        // 직접 넣는다. 부드러운 이동은 CSS scroll-behavior 가 담당하고, 그마저
+        // 지원되지 않으면 즉시 이동한다 — 어느 쪽이든 스크롤은 반드시 된다.
+        function move(delta) {
+            var max = list.scrollWidth - list.clientWidth;
+            list.scrollLeft = Math.max(0, Math.min(max, list.scrollLeft + delta));
+            sync();
+        }
+
+        prev.addEventListener("click", function () { move(-step()); });
+        next.addEventListener("click", function () { move(step()); });
+        list.addEventListener("scroll", sync, { passive: true });
+        window.addEventListener("resize", sync);
+        sync();
+    })();
+</script>
 {% endif %}

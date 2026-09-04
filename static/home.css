@@ -19,6 +19,9 @@
     --hg-center: #f5b301;
     --hg-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
     --hg-radius: 14px;
+    /* 하단 지역 링크 바 높이. 고정 배치된 트레이/FAB 가 이 바를 덮지 않도록
+       bottom 오프셋에 더해 쓴다. 바 높이를 바꾸면 여기만 고치면 된다. */
+    --hg-arealinks-h: 36px;
     font-synthesis: none;
 }
 
@@ -508,7 +511,9 @@
     left: 24px;
     top: 132px;          /* 프리셋 바 아래에서 시작 → 지역/면적 박스 가리지 않음 */
     width: 296px;
-    max-height: calc(100vh - 156px);
+    /* 하단 지역 링크 바 위에서 끝나야 한다. 바 높이를 빼지 않으면 패널이
+       바를 덮어 구 링크를 누를 수 없다. */
+    max-height: calc(100vh - 156px - var(--hg-arealinks-h));
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -580,7 +585,7 @@
 .hg-tray {
     position: fixed;
     right: 22px;
-    bottom: 22px;
+    bottom: calc(22px + var(--hg-arealinks-h));
     width: 300px;
     max-height: 60vh;
     background: var(--hg-panel);
@@ -733,7 +738,7 @@
 .hg-tray-fab {
     position: fixed;
     left: 50%;
-    bottom: 18px;
+    bottom: calc(18px + var(--hg-arealinks-h));
     transform: translateX(-50%);
     z-index: 40;
     border: 0;
@@ -750,7 +755,7 @@
 .hg-share-fab {
     position: fixed;
     right: 16px;
-    bottom: 18px;
+    bottom: calc(18px + var(--hg-arealinks-h));
     z-index: 41;
     border: 1px solid var(--hg-border-strong);
     border-radius: 999px;
@@ -788,7 +793,7 @@
 .share-fallback {
     position: fixed;
     left: 50%;
-    bottom: 18px;
+    bottom: calc(18px + var(--hg-arealinks-h));
     transform: translateX(-50%);
     z-index: 260;
     width: min(520px, calc(100vw - 28px));
@@ -919,7 +924,7 @@
     align-items: center;
     gap: 10px;
     padding: 0 14px 0 18px;
-    height: 36px;
+    height: var(--hg-arealinks-h);
     border-top: 1px solid var(--hg-line, rgba(15, 23, 42, 0.1));
     background: rgba(255, 255, 255, 0.82);
     backdrop-filter: blur(6px);
@@ -949,6 +954,7 @@
     align-items: center;
     height: 100%;
     overflow-x: auto;
+    scroll-behavior: smooth;
     /* 스크롤바가 바 높이를 밀어올리지 않도록 오버레이로 둔다. 넘치는 pill 이
        잘려 보이므로 가로 스크롤 가능하다는 건 시각적으로 드러난다. */
     scrollbar-width: none;
@@ -956,6 +962,31 @@
 }
 
 .hg-arealinks-list::-webkit-scrollbar { display: none; }
+
+/* 좌우 이동 버튼 — 목록이 넘칠 때만 JS 가 노출한다. */
+.hg-arealinks-arrow {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--hg-line, rgba(15, 23, 42, 0.12));
+    border-radius: 50%;
+    background: #fff;
+    color: var(--hg-muted, #64748b);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.hg-arealinks-arrow:hover {
+    border-color: var(--hg-accent, #2563eb);
+    color: var(--hg-accent, #2563eb);
+}
+
+.hg-arealinks-arrow[hidden] { display: none; }
 
 .hg-arealinks-list a {
     display: inline-flex;
@@ -982,7 +1013,8 @@
 }
 
 @media (max-width: 760px) {
-    .hg-arealinks { padding: 0 10px; height: 32px; gap: 8px; font-size: 11px; }
+    :root { --hg-arealinks-h: 32px; }
+    .hg-arealinks { padding: 0 10px; gap: 8px; font-size: 11px; }
     .hg-arealinks-hub { padding-right: 8px; }
     .hg-arealinks-list a { padding: 2px 8px; }
 }

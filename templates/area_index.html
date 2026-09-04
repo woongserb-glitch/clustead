@@ -19,10 +19,21 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903c">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
+    <style>
+        .area-gu-domain-strip span.is-high { border-color: #dbeafe; background: #eff6ff; color: #1d4ed8; }
+        .area-gu-domain-strip span.is-low { border-color: #fde68a; background: #fffbeb; color: #b45309; }
+        .area-gu-apts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; }
+        .area-gu-apts > span { color: #94a3b8; font-size: 12px; }
+        .area-gu-apts a {
+            padding: 3px 9px; border: 1px solid #e2e8f0; border-radius: 999px;
+            background: #fff; color: #15243B; text-decoration: none;
+        }
+        .area-gu-apts a:hover { border-color: #5B8DEF; color: #5B8DEF; }
+    </style>
 </head>
 
 <body>
@@ -83,6 +94,9 @@
                     </div>
                 </div>
                 <div class="area-gu-grid">
+                    {# 카드에서 평균 대표점수와 지역 등급을 뺐다. 25 개 구 중 23 개가
+                       B 라 등급이 구를 구분해 주지 못하고, 평균은 영역 간 강약을
+                       상쇄해 "어디나 비슷" 하게 보이게 만든다. #}
                     {% for gu in gu_cards %}
                     <article class="area-gu-card">
                         <a class="area-gu-card-main" href="{{ gu.url }}">
@@ -90,14 +104,23 @@
                                 <strong>{{ gu.label }}</strong>
                                 <span>{{ gu.apartment_count }}개 단지</span>
                             </div>
-                            <b>{{ gu.score }}</b>
-                            <em class="domain-grade grade-{{ gu.grade }}">{{ gu.grade }}</em>
                         </a>
                         <div class="area-gu-domain-strip">
                             {% for domain in gu.top_domains %}
-                            <span>{{ domain.plain_label }} {{ domain.grade }}</span>
+                            <span class="is-high">{{ domain.plain_label }} {{ domain.score }}</span>
+                            {% endfor %}
+                            {% for domain in gu.low_domains %}
+                            <span class="is-low">{{ domain.plain_label }} {{ domain.score }}</span>
                             {% endfor %}
                         </div>
+                        {% if gu.lead_apartments %}
+                        <div class="area-gu-apts">
+                            <span>{{ gu.lead_domain.plain_label }} 상위 단지</span>
+                            {% for apt in gu.lead_apartments %}
+                            <a href="{{ apt.url }}">{{ apt.name }}</a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         <div class="area-gu-dong-links">
                             {% for dong in gu.child_areas %}
                             <a href="{{ dong.url }}">{{ dong.label }}</a>
