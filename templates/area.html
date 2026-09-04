@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904b">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904c">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -65,9 +65,16 @@
         .area-rank-band .area-domain-card { border-color: #dbeafe; background: #fff; }
         .area-rank-band.is-low .area-domain-card { border-color: #fde68a; background: #fff; }
 
-        .area-domain-dong { padding: 11px 12px; border-radius: 10px; border: 1px solid transparent; }
-        .area-domain-dong + .area-domain-dong { margin-top: 2px; }
-        .area-domain-dong:hover { border-color: #e2e8f0; background: #fafcff; }
+        /* 테두리를 상시로 두고 호버는 색으로만 알린다. 평소 테두리가 없으면
+           행 구분이 약하고, 마우스를 올릴 때만 테두리가 생기면 레이아웃이
+           들썩이는 것처럼 보인다. */
+        .area-domain-dong {
+            padding: 11px 12px; border-radius: 10px;
+            border: 1px solid #e8eef6; background: #fff;
+            transition: border-color 0.12s, background 0.12s;
+        }
+        .area-domain-dong + .area-domain-dong { margin-top: 6px; }
+        .area-domain-dong:hover { border-color: #5B8DEF; background: #f7faff; }
         .area-domain-dong-head { display: flex; align-items: center; gap: 8px; }
         .area-domain-dong-head strong { font-size: 14px; }
         .area-domain-dong-head .domain-grade { margin-left: auto; }
