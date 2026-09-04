@@ -5205,23 +5205,35 @@ DONG_MIN_SAMPLE = 3
 # (index 속성명, 이름 컬럼 후보, 거리 컬럼, 화면 표기)
 # 유흥은 가까울수록 나쁜 지표라 "접근성이 좋다" 로 말할 수 없어 넣지 않는다.
 # 마트 계열은 이름 컬럼이 없어 거리만 쓴다. 카페·편의점은 브랜드별 거리뿐이라 뺐다.
+# 세부 카테고리별 근거를 어느 baseline 의 어떤 컬럼에서 읽는지.
+# (index 속성명, 이름 컬럼 후보, 거리 컬럼, 표기, 개수 컬럼, 개수 반경 표기)
+#
+# 개수 컬럼은 그 카테고리의 **점수를 실제로 만드는 지표**다(baseline_metric_config
+# 의 primary_metric). 대부분 개수 기반이라 거리만 보여주면 "최근접으로 점수가
+# 매겨진다" 는 오해를 준다. 소방서·한강·공원 셋만 거리 지표라 개수가 없다.
+# 유흥은 가까울수록 나쁜 지표라 넣지 않는다.
 _CATEGORY_NEAREST = {
-    "subway": ("subway", ("nearest_subway_name", "nearest_subway"), "nearest_subway_distance", "지하철역"),
-    "bus": ("bus", ("nearest_bus_stop",), "nearest_bus_stop_distance", "버스정류장"),
-    "hospital": ("medical", ("nearest_superior_hospital_name",), "nearest_superior_hospital_distance", "종합병원"),
-    "academy": ("academy", ("nearest_academy_name",), "nearest_academy_distance", "학원"),
-    "culture": ("culture", ("nearest_culture_name",), "nearest_culture_distance", "문화시설"),
-    "cctv": ("cctv", ("nearest_cctv",), "nearest_cctv_distance", "CCTV"),
-    "fire-station": ("fire_station", ("nearest_fire_station_name",), "nearest_fire_station_distance", "소방서"),
-    "commercial": ("commercial", ("nearest_commercial_name",), "nearest_commercial_distance", "상권"),
-    "shopping": ("shopping", ("nearest_shopping_name",), "nearest_shopping_distance", "쇼핑시설"),
-    "bike": ("bike", ("nearest_bike_station",), "nearest_bike_station_distance", "따릉이 대여소"),
-    "ev-charger": ("ev_charger", ("nearest_ev_charger_name",), "nearest_ev_charger_distance", "충전소"),
-    "hangang": ("hangang", ("nearest_hangang_park",), "nearest_hangang_distance", "한강공원"),
-    "park": ("park", ("nearest_park",), "park_distance", "공원"),
-    "large_mart": ("mart", (), "nearest_large_mart_distance", "대형마트"),
-    "super_mart": ("mart", (), "nearest_super_mart_distance", "슈퍼마켓"),
-    "warehouse_mart": ("mart", (), "nearest_warehouse_mart_distance", "창고형마트"),
+    "subway": ("subway", ("nearest_subway_name", "nearest_subway"), "nearest_subway_distance", "지하철역", "subway_line_count_500m", "500m", "개 노선", ""),
+    "bus": ("bus", ("nearest_bus_stop",), "nearest_bus_stop_distance", "버스정류장", "bus_route_count", "500m", "개 노선", ""),
+    # 개수(medical_count_1km)는 의원까지 포함한 병원 전체이고, 최근접은 종합병원
+    # 컬럼이라 라벨이 서로 다르다. 하나로 쓰면 "종합병원 1,323곳" 이 된다.
+    "hospital": ("medical", ("nearest_superior_hospital_name",), "nearest_superior_hospital_distance", "종합병원", "medical_count_1km", "1km", "곳", "병원"),
+    "academy": ("academy", ("nearest_academy_name",), "nearest_academy_distance", "학원", "academy_count_1000m", "1km", "곳", ""),
+    "culture": ("culture", ("nearest_culture_name",), "nearest_culture_distance", "문화시설", "culture_count_1500m", "1.5km", "곳", ""),
+    "cctv": ("cctv", ("nearest_cctv",), "nearest_cctv_distance", "CCTV", "cctv_count_500m", "500m", "대", ""),
+    "fire-station": ("fire_station", ("nearest_fire_station_name",), "nearest_fire_station_distance", "소방서", "", "", "", ""),
+    "commercial": ("commercial", ("nearest_commercial_name",), "nearest_commercial_distance", "상권", "commercial_count_1km", "1km", "곳", ""),
+    "shopping": ("shopping", ("nearest_shopping_name",), "nearest_shopping_distance", "쇼핑시설", "shopping_count_3km", "3km", "곳", ""),
+    "bike": ("bike", ("nearest_bike_station",), "nearest_bike_station_distance", "따릉이 대여소", "bike_station_count_500m", "500m", "곳", ""),
+    "ev-charger": ("ev_charger", ("nearest_ev_charger_name",), "nearest_ev_charger_distance", "충전소", "ev_charger_count_500m", "500m", "곳", ""),
+    "hangang": ("hangang", ("nearest_hangang_park",), "nearest_hangang_distance", "한강공원", "", "", "", ""),
+    "park": ("park", ("nearest_park",), "park_distance", "공원", "", "", "", ""),
+    "large_mart": ("mart", (), "nearest_large_mart_distance", "대형마트", "large_mart_count_3000m", "3km", "곳", ""),
+    "super_mart": ("mart", (), "nearest_super_mart_distance", "슈퍼마켓", "super_mart_count_500m", "500m", "곳", ""),
+    "warehouse_mart": ("mart", (), "nearest_warehouse_mart_distance", "창고형마트", "warehouse_mart_count_5000m", "5km", "곳", ""),
+    # 카페·편의점은 대표 시설명과 최근접 거리 컬럼이 없어 개수만 쓴다.
+    "cafe": ("cafe", (), "", "카페", "cafe_count_500m", "500m", "곳", ""),
+    "convenience": ("convenience", (), "", "편의점", "convenience_count_500m", "500m", "곳", ""),
 }
 
 
@@ -5230,7 +5242,7 @@ def _category_nearest_evidence(category_key, apartment_key):
     spec = _CATEGORY_NEAREST.get(category_key)
     if not spec:
         return None
-    table, name_columns, distance_column, label = spec
+    table, name_columns, distance_column, label, count_column, radius, unit, count_label = spec
     index = getattr(_preload, f"{table}_baseline_index", None)
     if not index:
         return None
@@ -5240,15 +5252,24 @@ def _category_nearest_evidence(category_key, apartment_key):
         return None
     if not row:
         return None
-    distance = parse_optional_float(row.get(distance_column))
-    if distance is None or distance <= 0:
+    distance = parse_optional_float(row.get(distance_column)) if distance_column else None
+    count = parse_optional_float(row.get(count_column)) if count_column else None
+    if distance is None and count is None:
         return None
     name = ""
     for column in name_columns:
         name = _facility_display_name(row.get(column))
         if name:
             break
-    return {"label": label, "name": name, "distance": distance}
+    return {
+        "label": label,
+        "name": name,
+        "distance": distance if distance and distance > 0 else None,
+        "count": int(count) if count is not None else None,
+        "count_label": count_label or label,
+        "radius": radius,
+        "unit": unit,
+    }
 
 
 def _facility_display_name(value):
@@ -5270,7 +5291,12 @@ def _domain_top_category(domain_key, category_scores):
     카테고리가 하나뿐인 영역(의료=병원, 교육=학원)도 돌려준다. 이름만 되풀이하던
     예전과 달리 지금은 실제 시설명과 거리를 붙이므로 그 자체로 정보가 된다.
     """
-    keys = [key for key, dom in CATEGORY_TO_DOMAIN.items() if dom == domain_key]
+    # 근거(개수·최근접)를 댈 수 있는 카테고리 중에서만 고른다. 유흥은 가까울수록
+    # 나쁜 지표라 매핑에 없는데, 그게 1 위면 문장에 근거가 통째로 빠져 버린다.
+    keys = [
+        key for key, dom in CATEGORY_TO_DOMAIN.items()
+        if dom == domain_key and key in _CATEGORY_NEAREST
+    ]
     if not keys or not category_scores:
         return ""
     best, best_score = "", None
@@ -5518,8 +5544,19 @@ def _area_lead_sentence(domain, scope_label="", is_dong=False):
     evidence = _category_nearest_evidence(lead.get("top_category"), lead.get("lookup_key"))
     if not evidence:
         return headline
+
     facility = f"{evidence['label']}({evidence['name']})" if evidence["name"] else evidence["label"]
-    return f"{headline} {facility}까지 {format_distance_m(evidence['distance'])}입니다."
+    distance = format_distance_m(evidence["distance"]) if evidence["distance"] else ""
+    # 개수 지표인 카테고리는 개수를 앞에 둔다. 점수를 만드는 값이 개수인데 거리만
+    # 보이면 최근접으로 등급이 매겨진다고 읽힌다.
+    if evidence["count"] is not None:
+        head = f"{headline} 반경 {evidence['radius']} 안에 {evidence['count_label']} {evidence['count']:,}{evidence['unit']}"
+        if distance:
+            return f"{head}, 가장 가까운 곳은 {distance}입니다."
+        return f"{head}이 있습니다."
+    if distance:
+        return f"{headline} {facility}까지 {distance}입니다."
+    return headline
 
 
 def _build_area_features(scope_label, domains, is_dong=False):
