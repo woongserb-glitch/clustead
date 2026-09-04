@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903f">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904a">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -65,20 +65,21 @@
         .area-rank-band .area-domain-card { border-color: #dbeafe; background: #fff; }
         .area-rank-band.is-low .area-domain-card { border-color: #fde68a; background: #fff; }
 
-        .area-domain-dong { padding: 12px 0; border-bottom: 1px solid #eef2f7; }
-        .area-domain-dong:last-child { border-bottom: 0; }
+        .area-domain-dong { padding: 11px 12px; border-radius: 10px; border: 1px solid transparent; }
+        .area-domain-dong + .area-domain-dong { margin-top: 2px; }
+        .area-domain-dong:hover { border-color: #e2e8f0; background: #fafcff; }
         .area-domain-dong-head { display: flex; align-items: center; gap: 8px; }
         .area-domain-dong-head strong { font-size: 14px; }
-        .area-domain-dong-head > a {
-            margin-left: auto; font-size: 12.5px; color: #64748b; text-decoration: none; white-space: nowrap;
-        }
-        .area-domain-dong-head > a:hover { color: #5B8DEF; }
+        .area-domain-dong-head .domain-grade { margin-left: auto; }
+        .area-domain-dong-name { margin: 5px 0 0 22px; font-size: 13px; }
+        .area-domain-dong-name a { color: #2563eb; font-weight: 700; text-decoration: none; }
+        .area-domain-dong-name a:hover { text-decoration: underline; }
+        .area-domain-dong-name span { margin-left: 5px; color: #94a3b8; font-size: 12px; }
         /* 위 줄의 도메인 이름은 이모지 뒤에서 시작한다. 대표 단지 줄도 같은 위치에서
            시작하도록 들여쓴다(이모지 폭 + 간격). */
-        .area-domain-dong-lead { margin: 6px 0 0 22px; font-size: 12.5px; color: #94a3b8; }
-        .area-domain-dong-lead a { color: #15243B; font-weight: 600; text-decoration: none; }
+        .area-domain-dong-lead { margin: 3px 0 0 22px; font-size: 12.5px; color: #94a3b8; }
+        .area-domain-dong-lead a { color: #15243B; font-weight: 600; text-decoration: none; margin-left: 4px; }
         .area-domain-dong-lead a:hover { color: #5B8DEF; }
-        .area-domain-dong-lead span { margin-left: 6px; }
 
         .area-domain-blocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
         .area-domain-block { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; background: #fff; }
@@ -281,14 +282,17 @@
                         <div class="area-domain-dong">
                             <div class="area-domain-dong-head">
                                 <strong>{{ domain.label }}</strong>
-                                <a href="{{ domain.top_dong.url }}">{{ domain.top_dong.label }} · {{ domain.top_dong.apartment_count }}개 단지</a>
                                 <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
                             </div>
+                            <p class="area-domain-dong-name">
+                                <a href="{{ domain.top_dong.url }}">{{ domain.top_dong.label }}</a>
+                                <span>({{ domain.top_dong.apartment_count }}개 단지 기준)</span>
+                            </p>
                             {% if domain.top_dong.lead_apartment %}
-                            {# 요약 카드의 "가장 앞선 단지" 는 구 전체 1 위, 이쪽은 그 동
-                               안에서의 1 위다. 라벨에 동 이름을 넣어 서로 구분한다. #}
+                            {# 요약 카드의 "가장 앞선 단지" 는 구 전체 1 위, 이쪽은 바로
+                               위에 적힌 동 안에서의 1 위다. #}
                             <p class="area-domain-dong-lead">
-                                {{ domain.top_dong.label }} 대표
+                                대표 단지
                                 <a href="{{ domain.top_dong.lead_apartment.url }}">{{ domain.top_dong.lead_apartment.name }}</a>
                             </p>
                             {% endif %}

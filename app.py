@@ -5519,6 +5519,15 @@ def _area_body_sentence(domain):
     return f"{label} 인프라가 좋은 단지가 서울 평균보다 적습니다."
 
 
+def _place_with_dong(dong, name, skip_dong=False):
+    """단지 앞에 동 이름을 붙인다. 단지명이 이미 그 동으로 시작하면 그대로 둔다."""
+    dong = clean_text(dong)
+    name = clean_text(name)
+    if skip_dong or not dong or name.startswith(dong):
+        return name
+    return f"{dong} {name}"
+
+
 def _area_lead_sentence(domain, scope_label="", is_dong=False):
     """지역 전체에서 그 영역이 가장 앞선 단지와, 그 단지가 특히 좋은 지점.
 
@@ -5535,8 +5544,9 @@ def _area_lead_sentence(domain, scope_label="", is_dong=False):
     lead = apartments[0]
     scope = f"{scope_label}에서는 " if scope_label else ""
     # 동 페이지에서는 범위에 이미 동 이름이 들어 있어("강남구 도곡동에서는") 단지
-    # 앞에 또 붙이면 같은 글자가 겹친다.
-    where = lead["name"] if is_dong else f"{lead['dong']} {lead['name']}".strip()
+    # 앞에 또 붙이면 같은 글자가 겹친다. 구 페이지에서도 단지명 자체가 동 이름으로
+    # 시작하는 경우("목동3단지", "창동주공")가 있어 그때는 앞에 붙이지 않는다.
+    where = _place_with_dong(lead["dong"], lead["name"], skip_dong=is_dong)
     label = domain.get("plain_label", "")
     # 한 문장에 단지명과 거리를 함께 넣으면 "거평까지 618m" 처럼 읽힌다. 단지를
     # 주어로 끊고, 근거가 되는 시설과 거리는 다음 문장에 둔다.
