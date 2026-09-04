@@ -5225,18 +5225,6 @@ _CATEGORY_NEAREST = {
 }
 
 
-def _ro_particle(word):
-    """받침에 따라 '로/으로'. 받침이 없거나 ㄹ 이면 '로'."""
-    word = clean_text(word)
-    if not word:
-        return "로"
-    last = word[-1]
-    if not ("가" <= last <= "힣"):
-        return "로"
-    jong = (ord(last) - 0xAC00) % 28
-    return "로" if jong in (0, 8) else "으로"
-
-
 def _category_nearest_evidence(category_key, apartment_key):
     """그 단지에서 이 카테고리의 가장 가까운 시설 이름과 거리."""
     spec = _CATEGORY_NEAREST.get(category_key)
@@ -5505,7 +5493,7 @@ def _area_body_sentence(domain):
     return f"{label} 인프라가 좋은 단지가 서울 평균보다 적습니다."
 
 
-def _area_lead_sentence(domain, scope_label=""):
+def _area_lead_sentence(domain, scope_label="", is_dong=False):
     """지역 전체에서 그 영역이 가장 앞선 단지와, 그 단지가 특히 좋은 지점.
 
     카테고리 이름만 부르면("지하철역 쪽이 좋습니다") 정보가 거의 없어서, 실제로
@@ -5519,17 +5507,22 @@ def _area_lead_sentence(domain, scope_label=""):
     if not apartments:
         return ""
     lead = apartments[0]
-    scope = f"{scope_label}에서 " if scope_label else ""
-    where = f"{lead['dong']} {lead['name']}".strip()
+    scope = f"{scope_label}에서는 " if scope_label else ""
+    # 동 페이지에서는 범위에 이미 동 이름이 들어 있어("강남구 도곡동에서는") 단지
+    # 앞에 또 붙이면 같은 글자가 겹친다.
+    where = lead["name"] if is_dong else f"{lead['dong']} {lead['name']}".strip()
+    label = domain.get("plain_label", "")
+    # 한 문장에 단지명과 거리를 함께 넣으면 "거평까지 618m" 처럼 읽힌다. 단지를
+    # 주어로 끊고, 근거가 되는 시설과 거리는 다음 문장에 둔다.
+    headline = f"{scope}{where}의 {label} 접근성이 가장 좋습니다."
     evidence = _category_nearest_evidence(lead.get("top_category"), lead.get("lookup_key"))
-    if evidence:
-        facility = f"{evidence['label']}({evidence['name']})" if evidence["name"] else evidence["label"]
-        distance = format_distance_m(evidence["distance"])
-        return f"{scope}가장 앞선 단지는 {where}{_ro_particle(where)}, {facility} 접근성({distance})이 가장 좋습니다."
-    return f"{scope}가장 앞선 단지는 {where}입니다."
+    if not evidence:
+        return headline
+    facility = f"{evidence['label']}({evidence['name']})" if evidence["name"] else evidence["label"]
+    return f"{headline} {facility}까지 {format_distance_m(evidence['distance'])}입니다."
 
 
-def _build_area_features(scope_label, domains):
+def _build_area_features(scope_label, domains, is_dong=False):
     """상단 요약 문장과 "생활 특징 요약" 카드.
 
     이전에는 "지역 평균 66점, B등급으로 집계됐습니다" 처럼 숫자를 되풀이했다.
@@ -5552,7 +5545,7 @@ def _build_area_features(scope_label, domains):
     cards = []
     for domain in strengths:
         body = " ".join(filter(None, [
-            _area_body_sentence(domain), _area_lead_sentence(domain, scope_label)
+            _area_body_sentence(domain), _area_lead_sentence(domain, scope_label, is_dong)
         ]))
         cards.append({
             "label": domain["label"],
@@ -5561,7 +5554,7 @@ def _build_area_features(scope_label, domains):
             "tone": "strong",
         })
     for domain in lower:
-        lead = _area_lead_sentence(domain, scope_label)
+        lead = _area_lead_sentence(domain, scope_label, is_dong)
         body = "단지별 편차가 커서 직접 확인하는 편이 좋습니다."
         if lead:
             body = f"{body} {lead}"
@@ -5720,7 +5713,11 @@ def build_area_landing_context(gu, dong=None):
     # 강약이 상쇄된 목록이었고, 전 단지를 한 번 더 순회하는 비용도 있었다.
     domain_breakdown, _breakdown_scored = _area_domain_breakdown(rows, gu)
     # 요약 카드가 대표 단지를 들어야 하므로 breakdown 을 넘긴다(rank_text 포함).
-    features = _build_area_features(scope_label, _merge_rank_text(domain_breakdown, domain_summary["domains"]))
+    features = _build_area_features(
+        scope_label,
+        _merge_rank_text(domain_breakdown, domain_summary["domains"]),
+        is_dong=bool(dong),
+    )
     strengths, weaknesses = _area_strengths_weaknesses(domain_breakdown)
     is_dong = bool(dong)
     children = _area_sibling_summaries(gu, dong) if is_dong else _area_child_summaries(gu)
