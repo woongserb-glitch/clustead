@@ -97,6 +97,26 @@ docker compose up -d --build        # 무중단은 아님(소규모 A안). 재�
 docker compose restart app
 ```
 
+### 데이터 배포 확인 (필수)
+
+데이터는 git 추적 대상이 아니라 scp 로 따로 보낸다. 무엇을 보내야 하는지가
+코드에 없어 2026-09-04 하루에만 누락이 세 번 났다(baseline CSV 6종, 실거래 매핑,
+`.new` swap). 배포 직후 반드시 돌릴 것:
+
+```bash
+python scripts/verify_deployed_data.py     # 불일치 있으면 종료코드 1
+python scripts/verify_deployed_data.py --list   # 보낼 목록만 확인
+```
+
+`baseline.db` 가 있으면 SQLite 로 읽는 baseline CSV 12종은 **보내지 않는다**
+(서버에서 지워도 된다, 약 412MB). 다만 아래 6종은 로더에 SQLite 분기가 없어
+CSV 를 직접 읽으므로 **반드시 보내야 한다**:
+
+    subway / cctv / convenience / mart / cafe / school_zone
+
+이 구분은 스크립트가 `preload_service.py` 를 파싱해 self-check 로 검증하므로,
+로더 구현이 바뀌면 스크립트가 먼저 알려준다.
+
 ## 7. 도메인 연결 + HTTPS (clustead.com)
 
 서버 구성은 이미 HTTPS-ready 다(443 포트·certbot 서비스·SSL conf 포함). 순서대로:
