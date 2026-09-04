@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904h">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260905a">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -52,26 +52,35 @@
            화면 한 판을 잡아먹는다. 좁아지면 밴드부터 줄바꿈된다. */
         .area-headline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 12px; margin-top: 18px; }
         .area-headline > .area-stat { flex: 0 0 130px; }
-        .area-rank-band { flex: 1 1 340px; min-width: 0; }
+        .area-rank-band { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; }
         .area-rank-band h2 { margin: 0 0 6px; font-size: 12px; color: #64748b; font-weight: 600; }
-        .area-rank-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-        /* 등급을 도메인명과 같은 줄 오른쪽에 둔다. 옆 칸으로 빼면 설명줄이 그만큼
-           좁아져서 "마트, 편의점 등 일 / 상 편의시설" 처럼 어색하게 끊긴다. */
-        .area-rank-cards .area-domain-card {
-            display: flex; flex-direction: column; justify-content: center;
-            padding: 10px 12px; gap: 3px;
+        /* 영역마다 설명("마트, 편의점 등 일상 편의시설")을 넣었더니 아래
+           `생활영역별 등급` 섹션에 같은 문장이 그대로 다시 나왔고, 좁은 상자
+           안에서 "일상 편의시 / 설" 로 접히기까지 했다. 밴드는 이름과 등급만
+           한 줄로 보여주고 설명은 아래 섹션에 맡긴다.
+           세로 목록으로 두면 폭이 남아 이름과 등급 사이가 길게 비므로 3 칸으로
+           나눈다. */
+        .area-rank-list {
+            flex: 1; margin: 0; padding: 0; list-style: none;
+            display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
         }
-        .area-rank-cards .area-domain-card strong {
-            display: flex; align-items: center; font-size: 13px;
+        .area-rank-list li {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 12px; border: 1px solid #dbeafe; border-radius: 12px;
+            background: #fff; font-size: 13px; font-weight: 800; color: #111827;
         }
-        .area-rank-cards .area-domain-card strong .domain-grade { margin-left: auto; }
-        .area-rank-cards .area-domain-card span { margin-top: 0; font-size: 11px; }
+        .area-rank-band.is-low .area-rank-list li { border-color: #fde68a; }
+        .area-rank-list li > i { font-style: normal; flex: none; }
+        .area-rank-list li > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .area-rank-list li .domain-grade { margin-left: auto; }
+        /* 폰에서는 칸이 110px 남짓이라 이모지까지 넣으면 "휴식/여가" 가 "휴식/…"
+           로 잘린다. 한 줄 3 칸을 지키고 이모지를 뺀다 — 이름이 잘리는 쪽이
+           손해가 크다. */
         @media (max-width: 760px) {
-            .area-rank-cards { grid-template-columns: 1fr; }
+            .area-rank-list { gap: 6px; }
+            .area-rank-list li { padding: 9px 8px; font-size: 12px; gap: 6px; }
+            .area-rank-list li > i { display: none; }
         }
-        /* 좌측 "분석 단지" 와 같은 흰 카드로 통일하고, 상/하위는 테두리로만 구분한다. */
-        .area-rank-band .area-domain-card { border-color: #dbeafe; background: #fff; }
-        .area-rank-band.is-low .area-domain-card { border-color: #fde68a; background: #fff; }
 
         /* 테두리를 상시로 두고 호버는 색으로만 알린다. 평소 테두리가 없으면
            행 구분이 약하고, 마우스를 올릴 때만 테두리가 생기면 레이아웃이
@@ -153,11 +162,8 @@
             {# 평균 대표점수와 지역 등급을 뺐다. 25 개 구의 등급이 B 23 / C 2 였고
                점수 표준편차도 7.5 로, 도메인별 표준편차(9.7~19.4)보다 훨씬 작다.
                도메인 간 강약이 평균에서 상쇄돼 "어디나 B" 로 보이기 때문이다. #}
-            {% macro domain_card(domain) -%}
-            <article class="area-domain-card">
-                <strong>{{ domain.label }}<em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em></strong>
-                <span>{{ domain.description }}</span>
-            </article>
+            {% macro domain_row(domain) -%}
+            <li><i>{{ domain.label | replace(domain.plain_label, '') | trim }}</i><span>{{ domain.plain_label }}</span><em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em></li>
             {%- endmacro %}
 
             <div class="area-headline">
@@ -168,17 +174,17 @@
                 {% if area.strengths %}
                 <div class="area-rank-band">
                     <h2>상위 생활영역</h2>
-                    <div class="area-rank-cards">
-                        {% for domain in area.strengths %}{{ domain_card(domain) }}{% endfor %}
-                    </div>
+                    <ul class="area-rank-list">
+                        {% for domain in area.strengths %}{{ domain_row(domain) }}{% endfor %}
+                    </ul>
                 </div>
                 {% endif %}
                 {% if area.weaknesses %}
                 <div class="area-rank-band is-low">
                     <h2>하위 생활영역</h2>
-                    <div class="area-rank-cards">
-                        {% for domain in area.weaknesses %}{{ domain_card(domain) }}{% endfor %}
-                    </div>
+                    <ul class="area-rank-list">
+                        {% for domain in area.weaknesses %}{{ domain_row(domain) }}{% endfor %}
+                    </ul>
                 </div>
                 {% endif %}
             </div>
