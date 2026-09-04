@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903d">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903e">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -48,10 +48,18 @@
         .area-domain-pills a b { font-weight: 700; }
         .area-domain-pills.is-low a { border-color: #fde68a; background: #fffbeb; color: #b45309; }
 
-        .area-rank-band { margin-top: 14px; }
-        .area-rank-band h2 { margin: 0 0 8px; font-size: 13px; color: #64748b; font-weight: 600; }
-        @media (min-width: 761px) {
-            .area-rank-band .area-domain-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        /* 분석 단지 + 상위/하위 6 장을 한 행에 둔다. 세로로 쌓으면 헤더만으로
+           화면 한 판을 잡아먹는다. 좁아지면 밴드부터 줄바꿈된다. */
+        .area-headline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 12px; margin-top: 18px; }
+        .area-headline > .area-stat { flex: 0 0 130px; }
+        .area-rank-band { flex: 1 1 340px; min-width: 0; }
+        .area-rank-band h2 { margin: 0 0 6px; font-size: 12px; color: #64748b; font-weight: 600; }
+        .area-rank-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .area-rank-cards .area-domain-card { padding: 10px 12px; gap: 8px; }
+        .area-rank-cards .area-domain-card strong { font-size: 13px; }
+        .area-rank-cards .area-domain-card span { font-size: 11px; }
+        @media (max-width: 760px) {
+            .area-rank-cards { grid-template-columns: 1fr; }
         }
         .area-rank-band .area-domain-card { border-color: #dbeafe; background: #f8fbff; }
         .area-rank-band.is-low .area-domain-card { border-color: #fde68a; background: #fffdf5; }
@@ -111,13 +119,6 @@
             {# 평균 대표점수와 지역 등급을 뺐다. 25 개 구의 등급이 B 23 / C 2 였고
                점수 표준편차도 7.5 로, 도메인별 표준편차(9.7~19.4)보다 훨씬 작다.
                도메인 간 강약이 평균에서 상쇄돼 "어디나 B" 로 보이기 때문이다. #}
-            <div class="area-stat-grid">
-                <div class="area-stat">
-                    <span>분석 단지</span>
-                    <strong>{{ area.apartment_count }}</strong>
-                </div>
-            </div>
-
             {% macro domain_card(domain) -%}
             <article class="area-domain-card">
                 <div>
@@ -128,22 +129,28 @@
             </article>
             {%- endmacro %}
 
-            {% if area.strengths %}
-            <div class="area-rank-band">
-                <h2>상위 생활영역</h2>
-                <div class="area-domain-grid">
-                    {% for domain in area.strengths %}{{ domain_card(domain) }}{% endfor %}
+            <div class="area-headline">
+                <div class="area-stat">
+                    <span>분석 단지</span>
+                    <strong>{{ area.apartment_count }}</strong>
                 </div>
-            </div>
-            {% endif %}
-            {% if area.weaknesses %}
-            <div class="area-rank-band is-low">
-                <h2>하위 생활영역</h2>
-                <div class="area-domain-grid">
-                    {% for domain in area.weaknesses %}{{ domain_card(domain) }}{% endfor %}
+                {% if area.strengths %}
+                <div class="area-rank-band">
+                    <h2>상위 생활영역</h2>
+                    <div class="area-rank-cards">
+                        {% for domain in area.strengths %}{{ domain_card(domain) }}{% endfor %}
+                    </div>
                 </div>
+                {% endif %}
+                {% if area.weaknesses %}
+                <div class="area-rank-band is-low">
+                    <h2>하위 생활영역</h2>
+                    <div class="area-rank-cards">
+                        {% for domain in area.weaknesses %}{{ domain_card(domain) }}{% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
         </header>
 
         <main class="area-layout">
@@ -199,9 +206,12 @@
                         <article class="area-domain-block" id="domain-{{ domain.key }}">
                             <h3>
                                 {{ domain.label }}
+                                {# 동 페이지에서는 상단 "도메인 평균등급" 과 값이 같아 중복이다. #}
+                                {% if not area.is_dong %}
                                 <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
+                                {% endif %}
                             </h3>
-                            {% if domain.dongs %}
+                            {% if domain.dongs and not area.is_dong %}
                             <p class="area-domain-dongs">
                                 상위 동:
                                 {% for dong in domain.dongs %}
@@ -213,7 +223,7 @@
                                 {% for apt in domain.apartments %}
                                 <li>
                                     <a href="{{ apt.url }}">{{ apt.name }}</a>
-                                    <span>{{ apt.dong }}</span>
+                                    {% if not area.is_dong %}<span>{{ apt.dong }}</span>{% endif %}
                                     <em class="domain-grade grade-{{ apt.grade }}">{{ apt.grade }}</em>
                                 </li>
                                 {% endfor %}
