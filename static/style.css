@@ -4452,6 +4452,30 @@ body:not(.home-page) #resultLoadingOverlay {
 .area-side {
     position: sticky;
     top: 16px;
+    /* 사이드바가 뷰포트보다 조금이라도 크면 sticky 가 무력화된다(요소 바닥이
+       화면에 닿을 때까지 그냥 함께 스크롤된다). 강남구 기준 사이드바 1,057px /
+       뷰포트 900px 라 맨 아래 "바로 탐색" 이 본문 4,306px 를 다 내려가야 보였다.
+       화면 높이로 묶고 넘치면 사이드바 안에서 스크롤한다. */
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding-right: 2px;
+}
+
+.area-side::-webkit-scrollbar { width: 6px; }
+.area-side::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.14);
+    border-radius: 6px;
+}
+
+@media (max-width: 760px) {
+    /* 1 열로 떨어지면 사이드바도 그냥 본문 흐름을 따르는 편이 낫다. */
+    .area-side {
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+    }
 }
 
 .area-link-list,

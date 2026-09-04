@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904b">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -266,6 +266,18 @@
             </section>
 
             <aside class="area-side">
+                <section class="tool-results-card area-side-section">
+                    <div class="section-head">
+                        <div>
+                            <h2>바로 탐색</h2>
+                            <p>{{ area.scope_label }} 조건으로 더 좁혀볼 수 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="area-action-list">
+                        <a href="{{ url_for('explore', gu=area.gu, dong=area.dong) }}">조건 추가해서 탐색</a>
+                        <a href="/compare">단지 비교하기</a>
+                    </div>
+                </section>
                 {% if not area.is_dong and domain_breakdown %}
                 {# 평균점수 순 나열 대신 생활영역별로 어느 동이 앞서는지 보여준다.
                    평균은 영역 간 강약이 상쇄돼 동 사이 차이를 지워버린다. #}
@@ -322,18 +334,6 @@
                 </section>
                 {% endif %}
 
-                <section class="tool-results-card area-side-section">
-                    <div class="section-head">
-                        <div>
-                            <h2>바로 탐색</h2>
-                            <p>{{ area.scope_label }} 조건으로 더 좁혀볼 수 있습니다.</p>
-                        </div>
-                    </div>
-                    <div class="area-action-list">
-                        <a href="{{ url_for('explore', gu=area.gu, dong=area.dong) }}">조건 추가해서 탐색</a>
-                        <a href="/compare">단지 비교하기</a>
-                    </div>
-                </section>
             </aside>
         </main>
     </div>
