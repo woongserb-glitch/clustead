@@ -110,6 +110,7 @@ from services.preload_service import medical_baseline_data, medical_baseline_ind
 from services.preload_service import get_indexed_baseline_row, iter_baseline_columns
 from services import analytics_service
 from services import grid_service
+from services import preload_service as _preload
 from scripts.baseline_metric_config import (
     BASELINE_METRIC_CONFIG,
     HIGHER_BETTER,
@@ -5200,16 +5201,90 @@ def _area_domain_summary(rows):
 DONG_MIN_SAMPLE = 3
 
 
-def _domain_top_category(domain_key, category_scores):
-    """그 영역 안에서 이 단지가 가장 앞서는 세부 카테고리 이름.
+# 세부 카테고리별 "가장 가까운 시설" 을 어느 baseline 에서 어떤 컬럼으로 읽는지.
+# (index 속성명, 이름 컬럼 후보, 거리 컬럼, 화면 표기)
+# 유흥은 가까울수록 나쁜 지표라 "접근성이 좋다" 로 말할 수 없어 넣지 않는다.
+# 마트 계열은 이름 컬럼이 없어 거리만 쓴다. 카페·편의점은 브랜드별 거리뿐이라 뺐다.
+_CATEGORY_NEAREST = {
+    "subway": ("subway", ("nearest_subway_name", "nearest_subway"), "nearest_subway_distance", "지하철역"),
+    "bus": ("bus", ("nearest_bus_stop",), "nearest_bus_stop_distance", "버스정류장"),
+    "hospital": ("medical", ("nearest_superior_hospital_name",), "nearest_superior_hospital_distance", "종합병원"),
+    "academy": ("academy", ("nearest_academy_name",), "nearest_academy_distance", "학원"),
+    "culture": ("culture", ("nearest_culture_name",), "nearest_culture_distance", "문화시설"),
+    "cctv": ("cctv", ("nearest_cctv",), "nearest_cctv_distance", "CCTV"),
+    "fire-station": ("fire_station", ("nearest_fire_station_name",), "nearest_fire_station_distance", "소방서"),
+    "commercial": ("commercial", ("nearest_commercial_name",), "nearest_commercial_distance", "상권"),
+    "shopping": ("shopping", ("nearest_shopping_name",), "nearest_shopping_distance", "쇼핑시설"),
+    "bike": ("bike", ("nearest_bike_station",), "nearest_bike_station_distance", "따릉이 대여소"),
+    "ev-charger": ("ev_charger", ("nearest_ev_charger_name",), "nearest_ev_charger_distance", "충전소"),
+    "hangang": ("hangang", ("nearest_hangang_park",), "nearest_hangang_distance", "한강공원"),
+    "park": ("park", ("nearest_park",), "park_distance", "공원"),
+    "large_mart": ("mart", (), "nearest_large_mart_distance", "대형마트"),
+    "super_mart": ("mart", (), "nearest_super_mart_distance", "슈퍼마켓"),
+    "warehouse_mart": ("mart", (), "nearest_warehouse_mart_distance", "창고형마트"),
+}
 
-    영역에 카테고리가 하나뿐이면(의료=병원, 교육=학원 등) 영역 이름을 되풀이하는
-    셈이라 아무 것도 돌려주지 않는다.
+
+def _ro_particle(word):
+    """받침에 따라 '로/으로'. 받침이 없거나 ㄹ 이면 '로'."""
+    word = clean_text(word)
+    if not word:
+        return "로"
+    last = word[-1]
+    if not ("가" <= last <= "힣"):
+        return "로"
+    jong = (ord(last) - 0xAC00) % 28
+    return "로" if jong in (0, 8) else "으로"
+
+
+def _category_nearest_evidence(category_key, apartment_key):
+    """그 단지에서 이 카테고리의 가장 가까운 시설 이름과 거리."""
+    spec = _CATEGORY_NEAREST.get(category_key)
+    if not spec:
+        return None
+    table, name_columns, distance_column, label = spec
+    index = getattr(_preload, f"{table}_baseline_index", None)
+    if not index:
+        return None
+    try:
+        row = index.get(apartment_key)
+    except Exception:
+        return None
+    if not row:
+        return None
+    distance = parse_optional_float(row.get(distance_column))
+    if distance is None or distance <= 0:
+        return None
+    name = ""
+    for column in name_columns:
+        name = _facility_display_name(row.get(column))
+        if name:
+            break
+    return {"label": label, "name": name, "distance": distance}
+
+
+def _facility_display_name(value):
+    """시설명에서 문장에 넣기 어려운 꼬리표를 떼어 낸다.
+
+    상권명이 "강남구청(청담역_8번, 강남세무서)" 처럼 괄호 안에 인접 지점을 잔뜩
+    달고 온다. 괄호 앞부분만으로 충분히 알아볼 수 있으면 그쪽을 쓴다.
+    """
+    text = clean_evidence_label(value).replace("_", " ")
+    head = text.split("(")[0].strip()
+    if len(head) >= 2:
+        text = head
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _domain_top_category(domain_key, category_scores):
+    """그 영역 안에서 이 단지가 가장 앞서는 세부 카테고리 키.
+
+    카테고리가 하나뿐인 영역(의료=병원, 교육=학원)도 돌려준다. 이름만 되풀이하던
+    예전과 달리 지금은 실제 시설명과 거리를 붙이므로 그 자체로 정보가 된다.
     """
     keys = [key for key, dom in CATEGORY_TO_DOMAIN.items() if dom == domain_key]
-    if len(keys) < 2 or not category_scores:
+    if not keys or not category_scores:
         return ""
-    labels = get_preference_labels()
     best, best_score = "", None
     for key in keys:
         score = parse_optional_float(category_scores.get(key))
@@ -5217,7 +5292,7 @@ def _domain_top_category(domain_key, category_scores):
             continue
         if best_score is None or score > best_score:
             best, best_score = key, score
-    return _plain_domain_label(labels.get(best, "")) if best else ""
+    return best
 
 
 def _area_domain_breakdown(rows, gu, apartment_limit=5):
@@ -5316,6 +5391,7 @@ def _area_domain_breakdown(rows, gu, apartment_limit=5):
                     "score": item["scores"][domain_key],
                     "grade": _score_to_grade(item["scores"][domain_key]),
                     "top_category": _domain_top_category(domain_key, item["category_scores"]),
+                    "lookup_key": item["key"],
                     "url": apartment_detail_path(item["name"], item["gu"], item["dong"]),
                 }
                 for item in top_apartments
@@ -5430,15 +5506,21 @@ def _area_body_sentence(domain):
 
 
 def _area_lead_sentence(domain):
-    """대표 단지와 그 단지가 특히 앞서는 지점."""
+    """대표 단지와 그 단지가 특히 앞서는 지점.
+
+    카테고리 이름만 부르면("지하철역 쪽이 좋습니다") 정보가 거의 없어서, 실제로
+    가장 가까운 시설 이름과 거리를 함께 든다.
+    """
     apartments = domain.get("apartments") or []
     if not apartments:
         return ""
     lead = apartments[0]
     where = f"{lead['dong']} {lead['name']}".strip()
-    category = lead.get("top_category")
-    if category:
-        return f"대표적인 단지는 {where}로, {category} 쪽이 특히 좋습니다."
+    evidence = _category_nearest_evidence(lead.get("top_category"), lead.get("lookup_key"))
+    if evidence:
+        facility = f"{evidence['label']}({evidence['name']})" if evidence["name"] else evidence["label"]
+        distance = format_distance_m(evidence["distance"])
+        return f"대표적인 단지는 {where}{_ro_particle(where)}, {facility} 접근성({distance})이 가장 좋습니다."
     return f"대표적인 단지는 {where}입니다."
 
 

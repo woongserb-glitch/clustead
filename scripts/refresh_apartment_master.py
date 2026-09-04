@@ -199,16 +199,17 @@ def main():
     api_by_code = {text(row.get("APT_CD")): row for row in api_rows}
 
     rejected = load_rejected()
-    # 유지 대상이 실제로 살아 있을 때만 껍데기를 버린다.
-    active_rejects = {
-        code: entry
-        for code, entry in rejected.items()
-        if entry.get("keep_code", "").strip() in api_by_code
-    }
+    # 중복 제외는 유지 대상이 살아 있을 때만 적용한다(둘 다 잃지 않도록).
+    # keep_code 가 비어 있으면 짝이 없는 단독 제외 — 소스에 섞인 테스트 행 같은
+    # 경우라 조건 없이 버린다.
+    active_rejects = {}
     for code, entry in rejected.items():
-        if code not in active_rejects:
+        keep = entry.get("keep_code", "").strip()
+        if not keep or keep in api_by_code:
+            active_rejects[code] = entry
+        else:
             print(f"  [주의] 중복 제외 보류: {code} {entry.get('reject_name')} "
-                  f"(유지 대상 {entry.get('keep_code')} 가 소스에 없음)")
+                  f"(유지 대상 {keep} 가 소스에 없음)")
     for code in active_rejects:
         api_by_code.pop(code, None)
 
@@ -253,7 +254,9 @@ def main():
     print(f"신규 {len(added)}건 / 소멸 {len(removed)}건 / 속성 변경 {len(changed)}건")
     print(f"중복 제외 {len(active_rejects)}건 (마스터에서 제거 {len(dropped)}건)")
     for gu, name, entry in dropped:
-        print(f"    제외: {gu} {name} -> {entry.get('keep_name')} 로 통합")
+        keep_name = entry.get("keep_name", "").strip()
+        where = f"-> {keep_name} 로 통합" if keep_name else "(단독 제외)"
+        print(f"    제외: {gu} {name} {where}")
     print(f"수치 보호(API가 0/빈값으로 지우려 한 값 유지) {len(household_saved)}건")
     for gu, name, protected in household_saved[:6]:
         detail = ", ".join(f"{col}={value}" for col, value in protected[:3])
