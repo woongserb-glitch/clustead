@@ -5243,7 +5243,7 @@ def _area_domain_breakdown(rows, gu, apartment_limit=5):
         by_dong = {}
         for item in having:
             if item["dong"]:
-                by_dong.setdefault(item["dong"], []).append(item["scores"][domain_key])
+                by_dong.setdefault(item["dong"], []).append(item)
 
         def _rank(entries):
             return sorted(
@@ -5251,15 +5251,25 @@ def _area_domain_breakdown(rows, gu, apartment_limit=5):
                 key=lambda entry: (-entry["score"], -entry["apartment_count"], entry["label"]),
             )
 
-        all_dongs = [
-            {
+        def _dong_entry(name, items):
+            # 그 동에서 이 영역이 가장 좋은 단지 — "논현동이 교통 상위" 라고 말한
+            # 바로 옆에 다른 동 단지를 대표로 놓으면 읽는 사람이 헷갈린다.
+            lead = max(items, key=lambda item: (item["scores"][domain_key], item["name"]))
+            values = [item["scores"][domain_key] for item in items]
+            return {
                 "label": name,
                 "url": area_landing_path(gu, name),
                 "score": round(sum(values) / len(values)),
                 "apartment_count": len(values),
+                "lead_apartment": {
+                    "name": lead["name"],
+                    "dong": lead["dong"],
+                    "grade": _score_to_grade(lead["scores"][domain_key]),
+                    "url": apartment_detail_path(lead["name"], lead["gu"], lead["dong"]),
+                },
             }
-            for name, values in by_dong.items()
-        ]
+
+        all_dongs = [_dong_entry(name, items) for name, items in by_dong.items()]
         sampled = [entry for entry in all_dongs if entry["apartment_count"] >= DONG_MIN_SAMPLE]
         dong_ranked = _rank(sampled) if sampled else _rank(all_dongs)
 

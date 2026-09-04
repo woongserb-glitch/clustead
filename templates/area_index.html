@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903c">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903d">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -79,7 +79,6 @@
                             <strong>{{ domain.label }}</strong>
                             <span>{{ domain.description }}</span>
                         </div>
-                        <b>{{ domain.score }}</b>
                         <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
                     </article>
                     {% endfor %}
@@ -107,10 +106,10 @@
                         </a>
                         <div class="area-gu-domain-strip">
                             {% for domain in gu.top_domains %}
-                            <span class="is-high">{{ domain.plain_label }} {{ domain.score }}</span>
+                            <span class="is-high">{{ domain.plain_label }} {{ domain.grade }}</span>
                             {% endfor %}
                             {% for domain in gu.low_domains %}
-                            <span class="is-low">{{ domain.plain_label }} {{ domain.score }}</span>
+                            <span class="is-low">{{ domain.plain_label }} {{ domain.grade }}</span>
                             {% endfor %}
                         </div>
                         {% if gu.lead_apartments %}

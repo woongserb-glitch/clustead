@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903c">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903d">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -48,12 +48,33 @@
         .area-domain-pills a b { font-weight: 700; }
         .area-domain-pills.is-low a { border-color: #fde68a; background: #fffbeb; color: #b45309; }
 
+        .area-rank-band { margin-top: 14px; }
+        .area-rank-band h2 { margin: 0 0 8px; font-size: 13px; color: #64748b; font-weight: 600; }
+        @media (min-width: 761px) {
+            .area-rank-band .area-domain-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        .area-rank-band .area-domain-card { border-color: #dbeafe; background: #f8fbff; }
+        .area-rank-band.is-low .area-domain-card { border-color: #fde68a; background: #fffdf5; }
+
+        .area-domain-dong { padding: 12px 0; border-bottom: 1px solid #eef2f7; }
+        .area-domain-dong:last-child { border-bottom: 0; }
+        .area-domain-dong-head { display: flex; align-items: center; gap: 8px; }
+        .area-domain-dong-head strong { font-size: 14px; }
+        .area-domain-dong-head > a {
+            margin-left: auto; font-size: 12.5px; color: #64748b; text-decoration: none; white-space: nowrap;
+        }
+        .area-domain-dong-head > a:hover { color: #5B8DEF; }
+        .area-domain-dong-lead { margin: 6px 0 0; font-size: 12.5px; color: #94a3b8; }
+        .area-domain-dong-lead a { color: #15243B; font-weight: 600; text-decoration: none; }
+        .area-domain-dong-lead a:hover { color: #5B8DEF; }
+        .area-domain-dong-lead span { margin-left: 6px; }
+
         .area-domain-blocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
         .area-domain-block { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; background: #fff; }
         .area-domain-block h3 {
             margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px;
         }
-        .area-domain-block h3 b { margin-left: auto; font-size: 16px; }
+        .area-domain-block h3 .domain-grade { margin-left: auto; }
         .area-domain-dongs { margin: 0 0 10px; font-size: 12.5px; color: #64748b; }
         .area-domain-dongs a { color: #475569; text-decoration: none; }
         .area-domain-dongs a:hover { color: #5B8DEF; }
@@ -62,7 +83,7 @@
         .area-domain-apts li a { color: #15243B; text-decoration: none; font-weight: 600; }
         .area-domain-apts li a:hover { color: #5B8DEF; }
         .area-domain-apts li span { color: #94a3b8; font-size: 12px; }
-        .area-domain-apts li b { margin-left: auto; color: #475569; }
+        .area-domain-apts li .domain-grade { margin-left: auto; }
     </style>
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
@@ -95,27 +116,34 @@
                     <span>분석 단지</span>
                     <strong>{{ area.apartment_count }}</strong>
                 </div>
-                {% if area.strengths %}
-                <div class="area-stat area-stat-wide">
-                    <span>상위 생활영역</span>
-                    <div class="area-domain-pills">
-                        {% for domain in area.strengths %}
-                        <a href="#domain-{{ domain.key }}">{{ domain.plain_label }}<b>{{ domain.score }}</b></a>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                {% if area.weaknesses %}
-                <div class="area-stat area-stat-wide">
-                    <span>하위 생활영역</span>
-                    <div class="area-domain-pills is-low">
-                        {% for domain in area.weaknesses %}
-                        <a href="#domain-{{ domain.key }}">{{ domain.plain_label }}<b>{{ domain.score }}</b></a>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
             </div>
+
+            {% macro domain_card(domain) -%}
+            <article class="area-domain-card">
+                <div>
+                    <strong>{{ domain.label }}</strong>
+                    <span>{{ domain.description }}</span>
+                </div>
+                <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
+            </article>
+            {%- endmacro %}
+
+            {% if area.strengths %}
+            <div class="area-rank-band">
+                <h2>상위 생활영역</h2>
+                <div class="area-domain-grid">
+                    {% for domain in area.strengths %}{{ domain_card(domain) }}{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% if area.weaknesses %}
+            <div class="area-rank-band is-low">
+                <h2>하위 생활영역</h2>
+                <div class="area-domain-grid">
+                    {% for domain in area.weaknesses %}{{ domain_card(domain) }}{% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </header>
 
         <main class="area-layout">
@@ -141,8 +169,8 @@
                 <section class="tool-results-card">
                     <div class="section-head">
                         <div>
-                            <h2>도메인 평균점수</h2>
-                            <p>교통, 교육, 편의 등 생활영역별 서울 상대평가 평균입니다.</p>
+                            <h2>도메인 평균등급</h2>
+                            <p>교통, 교육, 편의 등 생활영역별 서울 상대평가 등급입니다.</p>
                         </div>
                     </div>
                     <div class="area-domain-grid">
@@ -152,7 +180,6 @@
                                 <strong>{{ domain.label }}</strong>
                                 <span>{{ domain.description }}</span>
                             </div>
-                            <b>{{ domain.score }}</b>
                             <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
                         </article>
                         {% endfor %}
@@ -172,14 +199,13 @@
                         <article class="area-domain-block" id="domain-{{ domain.key }}">
                             <h3>
                                 {{ domain.label }}
-                                <b>{{ domain.score }}</b>
                                 <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
                             </h3>
                             {% if domain.dongs %}
                             <p class="area-domain-dongs">
                                 상위 동:
                                 {% for dong in domain.dongs %}
-                                <a href="{{ dong.url }}">{{ dong.label }} {{ dong.score }}</a>{% if not loop.last %} · {% endif %}
+                                <a href="{{ dong.url }}">{{ dong.label }}</a>{% if not loop.last %} · {% endif %}
                                 {% endfor %}
                             </p>
                             {% endif %}
@@ -188,7 +214,7 @@
                                 <li>
                                     <a href="{{ apt.url }}">{{ apt.name }}</a>
                                     <span>{{ apt.dong }}</span>
-                                    <b>{{ apt.score }}</b>
+                                    <em class="domain-grade grade-{{ apt.grade }}">{{ apt.grade }}</em>
                                 </li>
                                 {% endfor %}
                             </ol>
@@ -242,13 +268,19 @@
                     <div class="area-link-list">
                         {% for domain in domain_breakdown %}
                         {% if domain.top_dong %}
-                        <a class="area-link-row" href="{{ domain.top_dong.url }}">
-                            <div>
+                        <div class="area-domain-dong">
+                            <div class="area-domain-dong-head">
                                 <strong>{{ domain.label }}</strong>
-                                <span>{{ domain.top_dong.label }} · {{ domain.top_dong.apartment_count }}개 단지</span>
+                                <a href="{{ domain.top_dong.url }}">{{ domain.top_dong.label }} · {{ domain.top_dong.apartment_count }}개 단지</a>
+                                <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
                             </div>
-                            <b>{{ domain.top_dong.score }}</b>
-                        </a>
+                            {% if domain.top_dong.lead_apartment %}
+                            <p class="area-domain-dong-lead">
+                                대표 단지
+                                <a href="{{ domain.top_dong.lead_apartment.url }}">{{ domain.top_dong.lead_apartment.name }}</a>
+                            </p>
+                            {% endif %}
+                        </div>
                         {% endif %}
                         {% endfor %}
                     </div>
