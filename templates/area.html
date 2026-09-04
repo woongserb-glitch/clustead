@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904d">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904e">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -94,11 +94,21 @@
             margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px;
         }
         .area-domain-block h3 .domain-grade { margin-left: auto; }
-        .area-domain-dongs { margin: 0 0 10px; font-size: 12.5px; color: #64748b; }
-        .area-domain-dongs a { color: #475569; text-decoration: none; }
-        .area-domain-dongs a:hover { color: #5B8DEF; }
-        .area-domain-apts { margin: 0; padding-left: 20px; font-size: 13.5px; }
-        .area-domain-apts li { margin-bottom: 5px; display: flex; align-items: baseline; gap: 6px; }
+        /* 우측 사이드바(.area-domain-dong-name / -lead)와 같은 규칙을 쓴다.
+           h3 의 도메인 이름은 이모지 뒤에서 시작하므로 아래 줄들도 22px 들여쓴다. */
+        .area-domain-dongs { margin: 5px 0 8px 22px; font-size: 13px; }
+        .area-domain-dongs > span { margin-right: 5px; color: #94a3b8; font-size: 12px; }
+        .area-domain-dongs a { color: #2563eb; font-weight: 700; text-decoration: none; }
+        .area-domain-dongs a:hover { text-decoration: underline; }
+        .area-domain-dongs i { font-style: normal; margin: 0 3px; color: #cbd5e1; }
+        .area-domain-apts { margin: 0 0 0 22px; padding-left: 0; font-size: 12.5px; list-style: none; counter-reset: apt; }
+        .area-domain-apts li {
+            margin-bottom: 4px; display: flex; align-items: baseline; gap: 6px;
+            counter-increment: apt;
+        }
+        .area-domain-apts li::before {
+            content: counter(apt); color: #cbd5e1; font-size: 11px; min-width: 10px;
+        }
         .area-domain-apts li a { color: #15243B; text-decoration: none; font-weight: 600; }
         .area-domain-apts li a:hover { color: #5B8DEF; }
         .area-domain-apts li span { color: #94a3b8; font-size: 12px; }
@@ -226,9 +236,9 @@
                             </h3>
                             {% if domain.dongs and not area.is_dong %}
                             <p class="area-domain-dongs">
-                                상위 동:
+                                <span>상위 동</span>
                                 {% for dong in domain.dongs %}
-                                <a href="{{ dong.url }}">{{ dong.label }}</a>{% if not loop.last %} · {% endif %}
+                                <a href="{{ dong.url }}">{{ dong.label }}</a>{% if not loop.last %}<i>·</i>{% endif %}
                                 {% endfor %}
                             </p>
                             {% endif %}
