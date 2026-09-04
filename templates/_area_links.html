@@ -1,0 +1,18 @@
+{# 지역 허브로 나가는 크롤 가능한 링크.
+
+   홈은 d3 그래프, explore 는 필터 UI 라 둘 다 단지로 가는 HTML 링크가 거의 없다.
+   게다가 홈은 모바일(<=760px)에서 <head> 스크립트로 /explore 로 replace 되는데,
+   구글은 모바일 우선 색인이라 Googlebot 스마트폰은 홈 본문을 아예 보지 못한다.
+   그래서 두 페이지 모두에 같은 링크를 둔다(크롤러 전용 분기 없음).
+
+   변수: home_area_links = [{label, url, count}], wrap_class = 페이지별 스타일 클래스 #}
+{% if home_area_links %}
+<nav class="{{ wrap_class }}" aria-label="지역별 아파트 둘러보기">
+    <a class="{{ wrap_class }}-hub" href="/area">지역별 보기</a>
+    <ul class="{{ wrap_class }}-list">
+        {% for area in home_area_links %}
+        <li><a href="{{ area.url }}">{{ area.label }}<i>{{ area.count }}</i></a></li>
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}

@@ -16,6 +16,7 @@ import bisect
 import functools
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote, urlencode
 from xml.sax.saxutils import escape as xml_escape
@@ -560,6 +561,24 @@ def robots_txt():
     return resp
 
 
+def _data_lastmod():
+    """사이트맵 lastmod 로 쓸 데이터 갱신일(YYYY-MM-DD).
+
+    구글은 changefreq/priority 를 무시하고 lastmod 만 본다. 전 페이지가 같은
+    baseline 스냅샷에서 렌더되므로 그 파일의 수정일을 그대로 쓴다. 값이 없으면
+    lastmod 를 아예 빼는 편이 낫다(가짜 날짜는 신뢰를 깎는다).
+    """
+    for path in ("data/baseline.db", "data/baseline/transaction_summary.csv"):
+        try:
+            return datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%d")
+        except OSError:
+            continue
+    return None
+
+
+DATA_LASTMOD = _data_lastmod()
+
+
 @app.route("/sitemap.xml")
 def sitemap_xml():
     urls = [
@@ -596,13 +615,13 @@ def sitemap_xml():
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
     for item in urls:
-        lines.extend([
-            "  <url>",
-            f"    <loc>{xml_escape(item['loc'])}</loc>",
-            f"    <changefreq>{item['changefreq']}</changefreq>",
-            f"    <priority>{item['priority']}</priority>",
-            "  </url>",
-        ])
+        lines.append("  <url>")
+        lines.append(f"    <loc>{xml_escape(item['loc'])}</loc>")
+        if DATA_LASTMOD:
+            lines.append(f"    <lastmod>{DATA_LASTMOD}</lastmod>")
+        lines.append(f"    <changefreq>{item['changefreq']}</changefreq>")
+        lines.append(f"    <priority>{item['priority']}</priority>")
+        lines.append("  </url>")
     lines.append("</urlset>")
     return Response("\n".join(lines), mimetype="application/xml; charset=utf-8")
 
@@ -5304,7 +5323,9 @@ def build_area_index_context():
             key=lambda item: item.get("score", 0),
             reverse=True,
         )[:3]
-        child_areas = _area_child_summaries(gu, limit=3)
+        # /area 에서 동 페이지로 나가는 링크. 구 페이지가 전 동을 이미 담고 있으므로
+        # 여기서는 대표 6 개만 둔다(카드가 링크 목록에 묻히지 않는 선).
+        child_areas = _area_child_summaries(gu, limit=6)
         gu_cards.append({
             "label": gu,
             "url": area_landing_path(gu),
@@ -5540,7 +5561,8 @@ def _rep_area_meta(apartment_key):
     return "최근 거래정보 없음"
 
 
-def get_nearby_apartments(apartment, limit=5):
+# 단지 간 내부링크 밀도를 위해 12 개. 너무 늘리면 본문이 링크 목록에 묻힌다.
+def get_nearby_apartments(apartment, limit=12):
     """좌표 기준 최근접 단지 추천(자기 제외)."""
     try:
         alat = float(apartment["lat"])
@@ -5677,7 +5699,28 @@ def render_home_not_found():
         "index.html",
         home_config=build_home_config(),
         home_json_ld=build_home_json_ld(),
+        home_area_links=build_home_area_links(),
     ), 404
+
+
+def build_home_area_links():
+    """홈에서 지역 허브로 나가는 크롤 가능한 링크.
+
+    홈은 d3 그래프라 링크가 전부 JS 로 그려진다. 2026-09-03 실측에서 홈의
+    <a> 는 브랜드 로고와 /compare 둘뿐이었고, /compare 는 robots Disallow 라
+    **Googlebot 이 홈에서 갈 수 있는 곳이 하나도 없었다**. 3,000 개 단지가
+    사이트맵으로만 발견되니 "발견됨 - 색인 안 됨" 에 머문다. 서버 렌더 링크로
+    홈 -> 구 -> 단지 2 홉 경로를 연다.
+    """
+    counts = {}
+    for apt in apartment_data:
+        gu = clean_text(apt.get("gu", ""))
+        if gu:
+            counts[gu] = counts.get(gu, 0) + 1
+    return [
+        {"label": gu, "url": area_landing_path(gu), "count": counts[gu]}
+        for gu in sorted(counts)
+    ]
 
 
 @app.route("/")
@@ -5693,6 +5736,7 @@ def home():
         "index.html",
         home_config=home_config,
         home_json_ld=build_home_json_ld(),
+        home_area_links=build_home_area_links(),
     )
 
 
@@ -7622,6 +7666,7 @@ def explore():
         current_price_buckets=current_price_buckets,
         price_buckets_by_type=price_buckets_by_type,
         bus_type_options=EXPLORE_BUS_TYPES,
+        home_area_links=build_home_area_links(),
     )
 
 

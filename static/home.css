@@ -909,3 +909,80 @@
     .hg-tray-fab,
     .hg-share-fab { display: none !important; }
 }
+
+
+/* ---------- 지역 링크 바 (하단) ---------- */
+/* .hg-shell 의 인플로우 자식은 header 와 main 뿐이라(presetbar=absolute,
+   tray=fixed) 이 nav 가 암시적 auto 행으로 붙고 스테이지가 그만큼 줄어든다. */
+.hg-arealinks {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px 0 18px;
+    height: 36px;
+    border-top: 1px solid var(--hg-line, rgba(15, 23, 42, 0.1));
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(6px);
+    font-size: 12px;
+    line-height: 1;
+    min-width: 0;
+}
+
+.hg-arealinks-hub {
+    flex: none;
+    color: var(--hg-muted, #64748b);
+    text-decoration: none;
+    font-weight: 700;
+    white-space: nowrap;
+    padding-right: 10px;
+    border-right: 1px solid var(--hg-line, rgba(15, 23, 42, 0.1));
+}
+
+.hg-arealinks-hub:hover { color: var(--hg-accent, #2563eb); }
+
+.hg-arealinks-list {
+    display: flex;
+    gap: 6px;
+    margin: 0;
+    padding: 0 2px;
+    list-style: none;
+    align-items: center;
+    height: 100%;
+    overflow-x: auto;
+    /* 스크롤바가 바 높이를 밀어올리지 않도록 오버레이로 둔다. 넘치는 pill 이
+       잘려 보이므로 가로 스크롤 가능하다는 건 시각적으로 드러난다. */
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.hg-arealinks-list::-webkit-scrollbar { display: none; }
+
+.hg-arealinks-list a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--hg-line, rgba(15, 23, 42, 0.1));
+    background: #fff;
+    color: var(--hg-text, #0f172a);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.hg-arealinks-list a:hover {
+    border-color: var(--hg-accent, #2563eb);
+    color: var(--hg-accent, #2563eb);
+}
+
+.hg-arealinks-list i {
+    font-style: normal;
+    font-size: 11px;
+    color: var(--hg-muted, #94a3b8);
+}
+
+@media (max-width: 760px) {
+    .hg-arealinks { padding: 0 10px; height: 32px; gap: 8px; font-size: 11px; }
+    .hg-arealinks-hub { padding-right: 8px; }
+    .hg-arealinks-list a { padding: 2px 8px; }
+}

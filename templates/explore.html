@@ -16,7 +16,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260803c">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903a">
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
 </head>
@@ -302,6 +302,7 @@
             </section>
         </main>
     </div>
+    {% with wrap_class = "explore-arealinks" %}{% include "_area_links.html" %}{% endwith %}
     {% include "_legal_footer.html" %}
     <script src="{{ url_for('static', filename='share.js') }}?v=1"></script>
     <script src="{{ url_for('static', filename='script.js') }}?v=20260618d"></script>

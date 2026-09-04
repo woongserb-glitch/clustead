@@ -36,7 +36,7 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}?v=36">
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}?v=38">
     <script type="application/ld+json">{{ home_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -132,6 +132,12 @@
                 <kbd>드래그</kbd> 이동 · <kbd>휠</kbd> 확대/축소 · 노드를 눌러 가지를 펼치세요
             </div>
         </main>
+
+        <!-- 지역 허브로 나가는 크롤 가능한 링크.
+             홈이 d3 그래프라 링크가 전부 JS 로 그려져, Googlebot 이 홈에서 갈 수
+             있는 곳이 하나도 없었다(브랜드 로고와 robots Disallow 인 /compare 뿐).
+             단지 3,000 페이지가 사이트맵으로만 발견되던 원인이라 서버 렌더로 둔다. -->
+        {% with wrap_class = "hg-arealinks" %}{% include "_area_links.html" %}{% endwith %}
 
         <!-- 선택 트레이 + 탐색 버튼 -->
         <aside class="hg-tray" data-tray hidden>

@@ -5562,3 +5562,63 @@ body:not(.home-page) #resultLoadingOverlay {
         white-space: normal;
     }
 }
+
+
+/* ---------- 지역 링크 (explore 하단) ---------- */
+/* 홈이 모바일에서 /explore 로 replace 되므로, 모바일 우선 색인을 쓰는 구글에는
+   사실상 여기가 첫 페이지다. 홈과 같은 링크를 같은 내용으로 둔다. */
+.explore-arealinks {
+    max-width: 1180px;
+    margin: 24px auto 0;
+    padding: 16px 20px;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.explore-arealinks-hub {
+    display: inline-block;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    text-decoration: none;
+}
+
+.explore-arealinks-hub:hover { color: #2563eb; }
+
+.explore-arealinks-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.explore-arealinks-list a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    background: #fff;
+    color: #0f172a;
+    font-size: 12.5px;
+    text-decoration: none;
+}
+
+.explore-arealinks-list a:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.explore-arealinks-list i {
+    font-style: normal;
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+@media (max-width: 760px) {
+    .explore-arealinks { margin-top: 16px; padding: 14px 14px; }
+    .explore-arealinks-list a { padding: 4px 9px; font-size: 12px; }
+}
