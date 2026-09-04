@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904e">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904f">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -91,13 +91,17 @@
         .area-domain-blocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
         .area-domain-block { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; background: #fff; }
         .area-domain-block h3 {
-            margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px;
+            margin: 0 0 8px; font-size: 15px; display: flex; align-items: baseline; gap: 8px;
         }
+        .area-domain-block h3 > :first-child { flex: none; }
         .area-domain-block h3 .domain-grade { margin-left: auto; }
         /* 우측 사이드바(.area-domain-dong-name / -lead)와 같은 규칙을 쓴다.
            h3 의 도메인 이름은 이모지 뒤에서 시작하므로 아래 줄들도 22px 들여쓴다. */
-        .area-domain-dongs { margin: 5px 0 8px 22px; font-size: 13px; }
-        .area-domain-dongs > span { margin-right: 5px; color: #94a3b8; font-size: 12px; }
+        /* 도메인 이름 오른쪽에 붙는다. 좁아지면 줄바꿈되도록 두되 기본은 한 줄. */
+        .area-domain-dongs {
+            margin-left: auto; font-size: 12px; font-weight: 400;
+            text-align: right; line-height: 1.5;
+        }
         .area-domain-dongs a { color: #2563eb; font-weight: 700; text-decoration: none; }
         .area-domain-dongs a:hover { text-decoration: underline; }
         .area-domain-dongs i { font-style: normal; margin: 0 3px; color: #cbd5e1; }
@@ -230,18 +234,18 @@
                     <div class="area-domain-blocks">
                         {% for domain in domain_breakdown %}
                         <article class="area-domain-block" id="domain-{{ domain.key }}">
+                            {# 상위 동을 아래 줄에 두면 블록마다 한 줄씩 늘어 페이지가
+                               그만큼 길어진다. 도메인 이름 옆 빈 공간에 붙인다. #}
                             <h3>
                                 {{ domain.label }}
-                                {# 상단 "도메인 평균등급" 카드와 값이 같아 중복이다. #}
+                                {% if domain.dongs and not area.is_dong %}
+                                <span class="area-domain-dongs">
+                                    {% for dong in domain.dongs %}
+                                    <a href="{{ dong.url }}">{{ dong.label }}</a>{% if not loop.last %}<i>·</i>{% endif %}
+                                    {% endfor %}
+                                </span>
+                                {% endif %}
                             </h3>
-                            {% if domain.dongs and not area.is_dong %}
-                            <p class="area-domain-dongs">
-                                <span>상위 동</span>
-                                {% for dong in domain.dongs %}
-                                <a href="{{ dong.url }}">{{ dong.label }}</a>{% if not loop.last %}<i>·</i>{% endif %}
-                                {% endfor %}
-                            </p>
-                            {% endif %}
                             <ol class="area-domain-apts">
                                 {% for apt in domain.apartments %}
                                 <li>
