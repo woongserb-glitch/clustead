@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904c">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904d">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -187,8 +187,13 @@
                 <section class="tool-results-card">
                     <div class="section-head">
                         <div>
-                            <h2>도메인 평균등급</h2>
-                            <p>교통, 교육, 편의 등 생활영역별 서울 상대평가 등급입니다.</p>
+                            <h2>생활영역별 등급</h2>
+                            {# 등급은 같은 층위 지역들 사이의 상대평가다. 구는 25개 자치구,
+                               동은 서울 전체 동이 비교 대상이다. #}
+                            <p>
+                                {% if area.is_dong %}서울 전체 동{% else %}서울 25개 자치구{% endif %} 가운데
+                                이 지역이 어디쯤인지 나타냅니다.
+                            </p>
                         </div>
                     </div>
                     <div class="area-domain-grid">

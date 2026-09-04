@@ -5200,6 +5200,55 @@ def _area_domain_summary(rows):
 # 동을 "그 영역이 강한 동" 으로 내세우려면 최소 이만큼의 단지가 있어야 한다.
 DONG_MIN_SAMPLE = 3
 
+_AREA_DOMAIN_DISTRIBUTION_CACHE = {}
+
+
+def _area_domain_means(rows):
+    """지역 안 단지들의 도메인 점수 평균. 등급을 매기기 전의 원재료다."""
+    index = build_apartment_index()
+    buckets = {}
+    for apt in rows:
+        ranking = index.get((apt.get("name"), apt.get("gu"), apt.get("dong")))
+        if not ranking:
+            continue
+        for domain in compute_domain_profile(ranking.get("category_scores")).get("domains") or []:
+            buckets.setdefault(domain["key"], []).append(domain["score"])
+    return {key: round(sum(values) / len(values)) for key, values in buckets.items() if values}
+
+
+def _area_domain_distribution(level):
+    """{도메인: 같은 층위 지역들의 평균점수 정렬목록}. level 은 'gu' 또는 'dong'.
+
+    지역 점수는 단지 백분위의 **평균**이라 50 근처로 몰린다. 여기에 단지용 등급
+    임계(S>=90 ... )를 그대로 쓰면 25 개 구 중 23 개가 B 가 되어 등급이 지역을
+    구분해 주지 못했다(2026-09-04 실측). 단지 등급을 백분위화해 고쳤던 것과 같은
+    방식으로, 지역은 **같은 층위 지역들의 분포**에서 상대평가한다.
+    """
+    if level not in _AREA_DOMAIN_DISTRIBUTION_CACHE:
+        scopes = {}
+        for apt in apartment_data:
+            gu = clean_text(apt.get("gu", ""))
+            dong = clean_text(apt.get("dong", ""))
+            if not gu:
+                continue
+            key = (gu, dong) if level == "dong" else (gu,)
+            if level == "dong" and not dong:
+                continue
+            scopes.setdefault(key, []).append(apt)
+
+        buckets = {}
+        for rows in scopes.values():
+            for domain_key, mean in _area_domain_means(rows).items():
+                buckets.setdefault(domain_key, []).append(mean)
+        _AREA_DOMAIN_DISTRIBUTION_CACHE[level] = {
+            key: sorted(values) for key, values in buckets.items()
+        }
+    return _AREA_DOMAIN_DISTRIBUTION_CACHE[level]
+
+
+def reset_area_domain_distribution_cache():
+    _AREA_DOMAIN_DISTRIBUTION_CACHE.clear()
+
 
 # 세부 카테고리별 "가장 가까운 시설" 을 어느 baseline 에서 어떤 컬럼으로 읽는지.
 # (index 속성명, 이름 컬럼 후보, 거리 컬럼, 화면 표기)
@@ -5309,7 +5358,7 @@ def _domain_top_category(domain_key, category_scores):
     return best
 
 
-def _area_domain_breakdown(rows, gu, apartment_limit=5):
+def _area_domain_breakdown(rows, gu, apartment_limit=5, level="gu"):
     """도메인별로 강점 단지·동을 뽑는다.
 
     평균 대표점수는 지역 비교에 쓸 수 없다. 2026-09-03 실측에서 25 개 구의 등급이
@@ -5389,13 +5438,17 @@ def _area_domain_breakdown(rows, gu, apartment_limit=5):
 
         values = [item["scores"][domain_key] for item in having]
         score = round(sum(values) / len(values))
+        # 등급은 같은 층위 지역들 사이에서 매긴다(_area_domain_distribution 주석 참고).
+        # score 는 그대로 두어 상위/하위 정렬과 문구가 원래 의미를 유지한다.
+        area_rank = _percentile_of(_area_domain_distribution(level).get(domain_key, []), score)
         breakdown.append({
             "key": domain_key,
             "label": meta["label"],
             "plain_label": _plain_domain_label(meta["label"]),
             "description": meta.get("description", ""),
             "score": score,
-            "grade": _score_to_grade(score),
+            "area_rank": area_rank,
+            "grade": _score_to_grade(area_rank),
             "top_dong": dong_ranked[0] if dong_ranked else None,
             "dongs": dong_ranked[:3],
             "apartments": [
@@ -5625,6 +5678,7 @@ def build_area_index_context():
     total_apartments = 0
     scored_total = 0
     domain_totals = {key: [] for key in DOMAIN_ORDER}
+    gu_domain_scores = []
 
     for gu in gu_names:
         rows = _area_apartment_rows(gu)
@@ -5635,6 +5689,13 @@ def build_area_index_context():
         scored_total += scored_count
         for domain in breakdown:
             domain_totals.setdefault(domain["key"], []).append(domain["score"])
+            gu_domain_scores.append({
+                "key": domain["key"],
+                "gu": gu,
+                "url": area_landing_path(gu),
+                "score": domain["score"],
+                "grade": domain["grade"],
+            })
 
         strengths, weaknesses = _area_strengths_weaknesses(breakdown, count=3)
         # 그 구에서 가장 앞선 영역의 상위 단지 — /area 에서 단지 상세로 바로 나가는
@@ -5661,13 +5722,22 @@ def build_area_index_context():
         if not values or not meta:
             continue
         score = round(sum(values) / len(values))
+        # 서울 전체 평균은 백분위에서 나온 값이라 구조적으로 늘 50 근처다. 여기에
+        # 등급을 붙이면 8개 영역이 전부 같은 글자가 되어 알려 주는 게 없다.
+        # 대신 이 영역에서 가장 앞선 구와 뒤처진 구를 든다 — 어디를 볼지 정하는 데
+        # 실제로 쓰이는 정보다.
+        ranked = sorted(
+            (item for item in gu_domain_scores if item["key"] == domain_key),
+            key=lambda item: -item["score"],
+        )
         hub_domains.append({
             "key": domain_key,
             "label": meta["label"],
             "plain_label": _plain_domain_label(meta["label"]),
             "description": meta.get("description", ""),
             "score": score,
-            "grade": _score_to_grade(score),
+            "top_gu": ranked[0] if ranked else None,
+            "bottom_gu": ranked[-1] if len(ranked) > 1 else None,
         })
 
     strongest = sorted(hub_domains, key=lambda item: item.get("score", 0), reverse=True)[:3]
@@ -5758,13 +5828,15 @@ def build_area_landing_context(gu, dong=None):
     domain_summary = _area_domain_summary(rows)
     # 추천 단지 섹션은 생활영역별 상위 단지로 대체했다. 대표점수 정렬이라 영역 간
     # 강약이 상쇄된 목록이었고, 전 단지를 한 번 더 순회하는 비용도 있었다.
-    domain_breakdown, _breakdown_scored = _area_domain_breakdown(rows, gu)
-    # 요약 카드가 대표 단지를 들어야 하므로 breakdown 을 넘긴다(rank_text 포함).
-    features = _build_area_features(
-        scope_label,
-        _merge_rank_text(domain_breakdown, domain_summary["domains"]),
-        is_dong=bool(dong),
+    domain_breakdown, _breakdown_scored = _area_domain_breakdown(
+        rows, gu, level="dong" if dong else "gu"
     )
+    # 요약 카드가 대표 단지를 들어야 하므로 breakdown 을 넘긴다(rank_text 포함).
+    # 화면의 모든 도메인 등급은 이 하나에서 나와야 한다. 예전에는 상단 밴드가
+    # breakdown, "생활영역별 등급" 섹션이 _area_domain_summary 를 써서 등급 기준을
+    # 바꾼 뒤 같은 페이지에서 의료가 S 와 B 로 동시에 표시됐다.
+    domains_for_display = _merge_rank_text(domain_breakdown, domain_summary["domains"])
+    features = _build_area_features(scope_label, domains_for_display, is_dong=bool(dong))
     strengths, weaknesses = _area_strengths_weaknesses(domain_breakdown)
     is_dong = bool(dong)
     children = _area_sibling_summaries(gu, dong) if is_dong else _area_child_summaries(gu)
@@ -5889,7 +5961,7 @@ def build_area_landing_context(gu, dong=None):
                 item_list,
             ],
         },
-        "domains": domain_summary["domains"],
+        "domains": domains_for_display,
         "feature_cards": features["cards"],
         "domain_breakdown": domain_breakdown,
         "child_areas": children,

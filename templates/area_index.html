@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904c">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904d">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -33,6 +33,10 @@
             background: #fff; color: #15243B; text-decoration: none;
         }
         .area-gu-apts a:hover { border-color: #5B8DEF; color: #5B8DEF; }
+        .area-hub-rank { display: flex; align-items: center; gap: 5px; font-size: 12.5px; white-space: nowrap; }
+        .area-hub-rank a { color: #15243B; font-weight: 600; text-decoration: none; }
+        .area-hub-rank a:hover { color: #5B8DEF; }
+        .area-hub-rank span { color: #cbd5e1; }
     </style>
 </head>
 
@@ -68,8 +72,8 @@
             <section class="tool-results-card">
                 <div class="section-head">
                     <div>
-                        <h2>서울 생활 인프라 평균</h2>
-                        <p>각 구 평균을 다시 묶은 도메인별 서울 지역 평균입니다.</p>
+                        <h2>생활영역별 자치구 순위</h2>
+                        <p>영역마다 가장 앞선 구와 뒤처진 구입니다.</p>
                     </div>
                 </div>
                 <div class="area-domain-grid area-hub-domain-grid">
@@ -79,7 +83,17 @@
                             <strong>{{ domain.label }}</strong>
                             <span>{{ domain.description }}</span>
                         </div>
-                        <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
+                        {% if domain.top_gu %}
+                        <div class="area-hub-rank">
+                            <a href="{{ domain.top_gu.url }}">{{ domain.top_gu.gu }}</a>
+                            <em class="domain-grade grade-{{ domain.top_gu.grade }}">{{ domain.top_gu.grade }}</em>
+                            {% if domain.bottom_gu %}
+                            <span>↓</span>
+                            <a href="{{ domain.bottom_gu.url }}">{{ domain.bottom_gu.gu }}</a>
+                            <em class="domain-grade grade-{{ domain.bottom_gu.grade }}">{{ domain.bottom_gu.grade }}</em>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </article>
                     {% endfor %}
                 </div>
