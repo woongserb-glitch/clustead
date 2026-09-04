@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904f">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904g">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -102,6 +102,7 @@
             margin-left: auto; font-size: 12px; font-weight: 400;
             text-align: right; line-height: 1.5;
         }
+        .area-domain-dongs > span { margin-right: 4px; color: #94a3b8; }
         .area-domain-dongs a { color: #2563eb; font-weight: 700; text-decoration: none; }
         .area-domain-dongs a:hover { text-decoration: underline; }
         .area-domain-dongs i { font-style: normal; margin: 0 3px; color: #cbd5e1; }
@@ -240,6 +241,7 @@
                                 {{ domain.label }}
                                 {% if domain.dongs and not area.is_dong %}
                                 <span class="area-domain-dongs">
+                                    <span>상위 동</span>
                                     {% for dong in domain.dongs %}
                                     <a href="{{ dong.url }}">{{ dong.label }}</a>{% if not loop.last %}<i>·</i>{% endif %}
                                     {% endfor %}
