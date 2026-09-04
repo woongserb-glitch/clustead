@@ -5505,23 +5505,28 @@ def _area_body_sentence(domain):
     return f"{label} 인프라가 좋은 단지가 서울 평균보다 적습니다."
 
 
-def _area_lead_sentence(domain):
-    """대표 단지와 그 단지가 특히 앞서는 지점.
+def _area_lead_sentence(domain, scope_label=""):
+    """지역 전체에서 그 영역이 가장 앞선 단지와, 그 단지가 특히 좋은 지점.
 
     카테고리 이름만 부르면("지하철역 쪽이 좋습니다") 정보가 거의 없어서, 실제로
     가장 가까운 시설 이름과 거리를 함께 든다.
+
+    사이드바의 "동 대표 단지" 와는 기준이 다르다. 이쪽은 지역 전체 1 위이고,
+    사이드바는 그 영역이 강한 동 **안에서의** 1 위다. 같은 페이지에 나란히 놓이니
+    문장에 범위를 밝혀 둔다.
     """
     apartments = domain.get("apartments") or []
     if not apartments:
         return ""
     lead = apartments[0]
+    scope = f"{scope_label}에서 " if scope_label else ""
     where = f"{lead['dong']} {lead['name']}".strip()
     evidence = _category_nearest_evidence(lead.get("top_category"), lead.get("lookup_key"))
     if evidence:
         facility = f"{evidence['label']}({evidence['name']})" if evidence["name"] else evidence["label"]
         distance = format_distance_m(evidence["distance"])
-        return f"대표적인 단지는 {where}{_ro_particle(where)}, {facility} 접근성({distance})이 가장 좋습니다."
-    return f"대표적인 단지는 {where}입니다."
+        return f"{scope}가장 앞선 단지는 {where}{_ro_particle(where)}, {facility} 접근성({distance})이 가장 좋습니다."
+    return f"{scope}가장 앞선 단지는 {where}입니다."
 
 
 def _build_area_features(scope_label, domains):
@@ -5546,7 +5551,9 @@ def _build_area_features(scope_label, domains):
 
     cards = []
     for domain in strengths:
-        body = " ".join(filter(None, [_area_body_sentence(domain), _area_lead_sentence(domain)]))
+        body = " ".join(filter(None, [
+            _area_body_sentence(domain), _area_lead_sentence(domain, scope_label)
+        ]))
         cards.append({
             "label": domain["label"],
             "title": f"{domain['plain_label']} {domain['rank_text']}",
@@ -5554,8 +5561,8 @@ def _build_area_features(scope_label, domains):
             "tone": "strong",
         })
     for domain in lower:
-        lead = _area_lead_sentence(domain)
-        body = f"단지별 편차가 커서 직접 확인하는 편이 좋습니다."
+        lead = _area_lead_sentence(domain, scope_label)
+        body = "단지별 편차가 커서 직접 확인하는 편이 좋습니다."
         if lead:
             body = f"{body} {lead}"
         cards.append({

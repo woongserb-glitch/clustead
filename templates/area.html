@@ -285,8 +285,10 @@
                                 <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
                             </div>
                             {% if domain.top_dong.lead_apartment %}
+                            {# 요약 카드의 "가장 앞선 단지" 는 구 전체 1 위, 이쪽은 그 동
+                               안에서의 1 위다. 라벨에 동 이름을 넣어 서로 구분한다. #}
                             <p class="area-domain-dong-lead">
-                                대표 단지
+                                {{ domain.top_dong.label }} 대표
                                 <a href="{{ domain.top_dong.lead_apartment.url }}">{{ domain.top_dong.lead_apartment.name }}</a>
                             </p>
                             {% endif %}
