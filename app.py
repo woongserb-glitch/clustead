@@ -5200,6 +5200,26 @@ def _area_domain_summary(rows):
 DONG_MIN_SAMPLE = 3
 
 
+def _domain_top_category(domain_key, category_scores):
+    """그 영역 안에서 이 단지가 가장 앞서는 세부 카테고리 이름.
+
+    영역에 카테고리가 하나뿐이면(의료=병원, 교육=학원 등) 영역 이름을 되풀이하는
+    셈이라 아무 것도 돌려주지 않는다.
+    """
+    keys = [key for key, dom in CATEGORY_TO_DOMAIN.items() if dom == domain_key]
+    if len(keys) < 2 or not category_scores:
+        return ""
+    labels = get_preference_labels()
+    best, best_score = "", None
+    for key in keys:
+        score = parse_optional_float(category_scores.get(key))
+        if score is None:
+            continue
+        if best_score is None or score > best_score:
+            best, best_score = key, score
+    return _plain_domain_label(labels.get(best, "")) if best else ""
+
+
 def _area_domain_breakdown(rows, gu, apartment_limit=5):
     """도메인별로 강점 단지·동을 뽑는다.
 
@@ -5226,6 +5246,7 @@ def _area_domain_breakdown(rows, gu, apartment_limit=5):
             "dong": clean_text(apt.get("dong", "")),
             "key": key,
             "scores": {domain["key"]: domain["score"] for domain in domains},
+            "category_scores": ranking.get("category_scores") or {},
         })
 
     breakdown = []
@@ -5294,6 +5315,7 @@ def _area_domain_breakdown(rows, gu, apartment_limit=5):
                     "dong": item["dong"],
                     "score": item["scores"][domain_key],
                     "grade": _score_to_grade(item["scores"][domain_key]),
+                    "top_category": _domain_top_category(domain_key, item["category_scores"]),
                     "url": apartment_detail_path(item["name"], item["gu"], item["dong"]),
                 }
                 for item in top_apartments
@@ -5381,7 +5403,52 @@ def _area_sibling_summaries(gu, current_dong, limit=10):
     ][:limit]
 
 
+def _merge_rank_text(breakdown, summary_domains):
+    """breakdown 에는 rank_text 가 없으므로 summary 쪽 값을 얹어 준다."""
+    ranks = {domain["key"]: domain.get("rank_text", "") for domain in summary_domains or []}
+    merged = []
+    for domain in breakdown:
+        item = dict(domain)
+        item["rank_text"] = ranks.get(domain["key"], _area_rank_text(domain.get("score")))
+        merged.append(item)
+    return merged
+
+
+def _area_body_sentence(domain):
+    """지역이 서울 대비 어디쯤인지 한 문장으로."""
+    label = domain["plain_label"]
+    score = domain.get("score", 0)
+    if score >= 80:
+        return f"{label} 인프라가 좋은 단지가 서울 평균보다 뚜렷하게 많습니다."
+    if score >= 65:
+        return f"{label} 인프라가 좋은 단지가 서울 평균보다 많습니다."
+    if score >= 50:
+        return f"{label} 인프라는 서울 평균을 조금 웃돕니다."
+    if score >= 35:
+        return f"{label} 인프라는 서울 평균 수준입니다."
+    return f"{label} 인프라가 좋은 단지가 서울 평균보다 적습니다."
+
+
+def _area_lead_sentence(domain):
+    """대표 단지와 그 단지가 특히 앞서는 지점."""
+    apartments = domain.get("apartments") or []
+    if not apartments:
+        return ""
+    lead = apartments[0]
+    where = f"{lead['dong']} {lead['name']}".strip()
+    category = lead.get("top_category")
+    if category:
+        return f"대표적인 단지는 {where}로, {category} 쪽이 특히 좋습니다."
+    return f"대표적인 단지는 {where}입니다."
+
+
 def _build_area_features(scope_label, domains):
+    """상단 요약 문장과 "생활 특징 요약" 카드.
+
+    이전에는 "지역 평균 66점, B등급으로 집계됐습니다" 처럼 숫자를 되풀이했다.
+    같은 정보가 바로 아래 도메인 카드에 또 있어 읽을 이유가 없었으므로, 서울
+    대비 위치를 문장으로 풀고 대표 단지를 함께 든다.
+    """
     ordered = sorted(domains or [], key=lambda item: item.get("score", 0), reverse=True)
     strengths = ordered[:3]
     lower = [
@@ -5397,17 +5464,22 @@ def _build_area_features(scope_label, domains):
 
     cards = []
     for domain in strengths:
+        body = " ".join(filter(None, [_area_body_sentence(domain), _area_lead_sentence(domain)]))
         cards.append({
             "label": domain["label"],
             "title": f"{domain['plain_label']} {domain['rank_text']}",
-            "body": f"지역 평균 {domain['score']}점, {domain['grade']}등급으로 집계됐습니다.",
+            "body": body,
             "tone": "strong",
         })
     for domain in lower:
+        lead = _area_lead_sentence(domain)
+        body = f"단지별 편차가 커서 직접 확인하는 편이 좋습니다."
+        if lead:
+            body = f"{body} {lead}"
         cards.append({
             "label": domain["label"],
             "title": f"{domain['plain_label']}은 직접 확인 권장",
-            "body": f"지역 평균 {domain['score']}점으로 단지별 편차를 함께 보는 편이 좋습니다.",
+            "body": body,
             "tone": "caution",
         })
 
@@ -5555,10 +5627,11 @@ def build_area_landing_context(gu, dong=None):
 
     scope_label = f"{gu} {dong}".strip()
     domain_summary = _area_domain_summary(rows)
-    features = _build_area_features(scope_label, domain_summary["domains"])
     # 추천 단지 섹션은 생활영역별 상위 단지로 대체했다. 대표점수 정렬이라 영역 간
     # 강약이 상쇄된 목록이었고, 전 단지를 한 번 더 순회하는 비용도 있었다.
     domain_breakdown, _breakdown_scored = _area_domain_breakdown(rows, gu)
+    # 요약 카드가 대표 단지를 들어야 하므로 breakdown 을 넘긴다(rank_text 포함).
+    features = _build_area_features(scope_label, _merge_rank_text(domain_breakdown, domain_summary["domains"]))
     strengths, weaknesses = _area_strengths_weaknesses(domain_breakdown)
     is_dong = bool(dong)
     children = _area_sibling_summaries(gu, dong) if is_dong else _area_child_summaries(gu)

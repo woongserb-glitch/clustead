@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903e">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260903f">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -61,8 +61,9 @@
         @media (max-width: 760px) {
             .area-rank-cards { grid-template-columns: 1fr; }
         }
-        .area-rank-band .area-domain-card { border-color: #dbeafe; background: #f8fbff; }
-        .area-rank-band.is-low .area-domain-card { border-color: #fde68a; background: #fffdf5; }
+        /* 좌측 "분석 단지" 와 같은 흰 카드로 통일하고, 상/하위는 테두리로만 구분한다. */
+        .area-rank-band .area-domain-card { border-color: #dbeafe; background: #fff; }
+        .area-rank-band.is-low .area-domain-card { border-color: #fde68a; background: #fff; }
 
         .area-domain-dong { padding: 12px 0; border-bottom: 1px solid #eef2f7; }
         .area-domain-dong:last-child { border-bottom: 0; }
@@ -72,7 +73,9 @@
             margin-left: auto; font-size: 12.5px; color: #64748b; text-decoration: none; white-space: nowrap;
         }
         .area-domain-dong-head > a:hover { color: #5B8DEF; }
-        .area-domain-dong-lead { margin: 6px 0 0; font-size: 12.5px; color: #94a3b8; }
+        /* 위 줄의 도메인 이름은 이모지 뒤에서 시작한다. 대표 단지 줄도 같은 위치에서
+           시작하도록 들여쓴다(이모지 폭 + 간격). */
+        .area-domain-dong-lead { margin: 6px 0 0 22px; font-size: 12.5px; color: #94a3b8; }
         .area-domain-dong-lead a { color: #15243B; font-weight: 600; text-decoration: none; }
         .area-domain-dong-lead a:hover { color: #5B8DEF; }
         .area-domain-dong-lead span { margin-left: 6px; }
@@ -132,7 +135,7 @@
             <div class="area-headline">
                 <div class="area-stat">
                     <span>분석 단지</span>
-                    <strong>{{ area.apartment_count }}</strong>
+                    <strong>{{ area.apartment_count }}단지</strong>
                 </div>
                 {% if area.strengths %}
                 <div class="area-rank-band">
@@ -206,10 +209,7 @@
                         <article class="area-domain-block" id="domain-{{ domain.key }}">
                             <h3>
                                 {{ domain.label }}
-                                {# 동 페이지에서는 상단 "도메인 평균등급" 과 값이 같아 중복이다. #}
-                                {% if not area.is_dong %}
-                                <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
-                                {% endif %}
+                                {# 상단 "도메인 평균등급" 카드와 값이 같아 중복이다. #}
                             </h3>
                             {% if domain.dongs and not area.is_dong %}
                             <p class="area-domain-dongs">
