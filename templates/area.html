@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904g">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260904h">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
@@ -55,9 +55,17 @@
         .area-rank-band { flex: 1 1 340px; min-width: 0; }
         .area-rank-band h2 { margin: 0 0 6px; font-size: 12px; color: #64748b; font-weight: 600; }
         .area-rank-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-        .area-rank-cards .area-domain-card { padding: 10px 12px; gap: 8px; }
-        .area-rank-cards .area-domain-card strong { font-size: 13px; }
-        .area-rank-cards .area-domain-card span { font-size: 11px; }
+        /* 등급을 도메인명과 같은 줄 오른쪽에 둔다. 옆 칸으로 빼면 설명줄이 그만큼
+           좁아져서 "마트, 편의점 등 일 / 상 편의시설" 처럼 어색하게 끊긴다. */
+        .area-rank-cards .area-domain-card {
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 10px 12px; gap: 3px;
+        }
+        .area-rank-cards .area-domain-card strong {
+            display: flex; align-items: center; font-size: 13px;
+        }
+        .area-rank-cards .area-domain-card strong .domain-grade { margin-left: auto; }
+        .area-rank-cards .area-domain-card span { margin-top: 0; font-size: 11px; }
         @media (max-width: 760px) {
             .area-rank-cards { grid-template-columns: 1fr; }
         }
@@ -147,11 +155,8 @@
                도메인 간 강약이 평균에서 상쇄돼 "어디나 B" 로 보이기 때문이다. #}
             {% macro domain_card(domain) -%}
             <article class="area-domain-card">
-                <div>
-                    <strong>{{ domain.label }}</strong>
-                    <span>{{ domain.description }}</span>
-                </div>
-                <em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em>
+                <strong>{{ domain.label }}<em class="domain-grade grade-{{ domain.grade }}">{{ domain.grade }}</em></strong>
+                <span>{{ domain.description }}</span>
             </article>
             {%- endmacro %}
 

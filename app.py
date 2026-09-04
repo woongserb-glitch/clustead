@@ -994,6 +994,41 @@ def unique_nonempty(values, limit=None):
     return result
 
 
+def attach_josa(word, with_batchim, without_batchim=None):
+    """받침 유무에 따라 조사를 붙인다.
+
+    지역명·단지명을 문장에 끼워 넣으면서 조사를 고정해 두면 절반은 틀린다.
+    구 이름은 모두 "구" 로 끝나 받침이 없고(노원구는), 동 이름은 "동"(성수동은)
+    과 "가"(성수동1가는) 가 섞인다. 단지명은 더 제각각이다.
+
+        attach_josa("노원구", "은")  -> "노원구는"
+        attach_josa("성수동", "은")  -> "성수동은"
+
+    괄호로 끝나는 이름("래미안(1단지)")도 있어 마지막 한글 음절을 찾아 판정한다.
+    한글이 전혀 없으면(영문·숫자 단지명) 받침 없는 쪽을 쓴다 — 숫자를 읽는
+    규칙까지 넣을 만한 빈도가 아니고, 틀려도 "는/가" 쪽이 덜 어색하다.
+    """
+    pairs = {"은": "는", "이": "가", "을": "를", "과": "와", "으로": "로"}
+    if without_batchim is None:
+        without_batchim = pairs.get(with_batchim)
+        if without_batchim is None:
+            raise ValueError(f"조사 쌍을 알 수 없습니다: {with_batchim}")
+
+    syllable = None
+    for char in reversed(word or ""):
+        if "가" <= char <= "힣":
+            syllable = char
+            break
+    if syllable is None:
+        return f"{word}{without_batchim}"
+
+    batchim = (ord(syllable) - 0xAC00) % 28
+    # "으로/로" 만 ㄹ 받침을 받침 없는 쪽으로 친다(서울로, 8 = ㄹ).
+    if with_batchim == "으로" and batchim == 8:
+        batchim = 0
+    return f"{word}{with_batchim if batchim else without_batchim}"
+
+
 def join_korean_list(values):
     items = unique_nonempty(values)
     if not items:
@@ -1387,7 +1422,7 @@ def build_score_based_insight(apartment, category_summaries, fallback):
         for feature in features
     ]
     fallback = fallback or {}
-    fallback["summary"] = f"{apartment.get('name', '이 단지')}는 " + ", ".join(labels) + " 접근성이 강점입니다."
+    fallback["summary"] = attach_josa(apartment.get("name") or "이 단지", "은") + " " + ", ".join(labels) + " 접근성이 강점입니다."
     fallback["feature_tags"] = features
     fallback["strengths"] = [
         {
@@ -5667,7 +5702,7 @@ def _build_area_features(scope_label, domains, is_dong=False):
 
     if strengths:
         names = [domain["plain_label"] for domain in strengths[:2]]
-        summary = f"{scope_label}은 {join_korean_list(names)} 인프라가 상대적으로 돋보이는 생활권입니다."
+        summary = f"{attach_josa(scope_label, '은')} {join_korean_list(names)} 인프라가 상대적으로 돋보이는 생활권입니다."
     else:
         summary = f"{scope_label}의 생활 인프라 데이터를 집계하고 있습니다."
 
@@ -5692,7 +5727,9 @@ def _build_area_features(scope_label, domains, is_dong=False):
         ]))
         cards.append({
             "label": domain["label"],
-            "title": f"{domain['plain_label']}은 직접 확인 권장",
+            # 제목에는 조사를 붙이지 않는다. 위쪽 강점 카드가 "생활편의 서울
+            # 평균 이상" 처럼 이미 무조사라 여기만 붙이면 어긋난다.
+            "title": f"{domain['plain_label']} 직접 확인 권장",
             "body": body,
             "tone": "caution",
         })
