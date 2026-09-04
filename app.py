@@ -5429,6 +5429,12 @@ def _area_domain_breakdown(rows, gu, apartment_limit=5, level="gu"):
             }
 
         all_dongs = [_dong_entry(name, items) for name, items in by_dong.items()]
+        # 구 페이지에서 "구 평균은 A인데 대치동만 보면 최상위" 를 말하려면 동을
+        # 전체 동 분포에서 매긴 등급이 필요하다. 동 페이지에서는 쓰지 않는다.
+        if level == "gu":
+            dong_dist = _area_domain_distribution("dong").get(domain_key, [])
+            for entry in all_dongs:
+                entry["dong_grade"] = _score_to_grade(_percentile_of(dong_dist, entry["score"]))
         sampled = [entry for entry in all_dongs if entry["apartment_count"] >= DONG_MIN_SAMPLE]
         dong_ranked = _rank(sampled) if sampled else _rank(all_dongs)
 
@@ -5581,6 +5587,29 @@ def _place_with_dong(dong, name, skip_dong=False):
     return f"{dong} {name}"
 
 
+# 구 평균과 상위 동이 이만큼 벌어지면 "구 안에서도 편차가 크다" 고 알린다.
+AREA_SPREAD_GAP = 20
+
+
+def _area_spread_sentence(domain, is_dong=False):
+    """구 평균만 보면 오해가 생기는 경우에 상위 동의 위치를 덧붙인다.
+
+    강남구 교육이 그렇다. 대치동은 서울 최상위인데 세곡·자곡·율현동이 한 자릿수라
+    228 단지를 평균 내면 59(A) 로 내려앉는다. 구 평균은 정직한 값이지만 "강남구
+    학원가가 약하다" 로 읽히므로, 편차가 클 때는 상위 동을 함께 든다.
+    """
+    if is_dong:
+        return ""
+    top = domain.get("top_dong") or {}
+    grade = top.get("dong_grade")
+    if not grade or top.get("score", 0) - domain.get("score", 0) < AREA_SPREAD_GAP:
+        return ""
+    return (
+        f"다만 구 안에서도 편차가 커서, {top['label']}만 보면 "
+        f"서울 전체 동 가운데 {grade} 등급입니다."
+    )
+
+
 def _area_lead_sentence(domain, scope_label="", is_dong=False):
     """지역 전체에서 그 영역이 가장 앞선 단지와, 그 단지가 특히 좋은 지점.
 
@@ -5645,7 +5674,9 @@ def _build_area_features(scope_label, domains, is_dong=False):
     cards = []
     for domain in strengths:
         body = " ".join(filter(None, [
-            _area_body_sentence(domain), _area_lead_sentence(domain, scope_label, is_dong)
+            _area_body_sentence(domain),
+            _area_lead_sentence(domain, scope_label, is_dong),
+            _area_spread_sentence(domain, is_dong),
         ]))
         cards.append({
             "label": domain["label"],
@@ -5654,10 +5685,11 @@ def _build_area_features(scope_label, domains, is_dong=False):
             "tone": "strong",
         })
     for domain in lower:
-        lead = _area_lead_sentence(domain, scope_label, is_dong)
-        body = "단지별 편차가 커서 직접 확인하는 편이 좋습니다."
-        if lead:
-            body = f"{body} {lead}"
+        body = " ".join(filter(None, [
+            "단지별 편차가 커서 직접 확인하는 편이 좋습니다.",
+            _area_lead_sentence(domain, scope_label, is_dong),
+            _area_spread_sentence(domain, is_dong),
+        ]))
         cards.append({
             "label": domain["label"],
             "title": f"{domain['plain_label']}은 직접 확인 권장",
