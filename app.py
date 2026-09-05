@@ -702,6 +702,23 @@ def short_road_address(value):
     return matched.group(1) if matched else text
 
 
+def strip_station_suffix(value):
+    """역명 끝의 '역' 한 글자만 떼어 낸다.
+
+    전체 치환(.replace("역", ""))은 이름 안에 '역' 이 들어간 역을 망가뜨렸다.
+    340 개 중 6 개가 여기 해당한다 — 역삼->삼, 역곡->곡, 역촌->촌,
+    삼성(무역센터)->삼성(무센터), 동대문역사문화공원->동대문사문화공원,
+    암사역사공원->암사사공원. 자동완성 라벨이 "삼역" 으로 나오고 정확한 이름을
+    입력하면 후보가 비었다.
+
+    저장된 이름과 질의 양쪽에 같은 규칙을 쓴다 — 한쪽만 바꾸면 매칭이 깨진다.
+    """
+    text = clean_text(value)
+    if len(text) > 1 and text.endswith("역"):
+        return text[:-1]
+    return text
+
+
 app.jinja_env.filters["short_road_address"] = short_road_address
 app.jinja_env.filters["distance_m"] = format_distance_m
 
@@ -6650,7 +6667,7 @@ def get_subway_line_station_index():
             items = []
 
         for item in items:
-            station_name = clean_text(item.get("name", "")).replace("역", "")
+            station_name = strip_station_suffix(item.get("name", ""))
             if not station_name:
                 continue
 
@@ -6742,7 +6759,9 @@ def api_options_subway_lines():
 @app.route("/api/options/subway-stations")
 def api_options_subway_stations():
     line_filter = clean_text(request.args.get("line", ""))
-    query = normalize_search_text(request.args.get("q", ""))
+    # 저장된 역명에는 '역' 이 없다. 사용자가 "역촌역" 처럼 붙여 치거나, 자동완성이
+    # 채워 넣은 값("역촌역")으로 되묻는 정확일치 검증에서도 찾히도록 접미사를 뗀다.
+    query = normalize_search_text(strip_station_suffix(request.args.get("q", "")))
     station_index = get_subway_line_station_index()
 
     if line_filter:
@@ -6767,8 +6786,11 @@ def api_options_subway_stations():
         stations = starts + contains
 
     return jsonify({
+        # value 는 자동완성이 입력칸에 그대로 채워 넣는 값이다. '역' 을 뗀 이름을
+        # 주면 "역삼역" 을 골랐는데 칸에는 "역삼" 이 남아 어색하다. 필터가
+        # strip_station_suffix 로 접미사를 떼므로 붙여서 보내도 매칭은 같다.
         "items": [
-            {"value": station, "label": f"{station}역"}
+            {"value": f"{station}역", "label": f"{station}역"}
             for station in stations[:30]
         ]
     })
@@ -7742,7 +7764,7 @@ def _apartment_station_names(subway_row):
     except Exception:
         items = []
     for item in items:
-        nm = clean_text(item.get("name", "")).replace("역", "")
+        nm = strip_station_suffix(item.get("name", ""))
         if nm:
             names.add(normalize_search_text(nm))
     return names
@@ -7775,7 +7797,7 @@ def build_explore_results(filters, limit=10, share_q=""):
     gu_filter = clean_text(filters.get("gu", ""))
     dong_filter = clean_text(filters.get("dong", ""))
     line_filter = clean_text(filters.get("line", ""))
-    station_filter = clean_text(filters.get("station", "")).replace("역", "")
+    station_filter = strip_station_suffix(filters.get("station", ""))
     priorities = filters.get("priorities", [])
 
     assigned_elem = clean_text(filters.get("assigned_elementary", ""))
@@ -7867,8 +7889,14 @@ def build_explore_results(filters, limit=10, share_q=""):
 
         if station_filter:
             # 역명 전체 일치만 인정(부분 문자열 "종" 등은 제외). 단지의 실제 역명 집합과 대조.
-            if normalize_search_text(station_filter) not in _apartment_station_names(subway):
-                continue
+            station_names = _apartment_station_names(subway)
+            wanted = normalize_search_text(station_filter)
+            if wanted not in station_names:
+                # 예전에 만들어진 공유 링크는 '역'을 전부 지운 값을 담고 있다
+                # (역삼 -> 삼). 그 링크가 죽지 않도록 옛 규칙도 함께 받는다.
+                legacy = {name.replace("역", "") for name in station_names}
+                if wanted not in legacy:
+                    continue
             matched.append(f"{station_filter}역 접근")
             score += 3
 

@@ -2555,7 +2555,11 @@ body:not(.home-page) #resultLoadingOverlay {
 .page-actions {
     position: fixed;
     right: 16px;
-    bottom: 18px;
+    /* 폰 브라우저는 화면 맨 아래에 자기 툴바를 두고, 그 위 몇십 px 은 툴바를
+       다시 펼치는 제스처 영역으로 쓴다. 거기에 버튼을 두면 첫 탭이 툴바에
+       먹히고 두 번째 탭에야 눌린다. 툴바 높이만큼 띄우고 홈 인디케이터
+       영역(safe-area)도 함께 피한다. */
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
     z-index: 250;
     display: flex;
     flex-direction: column;
@@ -2579,8 +2583,17 @@ body:not(.home-page) #resultLoadingOverlay {
     text-decoration: none;
     cursor: pointer;
     padding: 0;
+    /* 더블탭 확대 대기를 없앤다. 뷰포트 메타가 있어 지연은 사라졌지만
+       제스처 판정이 남아 탭이 한 번 흘려질 수 있다. */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
-.page-action:hover { border-color: #94a3b8; }
+/* 마우스가 있는 환경에서만 hover 를 준다. 터치 기기에서 hover 규칙이 붙어
+   있으면 첫 탭이 hover 를 켜는 데 쓰이고 두 번째 탭에야 눌리는 일이 있다. */
+@media (hover: hover) and (pointer: fine) {
+    .page-action:hover { border-color: #94a3b8; }
+}
+.page-action:active { border-color: #94a3b8; background: #f1f5f9; }
 @media (min-width: 761px) {
     .page-actions { right: 24px; bottom: 24px; }
 }
