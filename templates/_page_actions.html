@@ -1,0 +1,45 @@
+{# 긴 페이지용 우측 플로팅 버튼.
+   모바일 result 페이지는 문서 높이가 11,700px 이라 맨 위로 돌아가려면 화면을
+   스무 번 넘게 쓸어 올려야 한다. 스크롤을 600px 넘게 내렸을 때만 나타난다 —
+   처음부터 떠 있으면 짧은 화면에서 내용만 가린다.
+   우측 하단은 비어 있는 자리다(.share-fallback 은 하단 중앙, z-index 260). #}
+<div class="page-actions" data-page-actions hidden>
+  <a class="page-action" href="/explore" aria-label="다시 검색" title="다시 검색">
+    <span aria-hidden="true">&#128269;</span>
+  </a>
+  <a class="page-action" href="/" aria-label="홈으로" title="홈으로">
+    <span aria-hidden="true">&#127968;</span>
+  </a>
+  <button type="button" class="page-action" data-scroll-top aria-label="맨 위로" title="맨 위로">
+    <span aria-hidden="true">&#8593;</span>
+  </button>
+</div>
+<script>
+  (function () {
+    var bar = document.querySelector("[data-page-actions]");
+    if (!bar) return;
+
+    var SHOW_AFTER = 600;
+    var ticking = false;
+
+    function sync() {
+      ticking = false;
+      bar.hidden = (window.scrollY || document.documentElement.scrollTop) < SHOW_AFTER;
+    }
+
+    window.addEventListener("scroll", function () {
+      // 스크롤마다 레이아웃을 읽으면 폰에서 스크롤이 끊긴다.
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(sync);
+    }, { passive: true });
+
+    bar.querySelector("[data-scroll-top]").addEventListener("click", function () {
+      // 동작 줄이기를 켠 기기에서는 애니메이션 없이 즉시 올린다.
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    });
+
+    sync();
+  })();
+</script>

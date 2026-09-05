@@ -690,6 +690,19 @@ def format_distance_m(value):
     return f"{int(round(number)):,}m"
 
 
+def short_road_address(value):
+    """도로명주소에서 "서울특별시 OO구" 를 떼어 낸다.
+
+    result 페이지 상단에는 바로 위에 홈 > 구 > 동 이동경로가 있어 시/구가 두 번
+    나온다. 전체 2,829 개 도로명주소가 모두 이 형태라 안전하게 자를 수 있고,
+    형태가 다르면 원본을 그대로 둔다.
+    """
+    text = clean_text(value)
+    matched = re.match(r"^(?:서울특별시|서울시|서울)?\s*[가-힣]+구\s+(.+)$", text)
+    return matched.group(1) if matched else text
+
+
+app.jinja_env.filters["short_road_address"] = short_road_address
 app.jinja_env.filters["distance_m"] = format_distance_m
 
 
@@ -7312,6 +7325,7 @@ EXPLORE_AREA_BUCKETS = [
     {"key": "o135", "label": "전용 135㎡ 초과", "column": "area_over_135"},
 ]
 _AREA_BUCKET_COL = {b["key"]: b["column"] for b in EXPLORE_AREA_BUCKETS}
+_AREA_BUCKET_LABEL = {b["key"]: b["label"].replace("전용 ", "") for b in EXPLORE_AREA_BUCKETS}
 
 # 세대수 구간(단지 규모). 경계는 [min, max) 반열림.
 EXPLORE_HOUSEHOLD_BUCKETS = [
@@ -7517,6 +7531,83 @@ def _transaction_price_lookup():
             pass
         _EXPLORE_LOOKUP_CACHE["price"] = lookup
     return _EXPLORE_LOOKUP_CACHE["price"]
+
+
+def _area_bucket_presence_lookup():
+    """{(name,gu,dong): {실거래가 확인된 면적 구간 키}}.
+
+    마스터의 면적별 세대수 중 "k-135㎡초과" 는 원본 API 가 채우지 않는다 —
+    2,880 행 중 값이 있는 행이 4 개뿐이다(나머지 세 구간은 2,853 개). 그래서
+    "전용 135㎡ 초과" 로 거르면 1 단지만 남아 필터가 죽은 것처럼 보였다.
+    마스터에 값이 아예 없을 때만 실거래로 대신 판정한다. 값이 0 이면 그건
+    "없다" 는 뜻이므로 그대로 믿는다.
+    """
+    if "area_presence" not in _EXPLORE_LOOKUP_CACHE:
+        lookup = {}
+        try:
+            with open("data/baseline/transaction_summary.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    raw = (row.get("transaction_area_summary_json") or "").strip()
+                    if not raw or raw in ("[]", "{}"):
+                        continue
+                    try:
+                        parsed = json.loads(raw)
+                    except (ValueError, TypeError):
+                        continue
+                    buckets = set()
+                    for entry in parsed:
+                        area = parse_optional_float(re.sub(r"[^0-9.]", "", str(entry.get("area_label") or "")))
+                        if area is None:
+                            continue
+                        if area <= 60:
+                            buckets.add("u60")
+                        elif area <= 85:
+                            buckets.add("60_85")
+                        elif area <= 135:
+                            buckets.add("85_135")
+                        else:
+                            buckets.add("o135")
+                    if buckets:
+                        key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+                        lookup[key] = buckets
+        except Exception:
+            pass
+        _EXPLORE_LOOKUP_CACHE["area_presence"] = lookup
+    return _EXPLORE_LOOKUP_CACHE["area_presence"]
+
+
+def _area_bucket_price_lookup():
+    """{(name,gu,dong): {구간키: {"trade": 평균, "jeonse": 평균}}} (만원, float|None).
+
+    가격 필터가 단지 전체 평균만 쓰면 면적 조건과 가격 조건이 서로 다른 세대를
+    가리킨다. "전용 85~135㎡ + 매매 10억 이하" 를 고르면 59㎡ 거래가 평균을
+    끌어내려 정작 85~135㎡ 는 11억인 단지가 들어왔다(표본 120 중 4건).
+    구간을 고른 경우에는 그 구간의 평균으로 거른다.
+    """
+    if "area_price" not in _EXPLORE_LOOKUP_CACHE:
+        lookup = {}
+        try:
+            with open("data/baseline/transaction_summary.csv", encoding="utf-8-sig", newline="") as file:
+                for row in csv.DictReader(file):
+                    raw = (row.get("area_bucket_price_json") or "").strip()
+                    if not raw or raw == "{}":
+                        continue
+                    try:
+                        parsed = json.loads(raw)
+                    except (ValueError, TypeError):
+                        continue
+                    key = (clean_text(row.get("name", "")), clean_text(row.get("gu", "")), clean_text(row.get("dong", "")))
+                    lookup[key] = {
+                        bucket: {
+                            "trade": parse_optional_float(values.get("trade")),
+                            "jeonse": parse_optional_float(values.get("jeonse")),
+                        }
+                        for bucket, values in parsed.items()
+                    }
+        except Exception:
+            pass
+        _EXPLORE_LOOKUP_CACHE["area_price"] = lookup
+    return _EXPLORE_LOOKUP_CACHE["area_price"]
 
 
 def _representative_area_lookup():
@@ -7813,7 +7904,14 @@ def build_explore_results(filters, limit=10, share_q=""):
 
         # 평수: 선택 전용면적 구간 중 하나라도 세대가 있는 단지(OR)
         if area_buckets:
-            if not any(to_int(apartment.get(_AREA_BUCKET_COL[b]), 0) > 0 for b in area_buckets):
+            def _has_area_bucket(bucket_key):
+                raw = apartment.get(_AREA_BUCKET_COL[bucket_key])
+                if str(raw or "").strip() != "":
+                    return to_int(raw, 0) > 0
+                # 마스터가 비어 있는 구간(135㎡ 초과)은 실거래로 대신 본다.
+                return bucket_key in _area_bucket_presence_lookup().get((name, gu, dong), ())
+
+            if not any(_has_area_bucket(b) for b in area_buckets):
                 continue
 
         # 세대수: 단지 규모 구간(세대수 데이터 없는 단지는 제외)
@@ -7829,17 +7927,36 @@ def build_explore_results(filters, limit=10, share_q=""):
             score += 1
 
         # 가격: 거래유형(매매/전세)별 최근1년 평균 구간(거래 없는 단지는 제외)
+        # 면적 구간을 함께 고른 경우에는 그 구간의 평균으로 판단한다. 단지 전체
+        # 평균으로 거르면 작은 평형 거래가 평균을 끌어내려, 고른 면적은 조건을
+        # 넘는데도 결과에 들어온다.
         if price_bucket:
-            price = (_transaction_price_lookup().get((name, gu, dong)) or {}).get(price_type)
-            if price is None:
-                continue
-            if price_bucket["min"] is not None and price < price_bucket["min"]:
-                continue
-            if price_bucket["max"] is not None and price >= price_bucket["max"]:
-                continue
+            in_bucket = lambda value: (
+                value is not None
+                and (price_bucket["min"] is None or value >= price_bucket["min"])
+                and (price_bucket["max"] is None or value < price_bucket["max"])
+            )
+            price = None
+            price_area_label = ""
+            if area_buckets:
+                by_bucket = _area_bucket_price_lookup().get((name, gu, dong)) or {}
+                # 면적 조건이 OR 이므로 가격도 "고른 구간 중 하나라도 해당" 으로 본다.
+                for bucket_key in area_buckets:
+                    candidate = (by_bucket.get(bucket_key) or {}).get(price_type)
+                    if in_bucket(candidate):
+                        price = candidate
+                        price_area_label = _AREA_BUCKET_LABEL.get(bucket_key, "")
+                        break
+                if price is None:
+                    continue
+            else:
+                price = (_transaction_price_lookup().get((name, gu, dong)) or {}).get(price_type)
+                if not in_bucket(price):
+                    continue
             price_sort_value = price
             type_label = "전세" if price_type == "jeonse" else "매매"
-            matched.append(f"💰 {type_label} {price_bucket['label']}")
+            scope = f"{price_area_label} " if price_area_label else ""
+            matched.append(f"💰 {scope}{type_label} {price_bucket['label']}")
             score += 1
 
         # 공원: 반경 내 공원 유무(park_distance ≤ 반경) AND 필터(데이터 없으면 제외)

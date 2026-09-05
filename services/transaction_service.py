@@ -3,7 +3,7 @@ import functools
 import json
 import os
 import re
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import unquote
 from xml.etree import ElementTree
@@ -314,6 +314,18 @@ def get_batch_transaction_summary(apartment):
     batch_metrics = load_batch_summary().get(apartment_name, {})
     detail_payload = load_batch_detail_for_apartment(apartment_name)
     if detail_payload and detail_payload.get("area_tabs"):
+        # 샤드에는 기간별 건수가 없다(경계가 "오늘" 기준이라 미리 넣으면 낡는다).
+        # 저장된 행과 탭의 실제 합계로 요청 시점에 만든다.
+        transactions_by_area = detail_payload.get("transactions_by_area", {})
+        for tab in detail_payload.get("area_tabs", []):
+            tab["period_counts"] = build_period_counts(
+                transactions_by_area.get(tab.get("area_label"), []),
+                {
+                    "sale": tab.get("sale_count") or 0,
+                    "jeonse": tab.get("jeonse_count") or 0,
+                    "monthly": tab.get("monthly_count") or 0,
+                },
+            )
         batch_metrics_display = build_batch_metric_display(batch_metrics)
         insight_badges = build_transaction_insight_badges(batch_metrics, detail_payload.get("area_tabs", []))
         return {
@@ -698,6 +710,68 @@ def format_floor(value):
     return f"{text}층"
 
 
+TRANSACTION_PANEL_ROW_CAP = 80
+TRANSACTION_PERIOD_MONTHS = {"3m": 3, "6m": 6, "1y": 12, "2y": 24}
+
+
+def transaction_period_threshold(months, today=None):
+    """화면 JS 의 new Date(y, m - months, d) 와 같은 경계를 만든다.
+
+    JS 는 존재하지 않는 날짜(2월 31일)를 다음 달로 굴린다. 파이썬은 예외를
+    내므로, 그 달 1일에 (일 - 1) 을 더해 같은 결과를 얻는다. 서버가 센 건수와
+    화면이 거른 행이 하루 차이로 어긋나면 "필터가 안 먹는다" 로 읽힌다.
+    """
+    today = today or date.today()
+    year, month = today.year, today.month - months
+    while month <= 0:
+        month += 12
+        year -= 1
+    return date(year, month, 1) + timedelta(days=today.day - 1)
+
+
+def parse_transaction_date(value):
+    """화면에 쓰는 "YYYY.MM.DD" 를 date 로. 못 읽으면 None."""
+    matched = re.match(r"^(\d{4})\.(\d{2})\.(\d{2})$", str(value or ""))
+    if not matched:
+        return None
+    return date(int(matched.group(1)), int(matched.group(2)), int(matched.group(3)))
+
+
+def build_period_counts(rows, totals):
+    """면적 탭 하나의 (거래유형 x 기간) 표시 건수를 문자열로 만든다.
+
+    패널은 유형당 최근 80 건만 그린다(고덕 그라시움 60㎡ 전세는 355 건이다).
+    그런데 헤더 건수를 그려진 행에서 세면 355 건짜리가 "전체 80건" 이 되어 바로
+    위 요약줄과 어긋난다. "전체" 는 자르기 전 실제 건수를 그대로 쓴다.
+
+    기간 필터는 남아 있는 행이 그 기간을 다 덮는지에 따라 갈린다. 가장 오래된
+    보유 행이 경계보다 더 과거면 그 기간의 행은 전부 손에 있으므로 정확하다.
+    아니면 잘려 나간 행이 그 기간에 더 있을 수 있어 "80+" 로 적는다 — 모르는
+    수를 아는 척하지 않는다. 전체 칸의 2.4% 만 여기에 해당한다.
+
+    미리 계산해 두지 않고 요청마다 세는 이유는 경계가 "오늘" 기준이라서다.
+    샤드에 넣어 두면 날이 갈수록 틀린 값이 된다.
+    """
+    counts = {}
+    for filter_type in ("sale", "jeonse", "monthly"):
+        typed = [row for row in rows if row.get("filter_type") == filter_type]
+        true_total = totals.get(filter_type) or 0
+        truncated = len(typed) < true_total
+        oldest = min((parse_transaction_date(row.get("date")) for row in typed), default=None)
+
+        bucket = {"all": format_count(true_total)}
+        for period, months in TRANSACTION_PERIOD_MONTHS.items():
+            threshold = transaction_period_threshold(months)
+            found = sum(
+                1 for row in typed
+                if (parse_transaction_date(row.get("date")) or threshold) >= threshold
+            )
+            exact = not truncated or (oldest is not None and oldest < threshold)
+            bucket[period] = format_count(found) if exact else f"{format_count(found)}+"
+        counts[filter_type] = bucket
+    return counts
+
+
 def build_transaction_entry(item, trade_label):
     filter_type = "sale" if trade_label == "매매" else ("monthly" if trade_label == "월세" else "jeonse")
     price = format_price_manwon(item.get("amount"))
@@ -755,10 +829,16 @@ def build_transaction_lists(sale_items, jeonse_items):
             "monthly_count": monthly_count,
             "monthly_count_label": format_count(monthly_count),
             "is_primary": area_label in primary_set,
+            "period_counts": build_period_counts(
+                rows,
+                {"sale": sale_count, "jeonse": jeonse_count, "monthly": monthly_count},
+            ),
         })
         capped_rows = []
         for filter_type in ("sale", "jeonse", "monthly"):
-            capped_rows.extend([row for row in rows if row.get("filter_type") == filter_type][:80])
+            capped_rows.extend(
+                [row for row in rows if row.get("filter_type") == filter_type][:TRANSACTION_PANEL_ROW_CAP]
+            )
         capped_rows.sort(
             key=lambda row: (
                 row.get("date") or "",

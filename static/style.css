@@ -1741,6 +1741,13 @@ body:not(.home-page) #resultLoadingOverlay {
     font-weight: 700;
 }
 
+.transaction-panel-truncated {
+    margin: 6px 0 0;
+    color: #94a3b8;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+.transaction-panel-truncated[hidden] { display: none; }
 .transaction-panel-empty {
     display: none;
     margin: 0;
@@ -2540,6 +2547,57 @@ body:not(.home-page) #resultLoadingOverlay {
 
     .detail-card > p {
         -webkit-line-clamp: 3;
+    }
+}
+
+/* 긴 페이지용 우측 플로팅 버튼(_page_actions.html). 하단 중앙의 .share-fallback
+   (z-index 260)과 겹치지 않도록 오른쪽에 세로로 쌓는다. */
+.page-actions {
+    position: fixed;
+    right: 16px;
+    bottom: 18px;
+    z-index: 250;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.page-actions[hidden] { display: none; }
+.page-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    border: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
+    color: #111827;
+    font-size: 17px;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    padding: 0;
+}
+.page-action:hover { border-color: #94a3b8; }
+@media (min-width: 761px) {
+    .page-actions { right: 24px; bottom: 24px; }
+}
+
+.result-address span { display: block; }
+.result-address span + span { margin-top: 2px; }
+
+/* 폰에서는 추천 단지 카드가 화면을 통째로 먹는다. 12 개를 다 펼치면 670px 로,
+   812px 짜리 화면의 82% 다. 데스크톱은 사이드바 높이에 맞춰 이미 스크롤되지만
+   폰은 세로로 쌓이면서 높이 제한이 사라져 그냥 길어졌다. 5 개쯤 보이는 높이로
+   자르고 안에서 굴린다. overscroll-behavior 로 카드 끝에서 페이지가 따라
+   튀는 것을 막는다. */
+@media (max-width: 760px) {
+    .top-list-card {
+        max-height: 320px;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
     }
 }
 
@@ -5492,18 +5550,29 @@ body:not(.home-page) #resultLoadingOverlay {
         display: contents;
     }
 
-    /* 지하철/버스 유형 필터 칩(간선·지선 등): 터치/가독성 확보 */
+    /* 지하철/버스 유형 필터 칩(간선·지선 등).
+       34px 는 커 보이고 30px 는 손가락에 작다. 보이는 크기는 30px 로 줄이되
+       위아래로 4px 씩 넓힌 투명 영역을 덧대 실제 누를 수 있는 높이는 38px 로
+       둔다(칩 사이 간격이 5~7px 라 옆 칩과 겹치지 않는다). */
     .subtype-chip,
     .detail-card .subtype-chip {
-        height: 34px;
-        min-height: 34px;
-        padding: 0 12px;
-        font-size: 12.5px;
+        position: relative;
+        height: 30px;
+        min-height: 30px;
+        padding: 0 10px;
+        font-size: 12px;
+    }
+
+    .subtype-chip::after,
+    .detail-card .subtype-chip::after {
+        content: "";
+        position: absolute;
+        inset: -4px 0;
     }
 
     .subtype-chip small,
     .detail-card .subtype-chip small {
-        font-size: 11px;
+        font-size: 10.5px;
     }
 
     /* 거래내역 면적 필터 칩(가로 스크롤 행) */

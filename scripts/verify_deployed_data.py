@@ -49,7 +49,11 @@ REQUIRED_FILES = [
     ("data/baseline/mart_baseline.csv", "load_mart_baseline_data 가 CSV 를 직접 읽음"),
     ("data/baseline/cafe_baseline.csv", "load_cafe_baseline_data 가 CSV 를 직접 읽음"),
     ("data/baseline/school_zone_baseline.csv", "load_school_zone_baseline_data 가 CSV 를 직접 읽음"),
-    ("data/baseline/transaction_summary.csv", "실거래 요약(transaction_service)"),
+    ("data/baseline/transaction_summary.csv", "실거래 요약(transaction_service) + 탐색의 가격·면적구간 필터"),
+    # SQLite 분기를 타지 않고 app.py 가 직접 여는 baseline CSV. preload 로더만
+    # 훑던 self-check 가 못 잡아 서버에 없는 채로 지냈고, 그동안 버스 노선
+    # 자동완성이 빈 목록을 돌려주고 탐색의 버스 필터가 아무것도 못 찾았다.
+    ("data/baseline/bus_baseline.csv", "app.py _bus_route_lookup 이 CSV 를 직접 읽음(버스 자동완성·필터)"),
     ("data/bus/seoul_bus_stops.csv", "버스 정류장 preload"),
     ("data/bus/seoul_bus_routes.csv", "버스 노선 preload"),
     ("data/cctv/national_cctv.csv", "CCTV 지도 preload"),
@@ -67,7 +71,7 @@ REQUIRED_DIRS = [
 # baseline.db 가 있으면 SQLite 로 읽으므로 보낼 필요가 없는 것들. 서버에 있어도
 # 쓰이지 않으니 디스크만 차지한다(2026-09-04 기준 412MB).
 NOT_REQUIRED = [
-    "academy", "medical", "ev_charger", "shopping", "culture", "bus",
+    "academy", "medical", "ev_charger", "shopping", "culture",
     "commercial", "bike", "fire_station", "nightlife", "hangang", "park",
 ]
 
@@ -112,10 +116,28 @@ def self_check():
         if "_USE_SQLITE_BASELINE" not in body[:400]:
             csv_backed.add(name)
 
+    # preload 밖에서 baseline CSV 를 직접 여는 곳도 본다. _bus_route_lookup 이
+    # 여기에 해당하는데, 로더만 훑던 검사가 놓쳐 파일이 서버에 없었다.
+    listed = {path for path, _ in REQUIRED_FILES}
+    direct_missing = []
+    for name in ("app.py", "services/transaction_service.py"):
+        source = (BASE_DIR / name)
+        if not source.exists():
+            continue
+        for hit in set(re.findall(r"data/baseline/[a-z_]+\.csv", source.read_text(encoding="utf-8"))):
+            if hit not in listed:
+                direct_missing.append(f"{name} -> {hit}")
+
     expected = set(LOADER_TO_FILE)
-    if csv_backed == expected:
+    if csv_backed == expected and not direct_missing:
         print(f"  [self-check] CSV 를 직접 읽는 로더 {len(csv_backed)}개 — 목록과 일치")
+        print(f"  [self-check] preload 밖에서 여는 baseline CSV 도 모두 목록에 있음")
         return True
+
+    for entry in direct_missing:
+        print(f"      코드가 직접 여는데 목록에 없음: {entry}  -> REQUIRED_FILES 에 추가할 것")
+    if csv_backed == expected:
+        return False
 
     print("  [self-check] *** 목록이 코드와 어긋났습니다 ***")
     for name in sorted(csv_backed - expected):

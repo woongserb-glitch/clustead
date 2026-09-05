@@ -885,8 +885,15 @@
 .hg-aperture-spin polygon:nth-child(6) { animation-delay: -0.25s; }
 
 @media (prefers-reduced-motion: reduce) {
-    .hg-aperture-spin polygon { animation: none; }
-    .hg-aperture-spin polygon:nth-child(2) { opacity: 0.4; }
+    /* 조리개는 멈추지 않는다 — 투명도만 바뀌는 연출이라 "동작 줄이기" 가 막으려는
+       대상이 아니고, 로딩 표시에서 움직임을 지우면 진행 중이라는 신호가 통째로
+       사라진다. 안드로이드 절전 모드가 이 설정을 켜 두는 경우가 많다.
+       대신 주기를 늘리고 대비를 낮춰 눈에 덜 띄게 한다. */
+    @keyframes hg-blade-soft {
+        0%, 16.66% { opacity: 0.55; }
+        33.33%, 100% { opacity: 1; }
+    }
+    .hg-aperture-spin polygon { animation-name: hg-blade-soft; animation-duration: 2.4s; }
 }
 
 /* ---------- 반응형 ---------- */

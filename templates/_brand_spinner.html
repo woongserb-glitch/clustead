@@ -31,8 +31,15 @@
   .clustead-spinner .clustead-spin polygon:nth-child(6){animation-delay:-0.25s}
   .clustead-spinner .clustead-spinner-text{font-family:'Jost','Century Gothic','Futura',sans-serif;font-weight:500;letter-spacing:.22em;padding-left:.22em;font-size:13px}
   @media (prefers-reduced-motion: reduce){
-    /* 모션을 끄면 정적 브랜드 마크(우측 블레이드만 옅음)로 되돌린다. */
-    .clustead-spinner .clustead-spin polygon{animation:none}
-    .clustead-spinner .clustead-spin polygon:nth-child(2){opacity:.38}
+    /* 완전히 멈추지는 않는다. 이 연출은 위치 이동이 없는 투명도 변화라
+       "동작 줄이기" 가 막으려는 대상이 아니고, 로딩 표시에서 움직임을 지우면
+       진행 중이라는 신호가 통째로 사라진다. 안드로이드 절전 모드가 이 설정을
+       켜 두는 경우가 많아 폰에서 조리개가 멈춰 보였다.
+       대신 주기를 늘리고 대비를 낮춰 눈에 덜 띄게 한다. */
+    @keyframes clustead-blade-soft {
+      0%, 16.66% { opacity: .55; }
+      33.33%, 100% { opacity: 1; }
+    }
+    .clustead-spinner .clustead-spin polygon{animation-name:clustead-blade-soft;animation-duration:2.4s}
   }
 </style>

@@ -52,6 +52,7 @@ SUMMARY_FIELDS = [
     "price_per_m2",
     "data_confidence",
     "transaction_area_summary_json",
+    "area_bucket_price_json",
 ]
 
 MIN_AREA_TAB_TRANSACTION_COUNT = 5
@@ -339,6 +340,51 @@ def build_transaction_detail_payload(rows):
     }
 
 
+AREA_BUCKET_BOUNDS = [
+    ("u60", None, 60),
+    ("60_85", 60, 85),
+    ("85_135", 85, 135),
+    ("o135", 135, None),
+]
+
+
+def area_bucket_key(value):
+    """전용면적(㎡) -> 탐색 화면의 면적 구간 키. 경계는 (하한, 상한] 이다."""
+    area = number(value)
+    if area is None:
+        return None
+    for key, low, high in AREA_BUCKET_BOUNDS:
+        if (low is None or area > low) and (high is None or area <= high):
+            return key
+    return None
+
+
+def build_area_bucket_prices(trade_1y, jeonse_1y):
+    """{구간키: {"trade": 평균매매가, "jeonse": 평균전세보증금, "trade_n":, "jeonse_n":}}
+
+    탐색의 가격 필터가 단지 전체 평균(avg_trade_amount_1y)만 쓰던 탓에,
+    "전용 85~135㎡ + 매매 10억 이하" 를 고르면 59㎡ 거래가 평균을 끌어내려
+    정작 85~135㎡ 는 11억인 단지가 결과에 들어왔다. 구간별로 따로 평균을 내
+    고른 면적의 가격으로 거를 수 있게 한다.
+
+    기간과 거래 구분은 단지 전체 평균과 같게 맞춘다(최근 1년, 전세는 월세 제외).
+    기준이 어긋나면 같은 화면에서 두 숫자가 서로 다른 뜻이 된다.
+    """
+    buckets = {}
+    for rows, field, prefix in ((trade_1y, "deal_amount", "trade"), (jeonse_1y, "deposit_amount", "jeonse")):
+        grouped = defaultdict(list)
+        for row in rows:
+            key = area_bucket_key(row.get("area_m2"))
+            amount = number(row.get(field))
+            if key and amount is not None:
+                grouped[key].append(amount)
+        for key, amounts in grouped.items():
+            slot = buckets.setdefault(key, {})
+            slot[prefix] = average(amounts)
+            slot[f"{prefix}_n"] = len(amounts)
+    return buckets
+
+
 def build_area_summary(trade_rows, rent_rows):
     grouped = defaultdict(lambda: {"sale": [], "rent": []})
     for row in trade_rows:
@@ -464,6 +510,7 @@ def summarize_apartment(apartment, rows, mapping, today):
         "price_per_m2": price_per_m2,
         "data_confidence": confidence if rows else "0.00",
         "transaction_area_summary_json": json.dumps(build_area_summary(trade_rows, rent_rows), ensure_ascii=False),
+        "area_bucket_price_json": json.dumps(build_area_bucket_prices(trade_1y, jeonse_1y), ensure_ascii=False),
     }
 
 
