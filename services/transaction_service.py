@@ -198,27 +198,54 @@ def find_batch_master_rows(gu, dong, tx_name, tx_road):
     return rows
 
 
+def apartment_identity(name, gu, dong):
+    """실거래를 붙일 때 쓰는 단지 식별키.
+
+    이름만으로는 유일하지 않다 — 같은 이름이 2곳 이상에 쓰이는 단지가 7개
+    이름·15곳 있다(신동아아파트 3곳, 우리유앤미 2곳 …). 이름만 키로 쓰면
+    나중 행이 앞 행을 덮어, 동작구 흑석동 우리유앤미 화면에 구로구 단지의
+    거래금액이 떴다. 빌더(build_transaction_summary.py)와 같은 형식이어야 한다.
+    """
+    return "{}|{}|{}".format(
+        str(name or "").strip(), str(gu or "").strip(), str(dong or "").strip()
+    )
+
+
+def _index_by_identity(rows, name_keys, gu_key="gu", dong_key="dong"):
+    """식별키로 색인하고, 이름만으로 찾는 옛 경로를 위해 이름 키도 남긴다.
+
+    이름 키는 setdefault 라 첫 행이 이긴다 — 덮어쓰기로 값이 뒤바뀌는 일은
+    없앤다. 동명 단지는 반드시 식별키로 조회해야 한다.
+    """
+    index = {}
+    for row in rows:
+        name = ""
+        for key in name_keys:
+            name = str(row.get(key) or "").strip()
+            if name:
+                break
+        if not name:
+            continue
+        index[apartment_identity(name, row.get(gu_key), row.get(dong_key))] = row
+        index.setdefault(name, row)
+    return index
+
+
 def load_batch_mapping():
     global _BATCH_MAPPING_CACHE
     if _BATCH_MAPPING_CACHE is None:
-        rows = read_batch_csv(TRANSACTION_MAPPING_PATH)
-        _BATCH_MAPPING_CACHE = {
-            str(row.get("clustead_name") or row.get("livefit_name") or "").strip(): row
-            for row in rows
-            if str(row.get("clustead_name") or row.get("livefit_name") or "").strip()
-        }
+        _BATCH_MAPPING_CACHE = _index_by_identity(
+            read_batch_csv(TRANSACTION_MAPPING_PATH), ("clustead_name", "livefit_name")
+        )
     return _BATCH_MAPPING_CACHE
 
 
 def load_batch_summary():
     global _BATCH_SUMMARY_CACHE
     if _BATCH_SUMMARY_CACHE is None:
-        rows = read_batch_csv(TRANSACTION_SUMMARY_PATH)
-        _BATCH_SUMMARY_CACHE = {
-            str(row.get("name") or "").strip(): row
-            for row in rows
-            if str(row.get("name") or "").strip()
-        }
+        _BATCH_SUMMARY_CACHE = _index_by_identity(
+            read_batch_csv(TRANSACTION_SUMMARY_PATH), ("name",)
+        )
     return _BATCH_SUMMARY_CACHE
 
 
@@ -252,9 +279,12 @@ def load_batch_detail_manifest():
     return _BATCH_DETAIL_MANIFEST_CACHE
 
 
-def load_batch_detail_for_apartment(apartment_name):
+def load_batch_detail_for_apartment(apartment_name, gu=None, dong=None):
     manifest = load_batch_detail_manifest()
-    detail_filename = manifest.get(apartment_name)
+    detail_filename = manifest.get(apartment_identity(apartment_name, gu, dong))
+    if detail_filename is None:
+        # 아직 옛 형식(이름 키)으로 만들어진 매니페스트도 읽을 수 있게 둔다.
+        detail_filename = manifest.get(apartment_name)
     if detail_filename:
         path = TRANSACTION_DETAIL_DIR / detail_filename
         try:
@@ -306,13 +336,21 @@ def batch_item_from_master(row, trade_type):
 
 
 def get_batch_transaction_summary(apartment):
-    mapping = load_batch_mapping().get(str(apartment.get("name") or "").strip())
+    # 이름만으로 찾으면 동명 단지끼리 서로의 거래를 가져간다. 단지 화면이 쓰는
+    # 뷰는 구를 district 로 들고 있고, 원본 dict 는 gu 로 들고 있다.
+    apartment_name = str(apartment.get("name") or "").strip()
+    apartment_gu = str(apartment.get("district") or apartment.get("gu") or "").strip()
+    apartment_dong = str(apartment.get("dong") or "").strip()
+    identity = apartment_identity(apartment_name, apartment_gu, apartment_dong)
+
+    mapping_index = load_batch_mapping()
+    mapping = mapping_index.get(identity) or mapping_index.get(apartment_name)
     if not is_trusted_batch_mapping(mapping):
         return None
 
-    apartment_name = str(apartment.get("name") or "").strip()
-    batch_metrics = load_batch_summary().get(apartment_name, {})
-    detail_payload = load_batch_detail_for_apartment(apartment_name)
+    summary_index = load_batch_summary()
+    batch_metrics = summary_index.get(identity) or summary_index.get(apartment_name) or {}
+    detail_payload = load_batch_detail_for_apartment(apartment_name, apartment_gu, apartment_dong)
     if detail_payload and detail_payload.get("area_tabs"):
         # 샤드에는 기간별 건수가 없다(경계가 "오늘" 기준이라 미리 넣으면 낡는다).
         # 저장된 행과 탭의 실제 합계로 요청 시점에 만든다.

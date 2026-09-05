@@ -7770,6 +7770,38 @@ def _apartment_station_names(subway_row):
     return names
 
 
+def _apartment_subway_distance(subway_row, station_name="", line_name=""):
+    """도보권(500m) 항목 중 '고른 역/노선' 까지의 최단 거리.
+
+    정렬에 nearest_subway_distance(어떤 역이든 가장 가까운 역)를 쓰면 고른 역과
+    무관한 거리로 줄이 선다. 서울역으로 찾으면 더플레이스충정로(서울역 479m)가
+    충정로역 241m 로 앞서고, 서울역 312m 인 순화동포스코더샵이 뒤로 밀렸다.
+    """
+    raw = subway_row.get("subway_items_500m_json", "")
+    try:
+        items = json.loads(raw) if raw else []
+    except (ValueError, TypeError):
+        items = []
+
+    wanted_station = normalize_search_text(strip_station_suffix(station_name)) if station_name else ""
+    wanted_line = clean_text(line_name)
+    best = None
+    for item in items:
+        if wanted_station:
+            if normalize_search_text(strip_station_suffix(item.get("name", ""))) != wanted_station:
+                continue
+        elif wanted_line:
+            lines = item.get("lines") or []
+            if isinstance(lines, str):
+                lines = [lines]
+            if not any(clean_text(line) == wanted_line for line in lines):
+                continue
+        distance = insight_to_number(item.get("distance"))
+        if distance is not None and (best is None or distance < best):
+            best = distance
+    return best
+
+
 def _apartment_subway_lines(subway_row):
     """단지 도보권(500m) 지하철 '노선명' 집합(구조적). 노선 필터 매칭용.
     제품의 지하철 기준(subway_line_count_500m·결과 카드)과 동일하게 500m 도보권으로
@@ -8065,7 +8097,11 @@ def build_explore_results(filters, limit=10, share_q=""):
         # 우선순위: 거리 기반(구체적·공간적) -> 규모 -> 가격.
         filter_sort_parts = []
         if line_filter or station_filter:
-            value = insight_to_number(subway.get("nearest_subway_distance"))
+            # 고른 역(없으면 고른 노선)까지의 거리로 줄을 세운다. 어떤 역이든
+            # 가장 가까운 역의 거리를 쓰면 고른 역과 무관한 순서가 된다.
+            value = _apartment_subway_distance(subway, station_filter, line_filter)
+            if value is None:
+                value = insight_to_number(subway.get("nearest_subway_distance"))
             filter_sort_parts.append(value if value is not None else float("inf"))
         if school_coords:
             filter_sort_parts.append(school_sort_distance)
@@ -8104,7 +8140,10 @@ def build_explore_results(filters, limit=10, share_q=""):
             parts.append(item["sort_key"])
         else:
             parts.append(-item["score"])
-            parts.extend(item["filter_sort"])
+        # 2차 정렬은 두 갈래 모두에 쓴다. 우선순위 분기에서만 빼 두었더니 학원
+        # 개수가 같을 때 "세대수 많은 순" 같은 필터별 키가 통째로 무시되고
+        # 가나다순으로 넘어갔다(영어학원+500~1000세대 한 조회에서 279건 역전).
+        parts.extend(item["filter_sort"])
         parts.extend([item["gu"], item["dong"], item["name"]])
         return tuple(parts)
 

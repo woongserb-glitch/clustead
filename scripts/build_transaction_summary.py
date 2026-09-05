@@ -82,11 +82,29 @@ def trusted_mapping(row):
         return False
 
 
+def apartment_identity(name, gu, dong):
+    """실거래를 붙일 때 쓰는 단지 식별키.
+
+    이름만으로는 유일하지 않다 — 서울에 같은 이름이 2곳 이상인 단지가 7개
+    이름·15곳 있다(신동아아파트 3곳, 우리유앤미 2곳 …). 이름만 쓰면 나중 행이
+    앞 행을 덮어 동작구 흑석동 우리유앤미에 구로구 단지의 거래가 붙었다.
+    """
+    return f"{clean_text(name)}|{clean_text(gu)}|{clean_text(dong)}"
+
+
 def load_mapping_index():
     if not TRANSACTION_MAPPING_PATH.exists():
         return {}
     rows, _ = read_csv_rows(TRANSACTION_MAPPING_PATH)
-    return {clean_text(row.get("livefit_name")): row for row in rows}
+    index = {}
+    for row in rows:
+        name = clean_text(row.get("livefit_name"))
+        if not name:
+            continue
+        index[apartment_identity(name, row.get("gu"), row.get("dong"))] = row
+        # 이름만으로 찾는 옛 호출부(동 불일치 리포트)를 위해 남겨 둔다.
+        index.setdefault(name, row)
+    return index
 
 
 def load_transaction_index():
@@ -582,19 +600,24 @@ def build_summary():
     detail_manifest = {}
     connected = 0
     for apartment in apartments:
-        mapping = mapping_index.get(apartment["livefit_name"], {})
+        identity = apartment_identity(
+            apartment["livefit_name"], apartment.get("gu"), apartment.get("dong")
+        )
+        mapping = mapping_index.get(identity, {})
         tx_rows = find_rows(apartment, mapping, tx_index)
         if tx_rows:
             connected += 1
             detail_payload = build_transaction_detail_payload(tx_rows)
             if detail_payload.get("area_tabs"):
-                digest = hashlib.sha1(apartment["livefit_name"].encode("utf-8")).hexdigest()[:16]
+                # 샤드 파일명도 식별키에서 뽑는다. 이름만 해싱하면 동명 단지
+                # 두 곳이 같은 파일에 써서 뒤엣것만 남는다.
+                digest = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:16]
                 detail_filename = f"{digest}.json"
                 (TRANSACTION_DETAIL_DIR / detail_filename).write_text(
                     json.dumps(detail_payload, ensure_ascii=False, separators=(",", ":")),
                     encoding="utf-8",
                 )
-                detail_manifest[apartment["livefit_name"]] = detail_filename
+                detail_manifest[identity] = detail_filename
         rows.append(summarize_apartment(apartment, tx_rows, mapping, today))
 
     write_csv(TRANSACTION_SUMMARY_PATH, rows, SUMMARY_FIELDS)
