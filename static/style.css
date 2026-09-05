@@ -2598,6 +2598,9 @@ body:not(.home-page) #resultLoadingOverlay {
     .page-actions { right: 24px; bottom: 24px; }
 }
 
+.explore-fallback-note { color: #b45309; }
+.explore-fallback-note b { font-weight: 800; }
+
 .result-address span { display: block; }
 .result-address span + span { margin-top: 2px; }
 

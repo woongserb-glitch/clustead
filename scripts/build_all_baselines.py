@@ -1,3 +1,4 @@
+import sys
 import time
 import runpy
 
@@ -69,3 +70,11 @@ print(f"[FAIL COUNT] {fail_count}")
 print(f"[TOTAL TIME] {total_elapsed} sec")
 
 print("=" * 60)
+
+# 실패가 있으면 반드시 0 이 아닌 코드로 끝낸다. 지금까지는 실패 건수를 찍고도
+# 정상 종료해서, 상위 rebuild_data_full 이 성공으로 보고 enrich -> sqlite ->
+# validate 로 넘어갔다. 그 sqlite 단계는 기존 DB 를 먼저 지우므로, 조용한 실패가
+# 멀쩡한 baseline.db 를 나쁜 CSV 로 갈아치우는 데까지 이어질 수 있었다.
+if fail_count:
+    print(f"[EXIT] {fail_count}개 빌더가 실패해 종료코드 1 로 끝냅니다.")
+    sys.exit(1)

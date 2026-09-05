@@ -75,7 +75,7 @@ tests/       test_correctness.py, snapshot_result.py
 ```bash
 python -m scripts.build_all_baselines        # 베이스라인 재생성
 cd scripts && python enrich_baseline_percentiles.py   # 점수/percentile 재-bake
-python -m scripts.validate_baselines          # 검증
+python scripts/validate_baselines.py          # 검증
 ```
 
 `scripts.build_all_baselines`는 전체 baseline 재생성의 정본 진입점이다. 새 `build_*_baseline.py`

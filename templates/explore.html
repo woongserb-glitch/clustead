@@ -16,7 +16,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260905d">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260906a">
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
 </head>
@@ -228,7 +228,13 @@
                 <div class="section-head">
                     <div>
                         <h2>추천 결과</h2>
+                        {% if proximity_fallback %}
+                        {# 반경 안에 해당 단지가 없어 반경을 풀고 찾은 결과다. 왜 다른
+                           기준으로 나왔는지 밝히지 않으면 조건이 무시된 것처럼 보인다. #}
+                        <p class="explore-fallback-note">선택한 반경 안에는 해당하는 단지가 없어, <b>가까운 순</b>으로 보여드립니다.</p>
+                        {% else %}
                         <p>선택한 조건과 일치하는 생활 요소를 기준으로 정렬했습니다.</p>
+                        {% endif %}
                     </div>
                 </div>
 

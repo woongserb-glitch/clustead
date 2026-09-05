@@ -269,6 +269,45 @@ def road_address_for_row(sido, gu, road_name):
     return " ".join(part for part in (sido or "서울특별시", gu, road) if part)
 
 
+CANCELLED_COLUMNS = ("해제사유발생일", "해제여부")
+
+
+def contract_key(row):
+    """한 건의 계약을 가리키는 키(단지·금액·계약일·전용면적·층).
+
+    국토부 원본은 해제된 계약을 '원래 행 + 해제 표시 행' 두 줄로 싣는다. 해제
+    표시가 있는 줄만 버리면 짝인 정상 줄이 남아 해제 거래가 그대로 집계된다
+    (해제1+정상1 짝이 6,549건, 해제 없이 정상만 중복인 경우는 715건뿐이다).
+    그래서 행이 아니라 이 키 단위로 제거한다.
+    """
+    return (
+        clean_text(first_value(row, ("단지명", "아파트명"))),
+        clean_text(first_value(row, ("거래금액(만원)", "거래금액", "매매금액"))).replace(",", ""),
+        clean_text(row.get("계약년월")),
+        clean_text(row.get("계약일")),
+        clean_text(first_value(row, ("전용면적(㎡)", "전용면적"))),
+        clean_text(row.get("층")),
+    )
+
+
+def is_cancelled_contract(row):
+    """해제(취소)된 계약인지.
+
+    국토부 매매 원본에는 '해제사유발생일' 이 있고, 값이 차면 그 계약은 취소된
+    것이다. 지금까지 이 컬럼을 아예 보지 않아 마스터 매매 125,354행 중
+    7,202행(5.75%)이 해제건이었다 — 동아타운21은 2026-09-01 계약·당일 해제인데
+    9억 거래로 남아 있었다. 해제건은 이상 고가가 많아 평균가와 '최근 실거래가'
+    를 특히 크게 흔든다.
+
+    전월세 원본에는 이 컬럼이 없어 아무 행도 걸리지 않는다.
+    """
+    for column in CANCELLED_COLUMNS:
+        value = clean_text(row.get(column))
+        if value and value not in ("-", "0"):
+            return True
+    return False
+
+
 def normalize_row(row, source_file, transaction_type):
     sido, gu, dong = split_sigungu(first_value(row, ("시군구", "법정동")))
     apartment_name = first_value(row, ("단지명", "아파트명"))
@@ -388,10 +427,25 @@ def build_master():
     source_stats = Counter()
     type_stats = Counter()
     skipped = Counter()
+    cancelled_stats = Counter()
+
+    # 1 차 통과: 해제된 계약의 키를 모은다. 원본을 두 번 읽지만(약 40 초) 해제
+    # 표시가 없는 짝까지 확실히 걷어내려면 전체를 먼저 봐야 한다.
+    cancelled_keys = set()
+    for path, raw_rows, headers in iter_molit_sources():
+        if not any("해제" in h for h in headers):
+            continue
+        for raw in raw_rows:
+            if is_cancelled_contract(raw):
+                cancelled_keys.add(contract_key(raw))
+                cancelled_stats[path.name] += 1
 
     for path, raw_rows, headers in iter_molit_sources():
         transaction_type = detect_transaction_type(path, headers)
         for raw in raw_rows:
+            if cancelled_keys and contract_key(raw) in cancelled_keys:
+                skipped[path.name] += 1
+                continue
             parsed = normalize_row(raw, path.name, transaction_type)
             if not parsed:
                 skipped[path.name] += 1
@@ -408,6 +462,9 @@ def build_master():
     write_csv(TRANSACTION_MASTER_PATH, rows, MASTER_FIELDS)
 
     print(f"[OK] transaction_master.csv rows={len(rows)} path={TRANSACTION_MASTER_PATH}")
+    if cancelled_keys:
+        print(f"[OK] 해제 계약 {len(cancelled_keys):,}건 제외 "
+              f"(원본 표시행 {sum(cancelled_stats.values()):,}행 + 짝인 정상행 포함)")
     if not source_stats:
         print(f"[WARNING] no MOLIT raw files found in {MOLIT_TRANSACTION_RAW_DIR}")
         print("[INFO] Put files such as trade_2024.xlsx, trade_2025.xlsx, rent_2024.xlsx in data/transactions/raw/molit/.")

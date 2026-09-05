@@ -3425,10 +3425,17 @@ def build_medical_category_summaries(medical_info):
     # 약국까지 나오고, 야간/주말/휴일 칩도 1km 기준으로 세어져 개수와 어긋난다.
     # 다른 도보권 카테고리(병원·편의점·카페)처럼 목록을 반경으로 자른다.
     # 최근접 POI 는 반경 밖이라도 안내하는 게 기존 동작이라 그대로 둔다(병원 카드와 동일).
+    def _within_pharmacy_radius(item):
+        # 0m 을 falsy 로 흘리면(`x or inf`) 단지 안에 있는 약국이 반경 밖으로
+        # 걸러진다(강일리버파크4단지의 강일약국 등 13단지).
+        distance = parse_optional_float(item.get("distance"))
+        if distance is None:
+            return False
+        return distance <= PHARMACY_DISPLAY_RADIUS_M
+
     pharmacy_items = [
         item for item in medical_info.get("pharmacy_items", [])
-        if (parse_optional_float(item.get("distance")) or float("inf"))
-        <= PHARMACY_DISPLAY_RADIUS_M
+        if _within_pharmacy_radius(item)
     ]
 
     return [
@@ -6246,7 +6253,7 @@ def home():
     home_config = build_home_config()
     analytics_service.track(
         "page_view",
-        ip=get_remote_address(),
+        ip=real_client_ip(),
         user_agent=request.headers.get("User-Agent"),
         path=request.path,
     )
@@ -6263,7 +6270,7 @@ def area_index():
     context = build_area_index_context()
     analytics_service.track(
         "area_index_view",
-        ip=get_remote_address(),
+        ip=real_client_ip(),
         user_agent=request.headers.get("User-Agent"),
         path=request.path,
         combo_key="area:index",
@@ -6283,7 +6290,7 @@ def area_landing(gu, dong=None):
         return render_home_not_found()
     analytics_service.track(
         "area_view",
-        ip=get_remote_address(),
+        ip=real_client_ip(),
         user_agent=request.headers.get("User-Agent"),
         path=request.path,
         combo_key=f"area:{context['area']['scope_label']}",
@@ -7770,6 +7777,99 @@ def _apartment_station_names(subway_row):
     return names
 
 
+def _subway_station_coords():
+    """{정규화 역명: (lat, lng)} — 반경 밖 거리 계산용.
+
+    도보권(500m) 안에 없으면 지금까지 결과가 0 건이었다. 역삼역처럼 업무지구
+    한복판에 있는 역은 500m 안에 단지가 아예 없어 화면이 통째로 비었다.
+    반경 밖이라도 가까운 순으로 보여주려면 역의 실제 좌표가 필요하다.
+    baked 된 subway_items_json 에 역별 좌표가 이미 들어 있어 그것을 모은다.
+    """
+    if "station_coords" not in _EXPLORE_LOOKUP_CACHE:
+        coords = {}
+        by_line = {}
+        for row in subway_baseline_data:
+            raw = row.get("subway_items_json", "")
+            try:
+                items = json.loads(raw) if raw else []
+            except (ValueError, TypeError):
+                continue
+            for item in items:
+                lat, lng = item.get("lat"), item.get("lng")
+                if lat is None or lng is None:
+                    continue
+                key = normalize_search_text(strip_station_suffix(item.get("name", "")))
+                if key and key not in coords:
+                    coords[key] = (float(lat), float(lng))
+                lines = item.get("lines") or []
+                if isinstance(lines, str):
+                    lines = [lines]
+                for line in lines:
+                    line_key = clean_text(line)
+                    if line_key:
+                        by_line.setdefault(line_key, set()).add((float(lat), float(lng)))
+        _EXPLORE_LOOKUP_CACHE["station_coords"] = coords
+        _EXPLORE_LOOKUP_CACHE["line_coords"] = {k: sorted(v) for k, v in by_line.items()}
+    return _EXPLORE_LOOKUP_CACHE["station_coords"]
+
+
+def _subway_line_coords():
+    """{노선명: [(lat, lng)…]} — 그 노선 역들의 좌표."""
+    _subway_station_coords()
+    return _EXPLORE_LOOKUP_CACHE.get("line_coords", {})
+
+
+def _bus_route_stop_coords():
+    """{노선번호: [(lat, lng)…]} — 그 노선이 서는 정류장 좌표."""
+    if "bus_route_coords" not in _EXPLORE_LOOKUP_CACHE:
+        route_map = build_bus_route_map()
+        coords = {}
+        for stop in bus_stop_data:
+            node_id = stop.get("node_id")
+            if not node_id:
+                continue
+            try:
+                point = (float(stop.get("lat")), float(stop.get("lng")))
+            except (TypeError, ValueError):
+                continue
+            for route in route_map.get(node_id, ()):  # 정류장이 서는 노선들
+                route_key = clean_text(route)
+                if route_key:
+                    coords.setdefault(route_key, []).append(point)
+        _EXPLORE_LOOKUP_CACHE["bus_route_coords"] = coords
+    return _EXPLORE_LOOKUP_CACHE["bus_route_coords"]
+
+
+def _school_coords_by_name():
+    """{학교명: (lat, lng)} — 배정초 폴백에서 그 학교까지의 거리를 재기 위해."""
+    if "school_coords" not in _EXPLORE_LOOKUP_CACHE:
+        coords = {}
+        for row in school_data:
+            name = clean_text(row.get("name"))
+            try:
+                point = (float(row.get("lat")), float(row.get("lng")))
+            except (TypeError, ValueError):
+                continue
+            if name and name not in coords:
+                coords[name] = point
+        _EXPLORE_LOOKUP_CACHE["school_coords"] = coords
+    return _EXPLORE_LOOKUP_CACHE["school_coords"]
+
+
+def _nearest_distance_m(lat, lng, points):
+    """단지에서 후보 좌표들 중 가장 가까운 거리(m). 없으면 None."""
+    try:
+        lat_f, lng_f = float(lat), float(lng)
+    except (TypeError, ValueError):
+        return None
+    best = None
+    for point_lat, point_lng in points or ():
+        distance = get_distance_m(lat_f, lng_f, point_lat, point_lng)
+        if best is None or distance < best:
+            best = distance
+    return best
+
+
 def _apartment_subway_distance(subway_row, station_name="", line_name=""):
     """도보권(500m) 항목 중 '고른 역/노선' 까지의 최단 거리.
 
@@ -7824,7 +7924,13 @@ def _apartment_subway_lines(subway_row):
     return lines
 
 
-def build_explore_results(filters, limit=10, share_q=""):
+def build_explore_results(filters, limit=10, share_q="", relax_proximity=False):
+    """relax_proximity=True 면 역·노선·버스·학교의 반경 조건을 풀고 가까운 순으로 준다.
+
+    역삼역처럼 도보권(500m) 안에 단지가 하나도 없는 대상을 고르면 결과가 0 건이라
+    화면이 비었다. 조건에 맞는 단지가 있을 때는 기존 동작을 그대로 두고, 0 건일
+    때만 호출부가 이 모드로 한 번 더 부른다.
+    """
     no_nightlife = bool(filters.get("no_nightlife"))
     gu_filter = clean_text(filters.get("gu", ""))
     dong_filter = clean_text(filters.get("dong", ""))
@@ -7911,26 +8017,47 @@ def build_explore_results(filters, limit=10, share_q=""):
         score = 0
         school_sort_distance = float("inf")
         price_sort_value = float("inf")
+        # 완화 모드에서 "고른 대상까지 얼마나 가까운가". 여러 조건을 함께 고르면
+        # 가장 가까운 값을 쓴다.
+        proximity_distance = None
 
         if line_filter:
             # 노선 전체 일치(구조적). 부분문자열 매칭은 '1호선'→'공항철도1호선' 오선별을 유발했다.
             if line_filter not in _apartment_subway_lines(subway):
-                continue
-            matched.append(f"{line_filter} 접근")
-            score += 3
+                if not relax_proximity:
+                    continue
+                distance = _nearest_distance_m(
+                    apartment.get("lat"), apartment.get("lng"),
+                    _subway_line_coords().get(line_filter),
+                )
+                if distance is None:
+                    continue
+                proximity_distance = distance if proximity_distance is None else min(proximity_distance, distance)
+                matched.append(f"{line_filter} {int(round(distance)):,}m")
+            else:
+                matched.append(f"{line_filter} 접근")
+                score += 3
 
         if station_filter:
             # 역명 전체 일치만 인정(부분 문자열 "종" 등은 제외). 단지의 실제 역명 집합과 대조.
             station_names = _apartment_station_names(subway)
             wanted = normalize_search_text(station_filter)
-            if wanted not in station_names:
-                # 예전에 만들어진 공유 링크는 '역'을 전부 지운 값을 담고 있다
-                # (역삼 -> 삼). 그 링크가 죽지 않도록 옛 규칙도 함께 받는다.
-                legacy = {name.replace("역", "") for name in station_names}
-                if wanted not in legacy:
+            legacy = {name.replace("역", "") for name in station_names}
+            if wanted in station_names or wanted in legacy:
+                # legacy: 예전 공유 링크는 '역'을 전부 지운 값을 담고 있다(역삼 -> 삼).
+                matched.append(f"{station_filter}역 접근")
+                score += 3
+            else:
+                if not relax_proximity:
                     continue
-            matched.append(f"{station_filter}역 접근")
-            score += 3
+                point = _subway_station_coords().get(wanted)
+                distance = _nearest_distance_m(
+                    apartment.get("lat"), apartment.get("lng"), [point] if point else None
+                )
+                if distance is None:
+                    continue
+                proximity_distance = distance if proximity_distance is None else min(proximity_distance, distance)
+                matched.append(f"{station_filter}역 {int(round(distance)):,}m")
 
         # 유흥시설 없음: 500m 내 유흥시설이 0곳인 단지만
         if no_nightlife:
@@ -7943,9 +8070,19 @@ def build_explore_results(filters, limit=10, share_q=""):
         # 대표배정초: 해당 학교가 이 단지의 대표배정초인 경우만
         if assigned_elem:
             if _assigned_elementary_lookup().get((name, gu, dong), "") != assigned_elem:
-                continue
-            matched.append(f"🏫 {assigned_elem} 배정")
-            score += 2
+                if not relax_proximity:
+                    continue
+                point = _school_coords_by_name().get(assigned_elem)
+                distance = _nearest_distance_m(
+                    apartment.get("lat"), apartment.get("lng"), [point] if point else None
+                )
+                if distance is None:
+                    continue
+                proximity_distance = distance if proximity_distance is None else min(proximity_distance, distance)
+                matched.append(f"🏫 {assigned_elem} {int(round(distance)):,}m")
+            else:
+                matched.append(f"🏫 {assigned_elem} 배정")
+                score += 2
 
         # 중/고: 선택한 학교가 반경 1,500m 내인 단지만
         if school_coords:
@@ -7956,11 +8093,14 @@ def build_explore_results(filters, limit=10, share_q=""):
                 )
             except Exception:
                 continue
-            if school_dist > 1500:
+            if school_dist > 1500 and not relax_proximity:
                 continue
             school_sort_distance = school_dist
             matched.append(f"🏫 {school_mh} {int(round(school_dist)):,}m")
-            score += 2
+            if school_dist <= 1500:
+                score += 2
+            else:
+                proximity_distance = school_dist if proximity_distance is None else min(proximity_distance, school_dist)
 
         # 평수: 선택 전용면적 구간 중 하나라도 세대가 있는 단지(OR)
         if area_buckets:
@@ -8028,11 +8168,21 @@ def build_explore_results(filters, limit=10, share_q=""):
                     has_route = bus_route in by_type.get(bus_type, set())
                 else:
                     has_route = any(bus_route in routes for routes in by_type.values())
-                if not has_route:
-                    continue
                 prefix = f"{bus_type} " if bus_type else ""
-                matched.append(f"🚌 {prefix}{bus_route}")
-                score += 2
+                if not has_route:
+                    if not relax_proximity:
+                        continue
+                    distance = _nearest_distance_m(
+                        apartment.get("lat"), apartment.get("lng"),
+                        _bus_route_stop_coords().get(bus_route),
+                    )
+                    if distance is None:
+                        continue
+                    proximity_distance = distance if proximity_distance is None else min(proximity_distance, distance)
+                    matched.append(f"🚌 {prefix}{bus_route} {int(round(distance)):,}m")
+                else:
+                    matched.append(f"🚌 {prefix}{bus_route}")
+                    score += 2
             else:  # 유형만 선택 → 해당 유형 노선이 하나라도 있는 단지
                 if not by_type.get(bus_type):
                     continue
@@ -8131,11 +8281,17 @@ def build_explore_results(filters, limit=10, share_q=""):
             # 사실상 "강남구 가나다순"이 된다(전체의 7% 인 강남구가 상위 20 을 100%
             # 차지). 필터마다 그 필터가 실제로 찾는 것에 맞는 2차 키를 쌓는다.
             "filter_sort": tuple(filter_sort_parts),
+            "proximity_distance": proximity_distance,
             "matched_features": matched[:8] or ["생활 균형형"],
         })
 
     def order_key(item):
         parts = []
+        if relax_proximity:
+            # 반경 조건을 푼 화면에서는 "얼마나 가까운가" 가 유일하게 뜻이 통하는
+            # 순서다. 반경 안에 든 단지(거리 None)는 앞에 둔다.
+            distance = item.get("proximity_distance")
+            parts.append(float("-inf") if distance is None else distance)
         if priority_specs:                 # 그 다음 선택 순서 우선순위(개수 DESC, 최근접 ASC)
             parts.append(item["sort_key"])
         else:
@@ -8276,13 +8432,26 @@ def explore():
 
     has_active_filters = _explore_has_active_filters(filters)
     results = build_explore_results(filters, share_q=share_q) if has_active_filters else []
+
+    # 반경 조건(역·노선·버스·학교) 때문에 결과가 0 건이면, 반경을 풀고 가까운
+    # 순으로 한 번 더 찾는다. 역삼역처럼 도보권 안에 단지가 없는 대상을 고르면
+    # 화면이 통째로 비어서 "고장난 것" 처럼 보였다. 조건에 맞는 단지가 있을
+    # 때는 기존 결과를 그대로 쓴다.
+    proximity_fallback = False
+    if has_active_filters and not results and any((
+        filters.get("station"), filters.get("line"), filters.get("bus_route"),
+        filters.get("assigned_elementary"), filters.get("school"),
+    )):
+        results = build_explore_results(filters, share_q=share_q, relax_proximity=True)
+        proximity_fallback = bool(results)
+
     scenarios = [] if has_active_filters else build_explore_scenarios()
 
     if has_active_filters:
         combo_key, combo = analytics_service.build_filter_combo(filters)
         analytics_service.track(
             "explore_search",
-            ip=get_remote_address(),
+            ip=real_client_ip(),
             user_agent=request.headers.get("User-Agent"),
             path=request.path,
             combo_key=combo_key,
@@ -8326,6 +8495,7 @@ def explore():
         filters=filters,
         results=results,
         has_active_filters=has_active_filters,
+        proximity_fallback=proximity_fallback,
         scenarios=scenarios,
         gu_options=gu_options,
         dong_options=dong_options,
@@ -8743,7 +8913,7 @@ def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", 
     combo_key, combo = analytics_service.build_weight_combo(get_preferences())
     analytics_service.track(
         "result_view",
-        ip=get_remote_address(),
+        ip=real_client_ip(),
         user_agent=request.headers.get("User-Agent"),
         path=request.path,
         apartment=apartment_name,

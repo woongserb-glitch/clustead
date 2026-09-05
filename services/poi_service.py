@@ -37,7 +37,19 @@ def _parse_baked_items(row, column):
         if isinstance(item, dict)
     ]
 
-    parsed.sort(key=lambda item: item.get("distance", 99999) or 99999)
+    def _distance_for_sort(item):
+        # 0 을 falsy 로 흘리면(`x or 99999`) 단지 부지 안에 있는 0m 시설이 맨 뒤로
+        # 밀려 "가장 가까운 곳" 이 79m 짜리로 뽑힌다. 0m 항목을 가진 단지가
+        # 카테고리별로 121 쌍 있다(학원 30·카페 25·의료 20 …).
+        value = item.get("distance")
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                return 99999
+        return value
+
+    parsed.sort(key=_distance_for_sort)
 
     return parsed
 

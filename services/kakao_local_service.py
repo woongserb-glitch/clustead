@@ -56,8 +56,15 @@ def _cache_get(key):
     if not _CACHE_ENABLED:
         return None
 
-    if key in _MEMORY_CACHE:
-        return _MEMORY_CACHE[key]
+    # 메모리 사본에도 같은 만료를 적용한다. 디스크에만 검사가 있어서, 오래 떠
+    # 있는 워커는 TTL 이 지난 데이터를 계속 돌려줬다(설정한 갱신 주기가 사실상
+    # 무시됨). 저장 시각을 함께 들고 다니며 판정한다.
+    cached = _MEMORY_CACHE.get(key)
+    if cached is not None:
+        stored_at, pois = cached
+        if _CACHE_TTL_SECONDS <= 0 or (time.time() - stored_at) <= _CACHE_TTL_SECONDS:
+            return pois
+        _MEMORY_CACHE.pop(key, None)
 
     path = _cache_path(key)
     if not path.exists():
@@ -72,7 +79,9 @@ def _cache_get(key):
     except Exception:
         return None
 
-    _MEMORY_CACHE[key] = pois
+    # 디스크에서 올릴 때는 그 파일의 수정 시각을 그대로 물려받아야, 방금 읽었다는
+    # 이유로 만료가 뒤로 밀리지 않는다.
+    _MEMORY_CACHE[key] = (path.stat().st_mtime, pois)
     return pois
 
 
@@ -80,7 +89,7 @@ def _cache_set(key, pois):
     if not _CACHE_ENABLED:
         return
 
-    _MEMORY_CACHE[key] = pois
+    _MEMORY_CACHE[key] = (time.time(), pois)
     try:
         _CACHE_DIR.mkdir(parents=True, exist_ok=True)
         with _cache_path(key).open("w", encoding="utf-8") as file:

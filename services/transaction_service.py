@@ -3,6 +3,7 @@ import functools
 import json
 import os
 import re
+import time
 from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import unquote
@@ -550,9 +551,21 @@ def make_cache_path(trade_type, lawd_cd, deal_ym):
     return CACHE_DIR / f"{trade_type}_{lawd_cd}_{deal_ym}.json"
 
 
+API_CACHE_TTL_SECONDS = int(os.getenv("CLUSTEAD_TRANSACTION_API_CACHE_TTL", str(7 * 24 * 3600)))
+
+
 def read_cache(path):
     if not path.exists():
         return None
+
+    # 만료가 없으면 한 번 잘못 담긴 값이 영구히 남는다. 실거래는 신고가 늦게
+    # 반영되므로 지난 달치도 바뀐다 — 기본 7일.
+    if API_CACHE_TTL_SECONDS > 0:
+        try:
+            if (time.time() - path.stat().st_mtime) > API_CACHE_TTL_SECONDS:
+                return None
+        except OSError:
+            return None
 
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -581,6 +594,35 @@ def sanitize_error_text(value):
         r"\1***",
         str(value or ""),
     )
+
+
+API_ERROR_TAGS = ("resultCode", "returnReasonCode", "errMsg", "returnAuthMsg")
+API_OK_CODES = ("00", "0", "")
+
+
+def api_error_message(text):
+    """공공데이터 API 가 HTTP 200 안에 담아 보내는 오류를 찾아낸다.
+
+    인증키 오류·쿼터 초과는 200 으로 오고 본문에만 코드가 들어 있다. 그걸
+    검사하지 않으면 빈 목록을 '거래 없음' 으로 캐시하고, 캐시에 만료가 없어
+    문제가 풀린 뒤에도 영원히 빈 값을 돌려준다.
+    """
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError:
+        return "응답이 XML 이 아님"
+
+    for tag in API_ERROR_TAGS:
+        node = root.find(f".//{tag}")
+        if node is None or node.text is None:
+            continue
+        value = node.text.strip()
+        if tag in ("resultCode", "returnReasonCode"):
+            if value not in API_OK_CODES:
+                return f"{tag}={value}"
+        elif value and value not in ("NORMAL SERVICE.", "정상"):
+            return f"{tag}={value}"
+    return ""
 
 
 def parse_xml_items(text, trade_type):
@@ -637,6 +679,15 @@ def fetch_transactions(trade_type, lawd_cd, deal_ym, service_key):
             print(
                 f"[TRANSACTION] {trade_type} {lawd_cd} {deal_ym} "
                 f"failed: status={response.status_code} body={snippet}"
+            )
+            return []
+
+        error = api_error_message(response.text)
+        if error:
+            # 오류 응답을 "거래 없음" 으로 캐시하면 키를 고쳐도 되살아나지 않는다.
+            print(
+                f"[TRANSACTION] {trade_type} {lawd_cd} {deal_ym} "
+                f"api error: {sanitize_error_text(error)}"
             )
             return []
 

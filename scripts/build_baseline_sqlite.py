@@ -155,14 +155,27 @@ def build_table(conn, category):
 
 def main():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
 
-    conn = sqlite3.connect(DB_PATH)
+    # 새 DB 를 옆에 만들고 다 만든 뒤에 바꿔 끼운다. 기존 파일부터 지우면 도중에
+    # 한 카테고리라도 실패했을 때 멀쩡하던 DB 가 사라지고 빈 DB 만 남는다.
+    tmp_path = DB_PATH + ".new"
+    if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+    conn = sqlite3.connect(tmp_path)
     total = 0
-    for category in INDEXED_BASELINES:
-        total += build_table(conn, category)
+    try:
+        for category in INDEXED_BASELINES:
+            total += build_table(conn, category)
+    except BaseException:
+        conn.close()
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        print("[FAIL] 빌드 중단 — 기존 baseline.db 는 그대로 둡니다.")
+        raise
     conn.close()
+
+    os.replace(tmp_path, DB_PATH)
 
     size_mb = os.path.getsize(DB_PATH) / 1024 / 1024
     print("-" * 50)
