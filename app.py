@@ -552,6 +552,11 @@ def robots_txt():
         # 검색용 정식 콘텐츠는 /apartments·/area(canonical)로 충분.
         "Disallow: /compare",
         "Disallow: /result",
+        # 상세 페이지의 쿼리 변종(?src=explore&q=…) 차단. q 는 필터 조합을 담은
+        # base64 라 조합마다 URL 이 갈려 같은 단지가 무한한 변종을 갖는다.
+        # canonical 이 깨끗한 URL 을 지목하고 그 URL 은 사이트맵에 있으므로
+        # 색인에는 영향이 없고, 크롤만 아낀다.
+        "Disallow: /apartments/*?",
         "",
         f"Sitemap: {_absolute_url('/sitemap.xml')}",
         "",
@@ -4779,8 +4784,14 @@ def make_result_url(apartment_name, preferences, gu="", dong="", src="home", sha
     if share_q:
         params["q"] = share_q
 
+    # 기본값(3)은 싣지 않는다. get_preferences 가 없는 키를 3 으로 읽으므로
+    # 동작은 같고, 링크에서 18 개 파라미터가 사라진다. 탐색 결과 링크는 늘
+    # 기본 가중치라 사실상 전부 해당한다 — 같은 단지가 파라미터 조합마다 다른
+    # URL 로 보이던 것을 줄인다.
     for key in PREFERENCE_KEYS:
-        params[key] = preferences.get(key, 3)
+        value = preferences.get(key, 3)
+        if value != 3:
+            params[key] = value
 
     if apartment_name and gu and dong:
         return _append_query(apartment_detail_path(apartment_name, gu, dong), params)
