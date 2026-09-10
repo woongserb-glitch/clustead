@@ -36,6 +36,80 @@ errorlog = "-"
 loglevel = os.getenv("GUNICORN_LOGLEVEL", "info")
 
 
+def post_fork(server, worker):
+    """fork 직후, 이 워커가 첫 요청을 받기 전에 뜨거운 페이지를 스왑에서 되읽는다.
+
+    preload_app 으로 부모가 적재한 페이지를 워커는 CoW 로 물려받는데, 호스트
+    RAM 이 961MB 뿐이라 그 상당량이 스왑에 나가 있다(2026-09-10 실측: 마스터
+    245MB, 워커당 ~119MB 스왑). 워커가 그 페이지를 처음 만지는 순간이 하필
+    사용자 요청 안이면 50~60 초가 걸려 timeout=60 에 걸린다.
+
+    2026-09-07~09-09 사이 워커 강제종료 10 건 중 4 건이 이것이었고, 멈춘 워커는
+    모두 부팅 5 분 이내의 새 워커였다(1분35초~5분10초). 그 URL 들을 나중에 다시
+    재 보면 0.16~0.25 초다 — 페이지가 느린 게 아니라 워커가 차가웠다.
+
+    되읽기를 여기서 끝내면 같은 비용이 "사용자가 60 초 기다리다 502" 대신
+    "워커가 조용히 늦게 뜸" 이 된다. gunicorn 은 post_fork 동안 이 워커에
+    요청을 넣지 않는다.
+
+    주의: 오래 걸리면 마스터가 heartbeat 가 멎은 줄 알고 이 워커를 죽인다.
+    단계마다 notify() 로 갱신하고, 예산을 넘기면 남은 단계를 건너뛴다.
+    """
+    import time
+
+    budget = float(os.getenv("GUNICORN_WARM_BUDGET", "40"))
+    started = time.perf_counter()
+
+    def beat():
+        try:
+            worker.tmp.notify()
+        except Exception:
+            pass
+
+    def spent():
+        return time.perf_counter() - started
+
+    try:
+        import app as clustead
+
+        steps = []
+
+        def step(name, fn):
+            steps.append((name, fn))
+
+        # 단지 마스터 — 모든 화면이 가장 먼저 만진다.
+        step("apartments", lambda: sum(
+            1 for row in clustead.apartment_data if row.get("name")
+        ))
+        # 점수 인덱스 — 상세·탐색·지역 공통.
+        step("ranking-index", lambda: len(clustead.build_apartment_index()))
+        # 상세 한 장을 실제로 렌더해 result 경로의 페이지를 모두 만진다.
+        step("result", lambda: clustead.app.test_client().get(
+            "/result?apartment=%ED%97%AC%EB%A6%AC%EC%98%A4%EC%8B%9C%ED%8B%B0"
+            "&gu=%EC%86%A1%ED%8C%8C%EA%B5%AC&dong=%EA%B0%80%EB%9D%BD%EB%8F%99"
+        ).status_code)
+        # 폰 진입점.
+        step("explore", lambda: clustead.app.test_client().get("/explore").status_code)
+
+        for name, fn in steps:
+            if spent() > budget:
+                worker.log.info("[WARM] 예산 초과 — %s 이후 건너뜀 (%.1fs)", name, spent())
+                break
+            beat()
+            try:
+                fn()
+            except Exception as exc:
+                worker.log.info("[WARM] %s 실패: %s", name, exc)
+            beat()
+
+        worker.log.info("[WARM] 워커 %s 예열 완료 %.1fs", worker.pid, spent())
+    except Exception as exc:
+        # 예열은 최적화일 뿐이다. 실패해도 워커는 정상 기동해야 한다.
+        worker.log.info("[WARM] 예열 건너뜀: %s", exc)
+    finally:
+        beat()
+
+
 def worker_abort(worker):
     """워커가 타임아웃(timeout=60s)으로 강제종료되기 직전 호출된다(해당 워커
     프로세스 안에서). 그 순간 처리 중이던 요청 URL 을 남겨, 자원은 정상인데
