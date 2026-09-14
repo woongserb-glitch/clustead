@@ -53,8 +53,12 @@ def post_fork(server, worker):
     요청을 넣지 않는다.
 
     주의: 오래 걸리면 마스터가 heartbeat 가 멎은 줄 알고 이 워커를 죽인다.
-    단계마다 notify() 로 갱신하고, 예산을 넘기면 남은 단계를 건너뛴다.
+    처음엔 단계 사이에만 notify() 했는데, 한 단계가 통째로 60 초를 넘기면
+    그 안에서 죽었다(2026-09-12·09-13 에 3 회, [WARM] 로그도 못 남기고 사라짐).
+    그래서 예열 동안 별도 스레드가 주기적으로 갱신한다. 예산을 넘기면 남은
+    단계는 건너뛰되, 진행 중인 단계는 끝까지 두고 heartbeat 로 버틴다.
     """
+    import threading
     import time
 
     budget = float(os.getenv("GUNICORN_WARM_BUDGET", "40"))
@@ -65,6 +69,17 @@ def post_fork(server, worker):
             worker.tmp.notify()
         except Exception:
             pass
+
+    # 한 단계가 timeout 보다 오래 걸려도 마스터가 죽이지 않도록 계속 살아있음을
+    # 알린다. 데몬이라 워커가 요청 루프에 들어가기 전에 반드시 정리된다.
+    stop_beating = threading.Event()
+
+    def keep_alive():
+        while not stop_beating.wait(5.0):
+            beat()
+
+    heart = threading.Thread(target=keep_alive, name="warm-heartbeat", daemon=True)
+    heart.start()
 
     def spent():
         return time.perf_counter() - started
@@ -107,6 +122,8 @@ def post_fork(server, worker):
         # 예열은 최적화일 뿐이다. 실패해도 워커는 정상 기동해야 한다.
         worker.log.info("[WARM] 예열 건너뜀: %s", exc)
     finally:
+        stop_beating.set()
+        heart.join(timeout=1.0)
         beat()
 
 
