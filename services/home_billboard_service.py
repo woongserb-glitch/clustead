@@ -56,6 +56,15 @@ QUESTIONS = {
     "price_up": "최근 6개월, 매매가가 가장 많이 오른 아파트는?",
     "price_down": "최근 6개월, 매매가가 가장 많이 내린 아파트는?",
 }
+# "이번 달 바뀐 것" 오른쪽 칸의 주제별 표시 설정. 이 자리에 다른 주제(예: 새 대형마트·새 역)를
+# 올릴 때는 여기에 항목을 더하고 _billboard_macros.html 의 CHANGE_ICONS 에 아이콘을 더한다.
+CHANGE_KINDS = {
+    "emergency": {"heading": "새롭게 추가된 응급실", "icon": "cross", "color": "#e5484d",
+                  "label": "응급실 운영", "radius": "반경 1km",
+                  "empty": "이번 달 단지 1km 안에 새로 생긴 응급실이 없습니다.",
+                  "uncompared": "직전 달 응급실 정보가 없어 비교하지 않았습니다."},
+}
+
 TOPIC_SOURCES = {
     "academy": ("academy",), "dong_academy": ("academy",), "gu_best_dong": ("academy",),
     "value_combo": ("transactions", "master", "subway", "academy"), "subway": ("subway",),
@@ -267,7 +276,8 @@ def build_view(data, options, apartment_path, area_path):
     if data is None:
         return {"data_month": "준비 중", "generated_at": "", "topics": [], "groups": [],
                 "complex_count": None, "district_count": 0, "changes": {
-            "new_complexes": [], "er_changes": [], "er_groups": [], "master_compared": False,
+            "new_complexes": [], "er_changes": [], "er_groups": [], "event_kind": CHANGE_KINDS["emergency"],
+            "master_compared": False,
             "er_compared": False, "rules": [], "url": "",
         }}
     topics = []
@@ -316,13 +326,14 @@ def build_view(data, options, apartment_path, area_path):
             continue
         place = places.get(name, {})
         changes["er_groups"].append({
-            "hospital": name, "rows": members,
+            "hospital": name, "rows": members, "kind": CHANGE_KINDS["emergency"],
             "location": f"{place.get('gu', '')} {place.get('dong', '')}".strip(),
             "url": area_path(place["gu"], place["dong"]) if place.get("gu") and place.get("dong")
                    else area_path(place["gu"]) if place.get("gu") else "",
         })
     # 순위 페이지 행과 JSON-LD 가 화면과 같은 순서가 되게 병원별 순서로 다시 편다.
     changes["er_changes"] = [r for g in changes["er_groups"] for r in g["rows"]]
+    changes["event_kind"] = CHANGE_KINDS["emergency"]
     groups = [{"key": key, "title": title, "description": description,
                "topics": [t for t in topics if t["key"] in keys]}
               for key, title, description, keys in GROUPS]

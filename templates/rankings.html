@@ -21,7 +21,7 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=17">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=18">
     <script type="application/ld+json">{{ ranking_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -44,10 +44,10 @@
                         {% if not billboard.changes.master_compared %}<p class="bb-empty">직전 단지 목록이 없어 신규 등록 여부를 비교하지 않았습니다.</p>
                         {% elif ranking_topic.rows[:new_count] %}{{ rows(ranking_topic.rows[:new_count], '+') }}
                         {% else %}<p class="bb-empty">직전 목록과 비교해 새로 등록된 단지가 없습니다.</p>{% endif %}
-                        <h3>새롭게 추가된 응급실</h3>
-                        {% if not billboard.changes.er_compared %}<p class="bb-empty">직전 달 응급실 정보가 없어 비교하지 않았습니다.</p>
+                        <h3>{{ billboard.changes.event_kind.heading }}</h3>
+                        {% if not billboard.changes.er_compared %}<p class="bb-empty">{{ billboard.changes.event_kind.uncompared }}</p>
                         {% elif billboard.changes.er_groups %}{% for group in billboard.changes.er_groups %}{{ er_group(group) }}{% endfor %}
-                        {% else %}<p class="bb-empty">이번 달 단지 1km 안에 새로 생긴 응급실이 없습니다.</p>{% endif %}
+                        {% else %}<p class="bb-empty">{{ billboard.changes.event_kind.empty }}</p>{% endif %}
                     {% elif ranking_topic.key == 'gu_best_dong' %}{{ district_rows(ranking_topic.rows) }}
                     {% elif ranking_topic.rows %}{{ rows(ranking_topic.rows) }}
                     {% else %}<p class="bb-empty">조건에 맞는 결과가 없습니다.</p>{% endif %}

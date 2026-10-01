@@ -192,16 +192,16 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 .bb-district-card .bb-district-list { margin-top: 5px; }
 .bb-district-list .bb-district-gu { font-weight: 700; color: inherit; }
 .bb-er-group + .bb-er-group { margin-top: 16px; }
-/* 새 응급실 머리: 옅은 붉은 음영 + 십자 아이콘(반투명이라 라이트·다크 공용) */
-.bb-er-head { display: flex; align-items: center; gap: 12px; margin: 6px 0 8px; padding: 12px 14px; border-radius: 10px; border-left: 3px solid #e5484d; background: rgba(229, 72, 77, .09); }
-.bb-er-icon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 9px; background: #e5484d; color: #fff; box-shadow: 0 3px 10px rgba(229, 72, 77, .3); }
+/* 이번 달 변화 머리: 주제색(--bb-change) 음영 + 주제 아이콘. 색·아이콘은 CHANGE_KINDS 가 정한다(반투명이라 라이트·다크 공용). */
+.bb-er-head { display: flex; align-items: center; gap: 12px; margin: 6px 0 8px; padding: 12px 14px; border-radius: 10px; border-left: 3px solid var(--bb-change, #e5484d); background: rgba(128, 128, 128, .08); background: color-mix(in srgb, var(--bb-change, #e5484d) 10%, transparent); }
+.bb-er-icon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 9px; background: var(--bb-change, #e5484d); color: #fff; box-shadow: 0 3px 10px color-mix(in srgb, var(--bb-change, #e5484d) 30%, transparent); }
 .bb-er-icon svg { width: 20px; height: 20px; }
 .bb-er-hospital { margin: 0 0 2px; font-size: 13px; color: var(--bb-muted); }
 .bb-er-hospital a { color: inherit; text-decoration: none; }
 .bb-er-hospital a:hover { color: var(--bb-accent); text-decoration: underline; }
 .bb-er-hospital strong { color: var(--bb-fg); font-size: 16px; }
 .bb-er-note { margin: 0; font-size: 11px; color: var(--bb-muted); }
-.bb-er-note b { color: #e5484d; font-weight: 700; }
+.bb-er-note b { color: var(--bb-change, #e5484d); font-weight: 700; }
 .bb-data-guide { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); gap: 45px; margin: 43px 0 32px; padding-top: 28px; border-top: 1px solid var(--bb-line); }
 .bb-guide-heading h2 { font-size: 27px; line-height: 1.3; letter-spacing: -.05em; margin: 11px 0 13px; }
 .bb-guide-heading > p:last-child { color: var(--bb-muted); font-size: 12px; }
@@ -263,6 +263,7 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
     .bb-ranking-layout { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
+    .bb-nav-graph { display: none; }
     .bb-wrap { padding: 17px 16px 26px; }
     .bb-header { flex-wrap: wrap; gap: 15px; padding-bottom: 15px; }
     .bb-brand { max-width: none; font-size: 21px; }

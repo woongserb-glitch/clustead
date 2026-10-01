@@ -29,13 +29,21 @@
 </ol>
 {%- endmacro %}
 
+{# 주제별 아이콘(24×24, currentColor). 새 주제를 더하면 services/home_billboard_service.CHANGE_KINDS 와 함께 추가한다. #}
+{% set CHANGE_ICONS = {
+    "cross": "M9.5 4h5v5.5H20v5h-5.5V20h-5v-5.5H4v-5h5.5z",
+    "station": "M7 3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-2.2 2.9L19.5 21h-2.3l-1.4-3H8.2l-1.4 3H4.5l1.7-3.1A3 3 0 0 1 4 15V6a3 3 0 0 1 3-3zm0 3v5h10V6zm1.5 7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z",
+    "store": "M4 4h16l1 5a3 3 0 0 1-2 2.8V20H5v-8.2A3 3 0 0 1 3 9zm5 9v5h6v-5z",
+    "pin": "M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7zm0 4.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z",
+} %}
 {% macro er_group(group, limit=none) -%}
-<div class="bb-er-group">
+{% set kind = group.kind %}
+<div class="bb-er-group" style="--bb-change: {{ kind.color }}">
     <div class="bb-er-head">
-        <span class="bb-er-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 4h5v5.5H20v5h-5.5V20h-5v-5.5H4v-5h5.5z"/></svg></span>
+        <span class="bb-er-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="{{ CHANGE_ICONS.get(kind.icon, CHANGE_ICONS.pin) }}"/></svg></span>
         <div>
             <p class="bb-er-hospital">{% if group.location %}{% if group.url %}<a href="{{ group.url }}">{{ group.location }}</a>{% else %}{{ group.location }}{% endif %} {% endif %}<strong>{{ group.hospital }}</strong></p>
-            <p class="bb-er-note">응급실 운영 · 반경 1km 안 단지 <b>{{ group.rows | length }}곳</b> · 가까운 순</p>
+            <p class="bb-er-note">{{ kind.label }} · {{ kind.radius }} 안 단지 <b>{{ group.rows | length }}곳</b> · 가까운 순</p>
         </div>
     </div>
     {{ rows(group.rows[:limit] if limit else group.rows) }}
@@ -58,7 +66,8 @@
     <nav class="bb-nav" aria-label="주요 메뉴">
         {% if not home %}<a href="/">전광판 홈</a>{% endif %}
         <a href="/explore">조건으로 탐색</a><a href="/compare">단지 비교</a>
-        {% if settings.graph_enabled %}<a href="/graph">그래프로 탐색</a>{% endif %}
+        {# 폰에서는 숨긴다: /graph 는 폰에서 Explore 로 넘어간다(2026-10-01 사용자 결정). #}
+        {% if settings.graph_enabled %}<a class="bb-nav-graph" href="/graph">그래프로 탐색</a>{% endif %}
         <button type="button" class="bb-theme-button" data-theme-toggle hidden aria-label="다크 모드로 보기">다크 모드</button>
     </nav>
 </header>
