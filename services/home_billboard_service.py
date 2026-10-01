@@ -19,22 +19,29 @@ TOPICS = (
     ("quiet", "quiet-large-complexes", "Safety", "반경 500m 유흥주점이 없는 1,000세대 이상 대단지", "최근접 유흥주점까지 직선거리가 먼 순"),
     ("emergency", "emergency-facilities", "Health", "반경 1km 안에 응급실이 가장 많은 아파트", "반경 1,000m · 응급실 운영 의료기관"),
     ("gu_best_dong", "district-academy-winners", "By district", "우리 구에서 학원이 가장 많은 동", "구별 법정동 1위 · 구 이름 가나다순"),
+    ("price_up", "price-rising", "Price trend", "최근 6개월 매매가가 가장 많이 오른 아파트", "같은 단지·같은 전용면적 · 매매 중앙값 6개월 비교"),
+    ("price_down", "price-falling", "Price trend", "최근 6개월 매매가가 가장 많이 내린 아파트", "같은 단지·같은 전용면적 · 매매 중앙값 6개월 비교"),
 )
 NUMERIC_FIELDS = {
     "academy": ("total", "exam", "math", "english", "households"),
     "dong_academy": ("total", "exam", "math", "english"),
-    "value_combo": ("price84", "station_m", "academy_1km", "households"),
+    "value_combo": ("price84", "price84_n", "station_m", "academy_1km", "households"),
     "subway": ("lines", "stations", "nearest_m", "households"),
     "starbucks": ("count", "nearest_m", "households"),
     "convenience": ("total", "GS25", "CU", "세븐일레븐", "이마트24", "households"),
     "quiet": ("nearest_nightlife_m", "households"),
     "emergency": ("er_1km", "hospital_m", "households"),
     "gu_best_dong": ("total",),
+    "price_up": ("change_pct", "area", "prev_median", "recent_median", "prev_n", "recent_n", "households"),
+    "price_down": ("change_pct", "area", "prev_median", "recent_median", "prev_n", "recent_n", "households"),
 }
+# 하락률은 음수로 저장한다. 나머지 숫자는 모두 0 이상이어야 한다.
+SIGNED_FIELDS = {"change_pct"}
 GROUPS = (
     ("education", "학원가와 동네", "같은 학원도 단지 주변과 동네 전체로 보면 다른 답이 됩니다.", ("academy", "dong_academy", "gu_best_dong")),
-    ("value-transit", "가격과 이동", "예산, 역까지의 거리, 생활 인프라를 함께 살펴보세요.", ("value_combo", "subway")),
-    ("daily", "매일의 생활", "자주 찾는 가게부터 응급의료와 주변 환경까지, 집 가까이의 숫자입니다.", ("starbucks", "convenience", "quiet", "emergency")),
+    ("value-transit", "매매가 및 교통", "예산, 역까지의 거리, 생활 인프라를 함께 살펴보세요.", ("value_combo", "subway")),
+    ("price-trend", "최근 6개월 매매가 추이", "같은 단지·같은 면적끼리, 최근 6개월과 그 전 6개월의 실거래 중앙값을 비교했습니다.", ("price_up", "price_down")),
+    ("daily", "생활의 편리함", "자주 찾는 가게부터 응급의료와 주변 환경까지, 집 가까이의 숫자입니다.", ("starbucks", "convenience", "quiet", "emergency")),
 )
 QUESTIONS = {
     "academy": "입시·수학·영어 학원이 가장 많이 모인 아파트는?",
@@ -46,12 +53,15 @@ QUESTIONS = {
     "quiet": "500m 안에 유흥주점이 없는 대단지, 가장 멀리 떨어진 곳은?",
     "emergency": "1km 안에 응급실 운영 의료기관이 가장 많은 곳은?",
     "gu_best_dong": "우리 구에서는 어느 동에 학원이 가장 많을까?",
+    "price_up": "최근 6개월, 매매가가 가장 많이 오른 아파트는?",
+    "price_down": "최근 6개월, 매매가가 가장 많이 내린 아파트는?",
 }
 TOPIC_SOURCES = {
     "academy": ("academy",), "dong_academy": ("academy",), "gu_best_dong": ("academy",),
     "value_combo": ("transactions", "master", "subway", "academy"), "subway": ("subway",),
     "starbucks": ("cafe",), "convenience": ("convenience",), "quiet": ("nightlife", "master"),
     "emergency": ("medical",),
+    "price_up": ("transactions", "master"), "price_down": ("transactions", "master"),
 }
 
 
@@ -104,10 +114,15 @@ def validate_rankings(data):
             for field in {"value_combo": ("station",), "subway": ("nearest",), "emergency": ("hospital",)}.get(key, ()):
                 if not isinstance(row.get(field), str):
                     raise ValueError(f"Invalid {key}.{field}")
+            if key == "subway" and not (isinstance(row.get("line_names"), list)
+                                        and all(isinstance(v, str) and v for v in row["line_names"])):
+                raise ValueError("Invalid subway.line_names")
             for field in NUMERIC_FIELDS[key]:
                 value = row.get(field)
-                if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                if type(value) not in (int, float) or not math.isfinite(value) or (value < 0 and field not in SIGNED_FIELDS):
                     raise ValueError(f"Invalid {key}.{field}")
+            if key in ("price_up", "price_down") and (row["change_pct"] > 0) != (key == "price_up"):
+                raise ValueError(f"Invalid {key}.change_pct direction")
     for key in ("new_complexes", "er_changes"):
         if not isinstance(data.get(key), list):
             raise ValueError(f"Missing changes: {key}")
@@ -179,17 +194,27 @@ def _number(value):
     return f"{value:,}"
 
 
+def _eok(manwon):
+    """만원 → '7억', '13억 4,000만', '9,500만'."""
+    eok, rest = divmod(int(manwon), 10000)
+    if not eok:
+        return f"{rest:,}만"
+    return f"{eok}억" + (f" {rest:,}만" if rest else "")
+
+
 def _values(key, row):
     n = lambda field: _number(row[field])
+    if key in ("price_up", "price_down"):
+        return f"{row['change_pct']:+.1f}%", f"전용 {row['area']}㎡ · {_eok(row['prev_median'])} → {_eok(row['recent_median'])}"
     if key in ("academy", "dong_academy"):
         return f"{n('total')}곳", f"입시 {n('exam')} · 수학 {n('math')} · 영어 {n('english')}"
     if key == "gu_best_dong":
         return f"{n('total')}곳", "입시/보습·수학·영어"
     if key == "value_combo":
         # Show the stored mean in 만원: rounding 9.99억 up to 10억 obscures the strict filter.
-        return f"학원 {n('academy_1km')}곳", f"전용 80~90㎡ 평균 {n('price84')}만원 · {row['station']} {n('station_m')}m"
+        return f"학원 {n('academy_1km')}곳", f"최근 6개월 전용 80~90㎡ 평균 {n('price84')}만원({n('price84_n')}건) · {row['station']} {n('station_m')}m"
     if key == "subway":
-        return f"{n('lines')}개 노선", f"역 {n('stations')}곳 · {row['nearest']} {n('nearest_m')}m"
+        return f"{n('lines')}개 노선", " · ".join(row["line_names"])
     if key == "starbucks":
         return f"{n('count')}곳", f"가장 가까운 매장 {n('nearest_m')}m"
     if key == "convenience":
@@ -213,13 +238,17 @@ def _answer(key, rows, month):
     elif key == "dong_academy":
         fact = f"학원 주소의 법정동 기준으로 개원 중인 입시/보습·수학·영어 학원·교습소가 {n('total')}곳으로 집계 대상 중 1위입니다."
     elif key == "value_combo":
-        fact = f"300세대 이상·전용 80~90㎡ 매매 평균 10억 원 미만·최근접 역 500m 이내 조건을 충족한 단지 중 반경 1,000m 전체 학원 수가 {n('academy_1km')}곳으로 1위입니다. 매매 평균은 {n('price84')}만원(2025.1~2026.9 계약), 최근접 역은 {row['station']} {n('station_m')}m입니다."
+        fact = f"300세대 이상·최근 6개월 전용 80~90㎡ 매매 평균 10억 원 미만·최근접 역 500m 이내 조건을 충족한 단지 중 반경 1,000m 전체 학원 수가 {n('academy_1km')}곳으로 1위입니다. 최근 6개월 매매 평균은 {n('price84')}만원({n('price84_n')}건), 최근접 역은 {row['station']} {n('station_m')}m입니다."
     elif key == "subway":
-        fact = f"단지 대표 좌표 반경 500m 안의 역 {n('stations')}곳에 서로 다른 노선 {n('lines')}개가 지나 집계 대상 중 1위입니다."
+        fact = f"단지 대표 좌표 반경 500m 안의 역 {n('stations')}곳에 서로 다른 노선 {n('lines')}개({', '.join(row['line_names'])})가 지나 집계 대상 중 1위입니다."
     elif key == "starbucks":
         fact = f"단지 대표 좌표 반경 500m 안의 kakao map에 등록된 스타벅스가 {n('count')}곳으로 집계 대상 중 1위입니다."
     elif key == "convenience":
         fact = f"단지 대표 좌표 반경 500m 안의 GS25·CU·세븐일레븐·이마트24 합계가 {n('total')}곳으로 집계 대상 중 1위입니다."
+    elif key in ("price_up", "price_down"):
+        word = "올라" if key == "price_up" else "내려"
+        fact = (f"전용 {row['area']}㎡ 매매 실거래 중앙값이 직전 6개월 {_eok(row['prev_median'])}원({n('prev_n')}건)에서 "
+                f"최근 6개월 {_eok(row['recent_median'])}원({n('recent_n')}건)으로 {abs(row['change_pct']):.1f}% {word} 비교 대상 중 변화가 가장 큽니다.")
     elif key == "quiet":
         fact = f"1,000세대 이상·반경 500m 유흥주점 0곳 조건을 충족한 단지 중 가장 가까운 유흥주점까지 {n('nearest_nightlife_m')}m로 가장 멉니다."
     else:

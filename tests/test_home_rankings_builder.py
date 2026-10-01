@@ -12,6 +12,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts import build_home_rankings as builder
+from scripts import home_price_trend as price_trend
+
+# 인계 기준 답(compute_home_preview.py)에는 가격 추이 주제가 없다.
+# 국민평형 가격 조건은 2026-10-01 사용자 결정으로 최근 6개월 평균으로 바뀌어 기준 답과 다르다.
+ORACLE_TOPICS = tuple(t for t in builder.TOPICS if not t.startswith("price_") and t != "value_combo")
 from services.home_billboard_service import validate_rankings
 
 
@@ -30,12 +35,19 @@ def er_items(count, names=("응급A", "응급B", "응급C")):
     return json.dumps(items, ensure_ascii=False)
 
 
+@pytest.fixture(autouse=True)
+def no_raw_workbooks(monkeypatch):
+    """빌더 테스트는 국토부 원본 엑셀 없이 돈다(직거래 키는 빈 집합)."""
+    monkeypatch.setattr(price_trend, "load_direct_trade_keys", lambda raw_dir, years: set())
+
+
 @pytest.fixture
 def dataset(tmp_path):
     """More than fifty rows, boundary filters, stable ties and malformed dong data."""
     data = tmp_path / "data"
     rows = {name: [] for name in builder.BASELINE_COLUMNS}
-    schools = []  # the handover oracle still reads it; the builder no longer does
+    schools, summaries = [], []  # the handover oracle still reads these; the builder no longer does
+    trades, mappings = [], []
     masters = []
     for i in range(70):
         ident = {"name": f"단지{70-i:02}", "gu": "가구", "dong": "가동"}
@@ -48,7 +60,9 @@ def dataset(tmp_path):
                                  "academy_count_500m": i % 3, "academy_count_1000m": 1000 - i},
             "subway_baseline": {"nearest_subway_distance": 501 if i == 6 else 500 if i == 7 else 400,
                                 "nearest_subway_name": "가역", "subway_line_count_500m": 3 - i % 3,
-                                "subway_station_count_500m": 5 - i % 5},
+                                "subway_station_count_500m": 5 - i % 5,
+                                "subway_items_500m_json": json.dumps([{"name": "가역", "lines": ["2호선", "경의중앙선", "1호선"][:3 - i % 3]}],
+                                                                     ensure_ascii=False)},
             "cafe_baseline": {"스타벅스_count_500m": 3, "nearest_스타벅스_distance": "" if i == 8 else 100 + i % 3},
             "convenience_baseline": {brand + "_count_500m": 1 for brand in builder.BRANDS},
             "nightlife_baseline": {"nightlife_count_500m": "" if i == 9 else 1 if i == 10 else 0,
@@ -56,9 +70,17 @@ def dataset(tmp_path):
             "medical_baseline": {"emergency_count_1km": 3 - i % 2, "nearest_superior_hospital_distance": 200 + i % 3,
                                  "nearest_superior_hospital_name": "종합병원",
                                  "emergency_items_json": er_items(3 - i % 2)},
-            "transaction_summary": {"avg_trade_amount_84": 100000 if i == 4 else "" if i == 5 else 99999},
         }
         schools.append({**ident, "assigned_elementary_school": "나초"})
+        # 인계 기준 답은 2025.1~ 평균(transaction_summary)을 읽고, 빌더는 최근 6개월 실거래를 읽는다.
+        summaries.append({**ident, "avg_trade_amount_84": 100000 if i == 4 else "" if i == 5 else 99999})
+        if i != 5:  # 가격 없음
+            trades += [{"transaction_type": "trade", "gu": "가구", "dong": "가동", "apartment_name": ident["name"],
+                        "road_address": f"{ident['name']}로 1", "contract_date": f"2026-0{month}-10", "area_m2": "84.9",
+                        "floor": str(month), "trade_price_manwon": "100000" if i == 4 else "99999"}
+                       for month in (4, 5, 6)]
+        mappings.append({"livefit_name": ident["name"], "gu": "가구", "dong": "가동", "transaction_apt_name": ident["name"],
+                         "transaction_road_address": f"{ident['name']}로 1", "verified": "Y"})
         for name in rows:
             if name == "subway_baseline" and i == 69:
                 continue  # common academy/subway key set is intentional
@@ -66,6 +88,7 @@ def dataset(tmp_path):
     for name, values in rows.items():
         write_csv(data / "baseline" / f"{name}.csv", values)
     write_csv(data / "baseline/school_zone_baseline.csv", schools)
+    write_csv(data / "baseline/transaction_summary.csv", summaries)
     write_csv(data / "apartment/seoul_apartments.csv", masters, "cp949")
     academies = []
     for i in range(60):
@@ -79,6 +102,8 @@ def dataset(tmp_path):
         {"등록상태명": "개원", "도로명상세주소": "도로 (가동)", "행정구역명": "가구", "학원명": "학원", "교습과정명": "미술"},
     ])
     write_csv(data / "academy/academy_geocoded.csv", academies)
+    write_csv(data / "transactions/transaction_master.csv", trades)
+    write_csv(data / "transactions/apartment_transaction_mapping.csv", mappings)
     # The reference dynamically imports its classifier relative to REPO.
     (tmp_path / "scripts").mkdir()
     shutil.copy(ROOT / "scripts/build_academy_baseline.py", tmp_path / "scripts/build_academy_baseline.py")
@@ -108,9 +133,10 @@ def test_top_five_exactly_matches_unmodified_reference(dataset, monkeypatch):
     before = csv_fingerprints(dataset)
     actual = builder.build_rankings(dataset, data_month="2026-09")
     expected = run_oracle(dataset, monkeypatch)
-    for key in builder.TOPICS:
-        assert actual[key][:5] == expected[key], key
-    for key in ("value_combo_pool", "quiet_pool", "dong_academy_meta", "new_complexes"):
+    for key in ORACLE_TOPICS:
+        # 노선 이름(line_names)은 기준 답 이후에 더한 표시용 필드다.
+        assert [{k: v for k, v in r.items() if k != "line_names"} for r in actual[key][:5]] == expected[key], key
+    for key in ("quiet_pool", "dong_academy_meta", "new_complexes"):
         assert actual[key] == expected[key], key
     assert len(actual["academy"]) == len(actual["dong_academy"]) == 50
     assert len(actual["quiet"]) == len(actual["value_combo"]) == 50
@@ -179,10 +205,10 @@ def test_unknown_dates_and_uncompared_deltas_are_not_inferred(dataset):
         # 산정 기준은 기준점·반경·방식·출처만(사용자 결정). 동 단위·변경 주제는 반경이 없다.
         assert set(labels) <= {"기준점", "반경", "방식", "출처"} and {"기준점", "방식", "출처"} <= set(labels)
         assert "해당 없음" not in json.dumps(result["definitions"][topic], ensure_ascii=False)
-    assert "2025.1~2026.9" in str(result["definitions"]["value_combo"])
+    assert "최근 6개월(2026.03~2026.08)" in str(result["definitions"]["value_combo"])
     assert "학군" not in json.dumps(result, ensure_ascii=False)
     future = builder.build_rankings(dataset, data_month="2026-10")
-    assert "2025.1~2026.9" in str(future["definitions"]["value_combo"])  # publication month never infers coverage
+    assert "최근 6개월(2026.04~2026.09)" in str(future["definitions"]["value_combo"])  # window follows the data month
 
 
 def test_collection_dates_accept_file_or_json_and_validate(tmp_path):
@@ -218,3 +244,75 @@ def test_cli_writes_only_output_and_preserves_delta_on_rerun(dataset, tmp_path):
     assert csv_fingerprints(dataset) == before
     assert not target.with_name(target.name + ".tmp").exists()
     validate_rankings(rebuilt)
+
+
+# --- 가격 추이 (scripts/home_price_trend.py) ------------------------------------------
+
+def price_master(name, households=500, sale="분양", operation="의무"):
+    return {"k-아파트명": name, "k-전체세대수": str(households),
+            price_trend.SALE_TYPE_COLUMN: sale, price_trend.OPERATION_COLUMN: operation}
+
+
+def trades(name, road, month, prices, area="84.97"):
+    return [{"transaction_type": "trade", "gu": "가구", "dong": "가동", "apartment_name": name, "road_address": road,
+             "contract_date": f"{month}-{day + 1:02d}", "area_m2": area, "floor": str(day + 1),
+             "trade_price_manwon": str(price), "bonbun": "1", "bubun": ""}
+            for day, price in enumerate(prices)]
+
+
+def test_price_windows_skip_the_partially_reported_data_month():
+    assert price_trend.windows("2026-09") == ("2025-09", "2026-02", "2026-03", "2026-08")
+    assert price_trend.windows("2026-01") == ("2025-01", "2025-06", "2025-07", "2025-12")
+
+
+def test_price_trend_filters_rental_ambiguous_direct_and_small_samples():
+    names = ("오른단지", "내린단지", "임대단지", "기타단지", "소단지", "표본부족", "동명A", "동명B")
+    masters = {(n, "가구", "가동"): price_master(n) for n in names}
+    masters[("임대단지", "가구", "가동")] = price_master("임대단지", sale="임대")
+    masters[("기타단지", "가구", "가동")] = price_master("기타단지", sale="기타")
+    masters[("소단지", "가구", "가동")] = price_master("소단지", households=299)
+    mapping = [{"livefit_name": n, "gu": "가구", "dong": "가동", "transaction_apt_name": n, "transaction_road_address": f"{n}로 1",
+                "verified": "Y"} for n in names[:6]]
+    # 동명A/동명B 가 같은 거래명·도로명에 걸리면 어느 단지인지 모르므로 버린다.
+    mapping += [{"livefit_name": n, "gu": "가구", "dong": "가동", "transaction_apt_name": "동명", "transaction_road_address": "동명로 1",
+                 "verified": "Y"} for n in ("동명A", "동명B")]
+    rows = []
+    for n in ("오른단지", "임대단지", "기타단지", "소단지"):
+        rows += trades(n, f"{n}로 1", "2025-10", [100000] * 5) + trades(n, f"{n}로 1", "2026-05", [120000] * 5)
+    rows += trades("내린단지", "내린단지로 1", "2025-10", [100000] * 5) + trades("내린단지", "내린단지로 1", "2026-05", [90000] * 5)
+    rows += trades("표본부족", "표본부족로 1", "2025-10", [100000] * 4) + trades("표본부족", "표본부족로 1", "2026-05", [150000] * 9)
+    rows += trades("동명", "동명로 1", "2025-10", [100000] * 5) + trades("동명", "동명로 1", "2026-05", [200000] * 5)
+    # 직거래 한 건(최근 기간의 아주 높은 값)은 빠져야 한다. 기준월(2026-09) 거래는 세지 않는다.
+    rows += trades("오른단지", "오른단지로 1", "2026-06", [999999])
+    rows += trades("오른단지", "오른단지로 1", "2026-09", [1] * 5)
+    direct = {price_trend.trade_identity(rows[-6])}
+    collected, stats = price_trend.collect_trades(rows, mapping, masters, set(masters), "2025-09", "2026-08", direct)
+    up, down, meta = price_trend.build_price_trend(collected, stats, masters, set(masters), "2026-09", 50)
+    assert [(r["name"], r["change_pct"], r["area"], r["prev_n"], r["recent_n"]) for r in up] == [("오른단지", 20.0, 84, 5, 5)]
+    assert [(r["name"], r["change_pct"]) for r in down] == [("내린단지", -10.0)]
+    assert meta["direct_excluded"] == 1 and meta["ambiguous"] == 10 and meta["compared"] == 2
+    assert (meta["prev_start"], meta["recent_end"]) == ("2025-09", "2026-08")
+
+
+def test_price_trend_keeps_one_area_per_complex():
+    masters = {("한단지", "가구", "가동"): price_master("한단지")}
+    mapping = [{"livefit_name": "한단지", "gu": "가구", "dong": "가동", "transaction_apt_name": "한단지",
+                "transaction_road_address": "한단지로 1", "verified": "Y"}]
+    rows = (trades("한단지", "한단지로 1", "2025-10", [100000] * 5, "59.9") + trades("한단지", "한단지로 1", "2026-05", [110000] * 5, "59.9")
+            + trades("한단지", "한단지로 1", "2025-10", [100000] * 5) + trades("한단지", "한단지로 1", "2026-05", [130000] * 5))
+    collected, stats = price_trend.collect_trades(rows, mapping, masters, set(masters), "2025-09", "2026-08", set())
+    up, _, meta = price_trend.build_price_trend(collected, stats, masters, set(masters), "2026-09", 50)
+    assert meta["compared"] == 2
+    assert [(r["area"], r["change_pct"]) for r in up] == [(84, 30.0)]
+
+
+def test_value_combo_uses_recent_six_month_84_average_and_subway_line_names(dataset):
+    actual = builder.build_rankings(dataset, data_month="2026-09")
+    row = next(r for r in actual["value_combo"] if r["name"] == "단지69")
+    assert (row["price84"], row["price84_n"]) == (99999, 3)  # 4~6월 3건 모두 최근 6개월 안
+    # 최근 6개월 밖(기준월 포함)의 거래만 있으면 가격 조건에서 빠진다.
+    later = builder.build_rankings(dataset, data_month="2027-01")
+    assert later["value_combo"] == [] and later["value_combo_pool"] == 0
+    lines = {r["name"]: r["line_names"] for r in actual["subway"]}
+    assert lines["단지70"] == ["1호선", "2호선", "경의중앙선"]  # 숫자 노선 먼저, 그다음 이름순
+    assert all(len(r["line_names"]) == r["lines"] for r in actual["subway"])

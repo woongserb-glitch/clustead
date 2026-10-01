@@ -60,8 +60,10 @@ def ranking_fixture():
         for index in range(1, 26 if key == "gu_best_dong" else 51):
             row = {"name": f"{key}검증단지{index:02}", "gu": "강남구",
                    "dong": f"검증동{index:02}", "households": 1200,
-                   "station": "검증역", "nearest": "검증역", "hospital": "검증종합병원"}
+                   "station": "검증역", "nearest": "검증역", "hospital": "검증종합병원", "line_names": ["2호선"]}
             row.update({field: 1000 - index for field in billboard.NUMERIC_FIELDS[key]})
+            if key == "price_down":
+                row["change_pct"] = -row["change_pct"]
             rows.append(row)
         data[key] = rows
     data["definitions"]["changes"] = [

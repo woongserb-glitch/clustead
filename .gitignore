@@ -11,3 +11,4 @@ data/
 # golden-master HTML snapshots (regenerable via tests/snapshot_result.py)
 tests/golden/
 outputs/local-home/
+outputs/home-scout/*.json

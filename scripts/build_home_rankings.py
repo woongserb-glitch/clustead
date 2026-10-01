@@ -23,12 +23,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from scripts.build_academy_baseline import classify_academy
 from services.home_billboard_service import validate_rankings
+from scripts import home_price_trend
 
 csv.field_size_limit(2**31 - 1)
 LIMIT = 50
 BRANDS = ("GS25", "CU", "세븐일레븐", "이마트24")
 TOPICS = ("academy", "dong_academy", "value_combo", "subway", "starbucks",
-          "convenience", "quiet", "emergency", "gu_best_dong")
+          "convenience", "quiet", "emergency", "gu_best_dong", "price_up", "price_down")
 SOURCE_NAMES = {
     "academy": "서울시 학원·교습소 정보",
     "subway": "서울시 역사마스터 정보",
@@ -41,16 +42,27 @@ SOURCE_NAMES = {
 }
 BASELINE_COLUMNS = {
     "academy_baseline": ("exam_count", "math_count", "english_count", "academy_count_500m", "academy_count_1000m"),
-    "subway_baseline": ("nearest_subway_distance", "nearest_subway_name", "subway_line_count_500m", "subway_station_count_500m"),
+    "subway_baseline": ("nearest_subway_distance", "nearest_subway_name", "subway_line_count_500m", "subway_station_count_500m",
+                        "subway_items_500m_json"),
     "cafe_baseline": ("스타벅스_count_500m", "nearest_스타벅스_distance"),
     "convenience_baseline": tuple(b + "_count_500m" for b in BRANDS),
     "nightlife_baseline": ("nightlife_count_500m", "nightlife_nearest_any_distance"),
     "medical_baseline": ("emergency_count_1km", "nearest_superior_hospital_distance", "nearest_superior_hospital_name",
                          "emergency_items_json"),
-    "transaction_summary": ("avg_trade_amount_84",),
 }
 MASTER_COLUMNS = ("k-아파트코드", "k-아파트명", "주소(시군구)", "주소(읍면동)",
-                  "k-전체세대수", "k-사용검사일-사용승인일")
+                  "k-전체세대수", "k-사용검사일-사용승인일",
+                  home_price_trend.SALE_TYPE_COLUMN, home_price_trend.OPERATION_COLUMN)
+
+
+MIN_84_TRADES = 1
+
+
+def subway_lines(row):
+    """500m 안 역들이 지나는 노선 이름 — subway_line_count_500m 과 같은 집합(2026-10 전수 일치 확인)."""
+    names = {line for item in json.loads(row.get("subway_items_500m_json") or "[]") for line in item.get("lines", [])}
+    number = lambda name: re.match(r"(\d+)호선", name)
+    return sorted(names, key=lambda n: (0, int(number(n).group(1)), n) if number(n) else (1, 0, n))
 
 
 def f(value, default=None):
@@ -109,6 +121,9 @@ def definitions(out, sources, data_month):
     # 산정 기준은 기준점·반경·방식·출처만 보인다(2026-10-01 사용자 결정). 대상 조건은
     # 방식에 합친다. 동률 처리는 코드(정렬 키)에 남고 화면에는 쓰지 않는다.
     point = ["기준점", "단지 대표 좌표"]
+    meta, dotted = out["price_meta"], home_price_trend.dotted
+    trend = f"{dotted(meta['recent_start'])}~{dotted(meta['recent_end'])}"
+    before = f"{dotted(meta['prev_start'])}~{dotted(meta['prev_end'])}"
     no_dong = out["dong_academy_meta"]["no_dong"]
     dong = [["기준점", "학원 주소에 적힌 법정동"],
             ["방식", f"개수 기준: 동 안의 입시/보습·수학·영어 학원·교습소 수의 합 (주소에서 동을 찾지 못한 {no_dong:,}곳 제외)"],
@@ -118,10 +133,11 @@ def definitions(out, sources, data_month):
                     ["방식", "개수 기준: 입시/보습·수학·영어 학원·교습소 수의 합"], ["출처", source("academy")]],
         "dong_academy": dong,
         "value_combo": [point, ["반경", "학원 1,000m · 지하철역 500m 이내 (직선거리)"],
-                        ["방식", "개수 기준: 학원 수가 많은 순. 대상은 전용 80~90㎡ 매매 평균 10억 원 미만(2025.1~2026.9 신고 건) · 300세대 이상 · 역 500m 이내 단지"],
+                        ["방식", f"개수 기준: 학원 수가 많은 순. 대상은 최근 6개월({trend}) 전용 80~90㎡ 매매 평균 10억 원 미만"
+                                 f"(직거래 제외, {MIN_84_TRADES}건 이상) · 300세대 이상 · 역 500m 이내 단지"],
                         ["출처", source("transactions", "master", "subway", "academy")]],
         "subway": [point, ["반경", "500m 이내 (직선거리)"],
-                   ["방식", "개수 기준: 반경 안 역들이 지나는 서로 다른 노선 수"], ["출처", source("subway")]],
+                   ["방식", "개수 기준: 반경 안 역들이 지나는 서로 다른 노선 수 (노선 이름은 원천 표기 그대로)"], ["출처", source("subway")]],
         "starbucks": [point, ["반경", "500m 이내 (직선거리)"],
                       ["방식", "개수 기준: 스타벅스 매장 수"], ["출처", source("cafe")]],
         "convenience": [point, ["반경", "500m 이내 (직선거리)"],
@@ -132,6 +148,12 @@ def definitions(out, sources, data_month):
         "emergency": [point, ["반경", "1,000m 이내 (직선거리)"],
                       ["방식", "개수 기준: 응급실을 운영하는 의료기관 수"], ["출처", source("medical")]],
         "gu_best_dong": [dong[0], ["방식", dong[1][1] + ". 각 구에서 가장 많은 동 1곳"], dong[2]],
+        **{key: [["기준점", "같은 단지 · 같은 전용면적(㎡, 소수점 버림)"],
+                 ["방식", f"매매 실거래 중앙값을 최근 6개월({trend})과 직전 6개월({before}) 계약으로 비교해 "
+                          f"{word} 비율이 큰 순. 기간마다 {meta['min_trades']}건 이상, {meta['min_households']:,}세대 이상 분양 단지, "
+                          f"직거래 제외, 한 단지는 변화가 가장 큰 면적 하나. 신고가 덜 끝난 {dotted(data_month)} 계약은 뺌"],
+                 ["출처", source("transactions", "master")]]
+           for key, word in (("price_up", "오른"), ("price_down", "내린"))},
         "changes": [["기준점", "신규 단지는 단지 코드, 응급실은 단지 대표 좌표"],
                     ["반경", "응급실 1,000m 이내 (직선거리)"],
                     ["방식", "직전 달과 비교해 새로 등록된 단지와, 반경 안에 응급실이 새로 들어온 단지"],
@@ -276,7 +298,8 @@ def changes(out, master_rows, medical, data_month, previous=None, prev_master=No
         out["comparison_snapshot"]["emergency"] = [[*k, sorted(v)] for k, v in old_er.items()]
 
 
-def build_rankings(data_dir, *, data_month, source_dates=None, previous=None, prev_master=None, prev_medical=None):
+def build_rankings(data_dir, *, data_month, source_dates=None, previous=None, prev_master=None, prev_medical=None,
+                   direct_trade_keys=None):
     if not re.fullmatch(r"\d{4}-\d{2}", data_month):
         raise ValueError("data_month must be YYYY-MM")
     date.fromisoformat(data_month + "-01")
@@ -284,7 +307,7 @@ def build_rankings(data_dir, *, data_month, source_dates=None, previous=None, pr
     sources = load_sources(source_dates)
     loaded = {name: baseline(data_dir / "baseline" / f"{name}.csv", columns)
               for name, columns in BASELINE_COLUMNS.items()}
-    ac, sub, cafe, conv, nl, med, tx = (loaded[name] for name in BASELINE_COLUMNS)
+    ac, sub, cafe, conv, nl, med = (loaded[name] for name in BASELINE_COLUMNS)
     masters = list(csv_rows(data_dir / "apartment/seoul_apartments.csv", "cp949", MASTER_COLUMNS))
     master = {(r["k-아파트명"], r["주소(시군구)"], r["주소(읍면동)"]): r for r in masters}
     hh = lambda k: int(f(master.get(k, {}).get("k-전체세대수"), 0) or 0)
@@ -323,15 +346,29 @@ def build_rankings(data_dir, *, data_month, source_dates=None, previous=None, pr
     out["gu_best_dong"] = [best[g] for g in sorted(best)]
     out["dong_academy_meta"] = {"counted": sum(sum(c.values()) for c in cnt.values()), "no_dong": no_dong}
 
-    pool = [k for k in keys if k in tx and f(tx[k]["avg_trade_amount_84"]) and f(tx[k]["avg_trade_amount_84"]) < 100000
+    # 매매 거래(가격 추이·국민평형 가격 공용). 직거래 키는 국토부 원본 엑셀에서 읽는다(약 30초).
+    prev_start, _, _, recent_end = home_price_trend.windows(data_month)
+    if direct_trade_keys is None:
+        direct_trade_keys = home_price_trend.load_direct_trade_keys(
+            data_dir / "transactions/raw/molit", {int(prev_start[:4]), int(recent_end[:4])})
+    trades, trade_stats = home_price_trend.collect_trades(
+        csv_rows(data_dir / "transactions/transaction_master.csv"),
+        csv_rows(data_dir / "transactions/apartment_transaction_mapping.csv"),
+        master, set(keys), prev_start, recent_end, direct_trade_keys)
+
+    # 2026-10-01 사용자 결정: 국민평형 가격은 2025.1~ 전체 평균이 아니라 최근 6개월(기준월 제외) 평균.
+    price84 = home_price_trend.recent_84_average(trades, data_month, MIN_84_TRADES)
+    pool = [k for k in keys if k in price84 and price84[k][0] < 100000
             and hh(k) >= 300 and f(sub[k]["nearest_subway_distance"], 9e9) <= 500]
     t = sorted(pool, key=lambda k: (-f(ac[k]["academy_count_1000m"], 0), f(sub[k]["nearest_subway_distance"])))
-    out["value_combo"] = [{**lab(k), "price84": int(f(tx[k]["avg_trade_amount_84"])), "station": sub[k]["nearest_subway_name"],
+    out["value_combo"] = [{**lab(k), "price84": int(round(price84[k][0])), "price84_n": price84[k][1],
+                           "station": sub[k]["nearest_subway_name"],
                            "station_m": int(f(sub[k]["nearest_subway_distance"])), "academy_1km": int(f(ac[k]["academy_count_1000m"]))} for k in t[:LIMIT]]
     out["value_combo_pool"] = len(pool)
 
     t = sorted(keys, key=lambda k: (-f(sub[k]["subway_line_count_500m"], 0), -f(sub[k]["subway_station_count_500m"], 0), f(sub[k]["nearest_subway_distance"], 9e9)))
     out["subway"] = [{**lab(k), "lines": int(f(sub[k]["subway_line_count_500m"])), "stations": int(f(sub[k]["subway_station_count_500m"])),
+                      "line_names": subway_lines(sub[k]),
                       "nearest": sub[k]["nearest_subway_name"], "nearest_m": int(f(sub[k]["nearest_subway_distance"]))} for k in t[:LIMIT]]
     t = sorted([k for k in keys if k in cafe], key=lambda k: (-f(cafe[k]["스타벅스_count_500m"], 0), f(cafe[k]["nearest_스타벅스_distance"], 9e9)))
     out["starbucks"] = [{**lab(k), "count": int(f(cafe[k]["스타벅스_count_500m"])), "nearest_m": int(f(cafe[k]["nearest_스타벅스_distance"], 0))} for k in t[:LIMIT]]
@@ -346,6 +383,8 @@ def build_rankings(data_dir, *, data_month, source_dates=None, previous=None, pr
     t = sorted(keys, key=lambda k: (-f(med[k]["emergency_count_1km"], 0), f(med[k]["nearest_superior_hospital_distance"], 9e9)))
     out["emergency"] = [{**lab(k), "er_1km": int(f(med[k]["emergency_count_1km"], 0)), "hospital": med[k]["nearest_superior_hospital_name"],
                          "hospital_m": int(f(med[k]["nearest_superior_hospital_distance"], 0))} for k in t[:LIMIT]]
+    out["price_up"], out["price_down"], out["price_meta"] = home_price_trend.build_price_trend(
+        trades, trade_stats, master, set(keys), data_month, LIMIT)
     changes(out, masters, med, data_month, previous, prev_master, prev_medical)
     out["definitions"] = definitions(out, sources, data_month)
     return out
