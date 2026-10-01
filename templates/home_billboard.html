@@ -12,7 +12,7 @@
         })();
     </script>
     {% endif %}
-    <script>try { var savedBillboardTheme = localStorage.getItem('clustead-billboard-theme'); if (savedBillboardTheme === 'light' || savedBillboardTheme === 'dark') document.documentElement.dataset.theme = savedBillboardTheme; } catch (e) {}</script>
+    <script>try { var savedBillboardTheme = localStorage.getItem('clustead-billboard-theme'); if (savedBillboardTheme === 'light' || savedBillboardTheme === 'dark') document.documentElement.dataset.theme = savedBillboardTheme; else if (window.matchMedia('(min-width: 761px)').matches) document.documentElement.dataset.theme = 'light'; } catch (e) {}</script>
     <title>Clustead — 숫자로 보는 서울 아파트·동네 생활 인프라</title>
     <meta name="description" content="서울 아파트와 동네의 학원가·교통·의료·생활 인프라 순위. 주제별 TOP 5와 정확한 반경·집계 방식·출처를 확인하세요.">
     {% if naver_site_verification %}<meta name="naver-site-verification" content="{{ naver_site_verification }}">{% endif %}
@@ -29,7 +29,7 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=13">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=14">
     <script type="application/ld+json">{{ home_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
