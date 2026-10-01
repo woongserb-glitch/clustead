@@ -55,13 +55,13 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 .bb-intro h1 { font-size: clamp(34px, 4.5vw, 52px); letter-spacing: -.065em; font-weight: 800; margin: 6px 0 10px; line-height: 1.16; text-wrap: balance; }
 .bb-eyebrow { font: 500 10px/1.5 var(--bb-display); letter-spacing: .16em; color: var(--bb-muted); margin: 0; }
 .bb-intro-description { font-size: 13px; color: var(--bb-steel); line-height: 1.8; margin-bottom: 0; }
-.bb-intro-search { width: 345px; flex: none; align-self: flex-end; padding-bottom: 4px; }
+.bb-intro-search { width: 460px; flex: none; align-self: flex-end; padding-bottom: 4px; }
 .bb-intro-search > p { font-size: 12px; color: var(--bb-steel); margin: 0 0 9px; }
 .bb-explore-link { display: inline-block; font-size: 11px; text-decoration: none; color: var(--bb-muted); margin-top: 10px; }
 .bb-explore-link:hover { color: var(--bb-accent); text-decoration: underline; }
-.bb-search { display: flex; border: 1px solid var(--bb-line); border-radius: 9px; background: var(--bb-paper); padding: 5px; }
-.bb-search input { width: 100%; min-width: 0; background: transparent; color: var(--bb-fg); border: 0; border-radius: 6px; padding: 8px 10px; font-size: 12px; }
-.bb-search button { border: 0; border-radius: 6px; background: var(--bb-ink); color: #fff; font-size: 12px; padding: 6px 13px; flex: none; }
+.bb-search { display: flex; border: 1px solid var(--bb-line); border-radius: 10px; background: var(--bb-paper); padding: 6px; }
+.bb-search input { width: 100%; min-width: 0; background: transparent; color: var(--bb-fg); border: 0; border-radius: 6px; padding: 11px 12px; font-size: 14px; }
+.bb-search button { border: 0; border-radius: 6px; background: var(--bb-ink); color: #fff; font-size: 13px; padding: 6px 16px; flex: none; }
 .bb-coverage { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 22px; padding: 13px 0; border-top: 1px solid var(--bb-line); font-size: 11px; color: var(--bb-muted); }
 .bb-coverage > span { display: inline-flex; align-items: baseline; gap: 5px; }
 .bb-coverage strong { color: var(--bb-fg); font-family: var(--bb-display); font-size: 13px; font-weight: 500; }
@@ -238,7 +238,7 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
     .bb-brand { max-width: 250px; }
     .bb-brand span { display: block; }
     .bb-nav { gap: 14px; }
-    .bb-intro-search { width: 300px; }
+    .bb-intro-search { width: 380px; }
     .bb-hero { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; }
     .bb-board { padding-inline: 24px; }
     .bb-question-directory { padding-inline: 16px; }
