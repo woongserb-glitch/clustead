@@ -1,0 +1,56 @@
+{% macro rule_list(rules) -%}
+<dl class="bb-rule-list">
+    {% for label, text in rules %}<dt>{{ label }}</dt><dd>{{ text }}</dd>{% endfor %}
+</dl>
+{%- endmacro %}
+
+{% macro criteria(key, rules) -%}
+<div class="bb-rule-wrap" data-rule-wrap>
+    <button type="button" class="bb-rule-button" data-rule-button aria-expanded="true" aria-controls="criteria-{{ key }}" hidden>산정 기준</button>
+    <div class="bb-rule-pop" id="criteria-{{ key }}" role="note" aria-label="산정 기준" data-rule-pop>
+        <div class="bb-rule-heading"><strong>산정 기준</strong><button type="button" data-rule-close aria-label="산정 기준 닫기" hidden>닫기 ×</button></div>
+        {{ rule_list(rules) }}
+    </div>
+</div>
+{%- endmacro %}
+
+{% macro rows(items, marker='', featured=false) -%}
+<ol class="bb-ranking-list{% if featured %} bb-featured-list{% endif %}">
+    {% for row in items %}
+    <li data-ranking-row>
+        <span class="bb-rank"{% if marker %} aria-hidden="true"{% endif %}>{{ marker or loop.index }}</span>
+        <div class="bb-place">
+            {% if row.url %}<a href="{{ row.url }}">{{ row.name }}</a>{% else %}<strong>{{ row.name }}</strong>{% endif %}
+            {% if row.location %}<span class="bb-location">{{ row.location }}</span>{% endif %}
+        </div>
+        <div class="bb-value">{{ row.value }}{% if row.detail %}<small>{{ row.detail }}</small>{% endif %}</div>
+    </li>
+    {% endfor %}
+</ol>
+{%- endmacro %}
+
+{% macro district_rows(items) -%}
+<ul class="bb-district-list">
+    {% for row in items %}<li data-ranking-row><strong>{{ row.location }}</strong>{% if row.url %}<a href="{{ row.url }}">{{ row.name }}</a>{% else %}<span>{{ row.name }}</span>{% endif %}<b>{{ row.value }}</b></li>{% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro header(settings, home=false) -%}
+<header class="bb-header">
+    <a class="bb-brand" href="/" aria-label="Clustead 홈">CLUSTEAD<span>서울 아파트 생활 인프라</span></a>
+    <nav class="bb-nav" aria-label="주요 메뉴">
+        {% if not home %}<a href="/">전광판 홈</a>{% endif %}
+        <a href="/explore">조건으로 탐색</a><a href="/compare">단지 비교</a>
+        {% if settings.graph_enabled %}<a href="/graph">그래프로 탐색</a>{% endif %}
+        <button type="button" class="bb-theme-button" data-theme-toggle hidden aria-label="다크 모드로 보기">다크 모드</button>
+    </nav>
+</header>
+{%- endmacro %}
+
+{% macro footer(billboard) -%}
+<footer class="bb-footer">
+    <p>대표 좌표는 단지별 한 지점으로, 단지 내 위치에 따라 거리가 달라질 수 있습니다. 거리는 모두 직선거리이며 도보 거리가 아닙니다. 개수 기준은 범위 안의 시설 수, 최근접 기준은 가장 가까운 시설까지의 거리입니다.</p>
+    <p>실거래가는 신고된 거래의 평균이며 매물 호가가 아닙니다. 최신 월 계약분은 신고 기한 30일 때문에 일부만 반영될 수 있습니다. 시설 수는 수집 시점 기준으로, 실제 현황과 다를 수 있습니다.</p>
+    <p>데이터 기준월 <strong>{{ billboard.data_month }}</strong> · 산출일 <time datetime="{{ billboard.generated_at }}">{{ billboard.generated_at[:10] }}</time> · 자세한 출처와 수집일은 각 주제의 산정 기준에서 확인하세요.</p>
+</footer>
+{%- endmacro %}

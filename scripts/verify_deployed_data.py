@@ -40,6 +40,7 @@ REMOTE_DIR = os.getenv("CLUSTEAD_REMOTE_DIR", "/root/clustead")
 # 런타임이 실제로 읽는 파일. 주석은 "왜 필요한가" 를 적는다 — 지우려는 사람이
 # 판단할 수 있어야 한다.
 REQUIRED_FILES = [
+    ("data/derived/home_rankings.json", "홈 전광판·순위 페이지용 오프라인 산출물(런타임 CSV 계산 없음)"),
     ("data/baseline.db", "baseline 21 종의 SQLite 백엔드. 대부분의 카테고리가 여기서 읽힌다"),
     ("data/apartment/seoul_apartments.csv", "단지 마스터. 모든 화면의 기준"),
     # 아래 6 종은 로더에 SQLite 분기가 없어 CSV 를 직접 읽는다(self-check 로 확인).
@@ -129,6 +130,10 @@ def self_check():
                 direct_missing.append(f"{name} -> {hit}")
 
     expected = set(LOADER_TO_FILE)
+    billboard_source = (BASE_DIR / "services" / "home_billboard_service.py").read_text(encoding="utf-8")
+    for hit in set(re.findall(r"data/derived/[a-z_]+\.json", billboard_source)):
+        if hit not in listed:
+            direct_missing.append(f"services/home_billboard_service.py -> {hit}")
     if csv_backed == expected and not direct_missing:
         print(f"  [self-check] CSV 를 직접 읽는 로더 {len(csv_backed)}개 — 목록과 일치")
         print(f"  [self-check] preload 밖에서 여는 baseline CSV 도 모두 목록에 있음")

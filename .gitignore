@@ -10,3 +10,4 @@ data/
 *.log
 # golden-master HTML snapshots (regenerable via tests/snapshot_result.py)
 tests/golden/
+outputs/local-home/

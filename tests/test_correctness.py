@@ -405,8 +405,8 @@ def integ_area_pages_have_seo_and_recommendations():
     gu_html = gu_response.get_data(as_text=True)
     assert f"{apt.get('gu')} 아파트 생활환경" in gu_html
     assert '<link rel="canonical" href="https://clustead.com/area/' in gu_html
-    assert "도메인 평균점수" in gu_html
-    assert "추천 단지" in gu_html
+    assert '<h2>생활영역별 등급</h2>' in gu_html
+    assert f"<h2>{apt.get('gu')} 생활영역별 상위 단지</h2>" in gu_html
     assert '<script type="application/ld+json">' in gu_html
 
     dong_response = client.get(app.area_landing_path(apt.get("gu"), apt.get("dong")))

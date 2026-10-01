@@ -1,0 +1,67 @@
+{% from "_billboard_macros.html" import rows, district_rows, rule_list, header, footer %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>try { var savedBillboardTheme = localStorage.getItem('clustead-billboard-theme'); if (savedBillboardTheme === 'light' || savedBillboardTheme === 'dark') document.documentElement.dataset.theme = savedBillboardTheme; } catch (e) {}</script>
+    <title>{{ page_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+    {% if naver_site_verification %}<meta name="naver-site-verification" content="{{ naver_site_verification }}">{% endif %}
+    <link rel="canonical" href="{{ canonical_url }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Clustead">
+    <meta property="og:title" content="{{ page_title }}">
+    <meta property="og:description" content="{{ meta_description }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+    <meta property="og:image" content="{{ og_image_url }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ page_title }}">
+    <meta name="twitter:description" content="{{ meta_description }}">
+    <meta name="twitter:image" content="{{ og_image_url }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=3">
+    <script type="application/ld+json">{{ ranking_json_ld | tojson | safe }}</script>
+    {% include "_pwa_head.html" %}
+    {% include "_analytics_head.html" %}
+    <script src="{{ url_for('static', filename='billboard.js') }}?v=2" defer></script>
+</head>
+<body>
+    <a class="bb-skip" href="#main">본문으로 이동</a>
+    <div class="bb-wrap">
+        {{ header(billboard_settings) }}
+        <main class="bb-ranking-page" id="main">
+            <nav class="bb-breadcrumb" aria-label="현재 위치"><a href="/">홈</a><span aria-hidden="true">/</span><span>생활 인프라 순위</span></nav>
+            <div class="bb-ranking-heading"><p class="bb-tag">{{ ranking_topic.tag }}</p><h1>{{ ranking_topic.question or ranking_topic.title }}</h1>{% if ranking_topic.answer %}<p class="bb-ranking-answer">{{ ranking_topic.answer }}</p>{% endif %}<p>데이터 기준 {{ billboard.data_month }} · {% if ranking_topic.key == 'gu_best_dong' %}구별 1위 동{% elif ranking_topic.key == 'changes' %}변경 목록{% else %}TOP {{ ranking_topic.rows | length }}{% endif %}</p>{% if ranking_topic.source_summary %}<p class="bb-ranking-source">{{ ranking_topic.source_summary }}</p>{% endif %}</div>
+            <div class="bb-ranking-layout">
+                <section class="bb-card bb-ranking-results" aria-labelledby="ranking-results">
+                    <h2 id="ranking-results">{% if ranking_topic.key == 'gu_best_dong' %}구별 결과{% elif ranking_topic.key == 'changes' %}변경 목록{% else %}순위{% endif %}</h2>
+                    <p class="bb-ranking-basis">{{ ranking_topic.basis }}</p>
+                    {% if ranking_topic.key == 'changes' %}
+                        {% set new_count = billboard.changes.new_complexes | length %}
+                        <h3>새로 등록된 단지</h3>
+                        {% if not billboard.changes.master_compared %}<p class="bb-empty">직전 단지 목록이 없어 신규 등록 여부를 비교하지 않았습니다.</p>
+                        {% elif ranking_topic.rows[:new_count] %}{{ rows(ranking_topic.rows[:new_count], '+') }}
+                        {% else %}<p class="bb-empty">직전 목록과 비교해 새로 등록된 단지가 없습니다.</p>{% endif %}
+                        <h3>배정 초등학교가 바뀐 단지</h3>
+                        {% if not billboard.changes.school_compared %}<p class="bb-empty">직전 배정 정보가 없어 변경 여부를 비교하지 않았습니다.</p>
+                        {% elif ranking_topic.rows[new_count:] %}{{ rows(ranking_topic.rows[new_count:], '↻') }}
+                        {% elif billboard.changes.school_changes %}<p class="bb-empty">변경 목록 표시 범위에 배정 초등학교 변경이 포함되지 않았습니다.</p>
+                        {% else %}<p class="bb-empty">직전 배정 정보와 비교해 바뀐 단지가 없습니다.</p>{% endif %}
+                    {% elif ranking_topic.key == 'gu_best_dong' %}{{ district_rows(ranking_topic.rows) }}
+                    {% elif ranking_topic.rows %}{{ rows(ranking_topic.rows) }}
+                    {% else %}<p class="bb-empty">조건에 맞는 결과가 없습니다.</p>{% endif %}
+                </section>
+                <section class="bb-card bb-criteria-section" aria-labelledby="ranking-criteria">
+                    <span class="bb-tag">Methodology</span><h2 id="ranking-criteria">산정 기준</h2>
+                    {{ rule_list(ranking_topic.rules) }}
+                    <p class="bb-empty">시설 개수는 생활 인프라의 한 지표입니다. 단지와 동네를 고를 때 필요한 다른 조건도 함께 확인하세요.</p>
+                </section>
+            </div>
+            <nav class="bb-related" aria-label="다른 생활 인프라 순위"><h2>다른 질문도 살펴보세요</h2><ul>{% for topic in billboard.topics if topic.url and topic.key != ranking_topic.key %}<li><a href="{{ topic.url }}">{{ topic.title }} <span aria-hidden="true">→</span></a></li>{% endfor %}{% if billboard.changes.url and ranking_topic.key != 'changes' %}<li><a href="{{ billboard.changes.url }}">이번 달 바뀐 것 <span aria-hidden="true">→</span></a></li>{% endif %}</ul></nav>
+        </main>
+        {{ footer(billboard) }}
+    </div>
+</body>
+</html>
