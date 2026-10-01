@@ -48,7 +48,8 @@
 
 {% macro header(settings, home=false) -%}
 <header class="bb-header">
-    <a class="bb-brand" href="/" aria-label="Clustead 홈">CLUSTEAD<span>서울 아파트 생활 인프라</span></a>
+    {# 로고(APERTURE 마크)는 currentColor 라 라이트·다크 글자색을 그대로 따른다. #}
+    <a class="bb-brand" href="/" aria-label="Clustead 홈"><svg class="bb-mark" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true"><polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(0 50 50)"/><polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(60 50 50)" opacity="0.4"/><polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(120 50 50)"/><polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(180 50 50)"/><polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(240 50 50)"/><polygon points="50,9 85.5,29.5 65,49.5 57,36.8" transform="rotate(300 50 50)"/></svg>CLUSTEAD<span>서울 아파트 생활 인프라</span></a>
     <nav class="bb-nav" aria-label="주요 메뉴">
         {% if not home %}<a href="/">전광판 홈</a>{% endif %}
         <a href="/explore">조건으로 탐색</a><a href="/compare">단지 비교</a>
@@ -65,4 +66,6 @@
 </footer>
 {# 다른 화면(result·compare·explore)과 같은 면책 고지·출처·데이터 기준 (2026-10-01 사용자 요청) #}
 {% include "_legal_footer.html" %}
+{# 다른 화면과 같은 우측 플로팅 바로가기(다시 검색·홈·맨 위로). 스타일은 billboard.css. #}
+{% include "_page_actions.html" %}
 {%- endmacro %}
