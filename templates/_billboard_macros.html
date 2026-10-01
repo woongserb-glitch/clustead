@@ -67,7 +67,7 @@
         {% if not home %}<a href="/">전광판 홈</a>{% endif %}
         <a href="/explore">조건으로 탐색</a><a href="/compare">단지 비교</a>
         {# 폰에서는 숨긴다: /graph 는 폰에서 Explore 로 넘어간다(2026-10-01 사용자 결정). #}
-        {% if settings.graph_enabled %}<a class="bb-nav-graph" href="/graph">그래프로 탐색</a>{% endif %}
+        {% if settings.graph_enabled %}<a class="bb-nav-graph" href="/graph">클러스터로 탐색</a>{% endif %}
         <button type="button" class="bb-theme-button" data-theme-toggle hidden aria-label="다크 모드로 보기">다크 모드</button>
     </nav>
 </header>

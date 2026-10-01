@@ -6293,6 +6293,31 @@ def home():
     )
 
 
+_DIRECTORY_CACHE = {"bucket": None, "counts": {}}
+
+
+def _directory_interest():
+    """질문 목록 인기 집계. 워커별로 DIRECTORY_REFRESH_SECONDS(6시간)마다 한 번 다시 읽는다."""
+    bucket = int(time.time() // home_billboard.DIRECTORY_REFRESH_SECONDS)
+    if _DIRECTORY_CACHE["bucket"] != bucket:
+        _DIRECTORY_CACHE["counts"] = analytics_service.topic_interest(
+            home_billboard.DIRECTORY_EVENTS, home_billboard.DIRECTORY_DAYS)
+        _DIRECTORY_CACHE["bucket"] = bucket
+    return _DIRECTORY_CACHE["counts"]
+
+
+@app.route("/api/home-click", methods=["POST"])
+@limiter.limit("60 per minute")
+def home_topic_click():
+    """질문 목록 클릭 기록(sendBeacon). 알려진 주제 key 만 받는다."""
+    payload = request.get_json(silent=True, force=True) or {}
+    key = str(payload.get("key") or "")[:40]
+    if key in {key for key, *_ in home_billboard.TOPICS}:
+        analytics_service.track("home_topic_click", ip=real_client_ip(),
+                                user_agent=request.headers.get("User-Agent"), path=key)
+    return ("", 204)
+
+
 def build_billboard_context():
     options = home_billboard.settings(app.config)
     data = home_billboard.load_rankings(app.config["HOME_RANKINGS_PATH"])
@@ -6310,6 +6335,7 @@ def build_billboard_context():
     return {
         "billboard": view,
         "billboard_settings": options,
+        "directory_topics": home_billboard.order_directory(view["topics"], _directory_interest()),
         "home_json_ld": [*build_home_json_ld(), collection],
         "home_area_links": build_home_area_links(),
     }
@@ -6332,6 +6358,8 @@ def home_ranking(slug):
     topic = next((t for t in home_billboard.ranking_topics(context["billboard"]) if t["slug"] == slug), None)
     if topic is None:
         abort(404)
+    analytics_service.track("ranking_view", ip=real_client_ip(),
+                            user_agent=request.headers.get("User-Agent"), path=topic["key"])
     # A district winners list is a complete set of districts, not a global TOP N.
     limit = len(topic["rows"]) if topic["key"] in ("gu_best_dong", "changes") else context["billboard_settings"]["ranking_limit"]
     topic = {**topic, "rows": topic["rows"][:limit]}

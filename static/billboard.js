@@ -26,6 +26,80 @@
         if (darkPreference.addEventListener) darkPreference.addEventListener('change', updateThemeButton);
     }
 
+    // 아파트명 자동완성(예전 그래프 홈의 /api/search/apartments 동작을 옮김).
+    // 목록에서 고르면 구·동도 함께 보내 이름이 같은 단지를 구분한다.
+    var nameForm = document.querySelector('[data-name-search]');
+    if (nameForm) {
+        var nameInput = nameForm.querySelector('[data-name-input]');
+        var nameMenu = nameForm.querySelector('[data-name-menu]');
+        var guField = nameForm.querySelector('[data-name-gu]');
+        var dongField = nameForm.querySelector('[data-name-dong]');
+        var debounce = null, active = -1, requestId = 0;
+        var buttons = function () { return Array.prototype.slice.call(nameMenu.querySelectorAll('button')); };
+        var closeMenu = function () { nameMenu.hidden = true; active = -1; nameInput.setAttribute('aria-expanded', 'false'); };
+        var setActive = function (index) {
+            var list = buttons();
+            if (!list.length) return;
+            active = (index + list.length) % list.length;
+            list.forEach(function (b, i) { b.classList.toggle('is-active', i === active); b.setAttribute('aria-selected', i === active ? 'true' : 'false'); });
+            list[active].scrollIntoView({ block: 'nearest' });
+        };
+        var pick = function (b) {
+            nameInput.value = b.getAttribute('data-v');
+            guField.value = b.getAttribute('data-gu') || ''; dongField.value = b.getAttribute('data-dong') || '';
+            guField.disabled = !guField.value; dongField.disabled = !dongField.value;
+            closeMenu();
+            nameForm.submit();
+        };
+        nameInput.addEventListener('input', function () {
+            clearTimeout(debounce);
+            guField.disabled = true; dongField.disabled = true;  // 직접 고친 이름은 구·동을 붙이지 않는다
+            var q = nameInput.value.trim();
+            if (!q) { closeMenu(); return; }
+            debounce = setTimeout(function () {
+                var id = ++requestId;
+                fetch('/api/search/apartments?q=' + encodeURIComponent(q) + '&limit=12')
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (id !== requestId) return;  // 늦게 온 옛 응답은 버린다
+                        var items = data.items || [];
+                        nameMenu.textContent = '';
+                        if (!items.length) { closeMenu(); return; }
+                        items.forEach(function (it) {
+                            var b = document.createElement('button');
+                            b.type = 'button'; b.setAttribute('role', 'option');
+                            b.setAttribute('data-v', it.value); b.setAttribute('data-gu', it.gu || ''); b.setAttribute('data-dong', it.dong || '');
+                            b.textContent = it.label;
+                            if (it.meta) { var m = document.createElement('span'); m.textContent = it.meta; b.appendChild(m); }
+                            b.addEventListener('click', function () { pick(b); });
+                            nameMenu.appendChild(b);
+                        });
+                        nameMenu.hidden = false; active = -1;
+                        nameInput.setAttribute('aria-expanded', 'true');
+                    })
+                    .catch(function () {});
+            }, 200);
+        });
+        nameInput.addEventListener('keydown', function (e) {
+            if (nameMenu.hidden) return;
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActive(active + 1); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(active - 1); }
+            else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); pick(buttons()[active]); }
+            else if (e.key === 'Escape') { closeMenu(); }
+        });
+        document.addEventListener('click', function (e) { if (!nameForm.contains(e.target)) closeMenu(); });
+    }
+
+    // 질문 목록 클릭을 기록해 인기순 정렬에 쓴다(페이지 이동을 막지 않는 sendBeacon).
+    document.querySelectorAll('[data-topic-key]').forEach(function (link) {
+        link.addEventListener('click', function () {
+            try {
+                var body = new Blob([JSON.stringify({ key: link.getAttribute('data-topic-key') })], { type: 'application/json' });
+                if (navigator.sendBeacon) navigator.sendBeacon('/api/home-click', body);
+            } catch (e) {}
+        });
+    });
+
     // A dismissed popover stays closed while its trigger still has focus/hover.
     // No CSS :hover/:focus rule can accidentally reopen it after Escape.
     var popovers = [];

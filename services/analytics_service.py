@@ -261,6 +261,28 @@ def day_str(offset=0):
     return (datetime.now(_KST) + timedelta(days=offset)).strftime("%Y-%m-%d")
 
 
+def topic_interest(event_types, days=30):
+    """{path: 순방문 수} — 하루 같은 방문자의 반복은 1로 센다(홈 질문 목록 인기순 정렬용).
+
+    읽기 실패·DB 없음은 빈 dict(호출 측이 기본 순서를 쓴다).
+    """
+    conn = _read_connect()
+    if conn is None:
+        return {}
+    try:
+        marks = ",".join("?" for _ in event_types)
+        rows = conn.execute(
+            "SELECT path, COUNT(DISTINCT visitor_hash || '|' || day) AS n FROM event "
+            f"WHERE event_type IN ({marks}) AND day >= ? AND path IS NOT NULL GROUP BY path",
+            (*event_types, _day_floor(days) or "0000-00-00"),
+        ).fetchall()
+        return {r["path"]: r["n"] for r in rows}
+    except Exception:
+        return {}
+    finally:
+        conn.close()
+
+
 def query_analytics(days=30, top=20, day_from=None, day_to=None):
     """admin/analytics 대시보드용 집계 일괄 조회. 단일 read 커넥션 재사용.
 

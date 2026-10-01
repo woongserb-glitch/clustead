@@ -444,3 +444,11 @@ class BillboardRequestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+def test_directory_orders_by_interest_only_after_enough_signals():
+    topics = [{"key": k} for k in ("a", "b", "c")]
+    assert [t["key"] for t in billboard.order_directory(topics, {"c": 5}, min_signals=30)] == ["a", "b", "c"]
+    counts = {"c": 20, "b": 20, "a": 1}
+    # 동률(b·c)은 기본 순서를 유지한다
+    assert [t["key"] for t in billboard.order_directory(topics, counts, min_signals=30)] == ["b", "c", "a"]
