@@ -31,8 +31,13 @@
 
 {% macro er_group(group, limit=none) -%}
 <div class="bb-er-group">
-    <p class="bb-er-hospital">{% if group.location %}{% if group.url %}<a href="{{ group.url }}">{{ group.location }}</a>{% else %}{{ group.location }}{% endif %} {% endif %}<strong>{{ group.hospital }}</strong></p>
-    <p class="bb-er-note">반경 1km 안 단지 {{ group.rows | length }}곳 · 가까운 순</p>
+    <div class="bb-er-head">
+        <span class="bb-er-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 4h5v5.5H20v5h-5.5V20h-5v-5.5H4v-5h5.5z"/></svg></span>
+        <div>
+            <p class="bb-er-hospital">{% if group.location %}{% if group.url %}<a href="{{ group.url }}">{{ group.location }}</a>{% else %}{{ group.location }}{% endif %} {% endif %}<strong>{{ group.hospital }}</strong></p>
+            <p class="bb-er-note">응급실 운영 · 반경 1km 안 단지 <b>{{ group.rows | length }}곳</b> · 가까운 순</p>
+        </div>
+    </div>
     {{ rows(group.rows[:limit] if limit else group.rows) }}
 </div>
 {%- endmacro %}
