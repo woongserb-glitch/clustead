@@ -47,6 +47,13 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 .bb-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-bottom: 19px; border-bottom: 1px solid var(--bb-line); }
 .bb-brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; font: 600 22px/1.3 var(--bb-display); letter-spacing: .13em; text-decoration: none; }
 .bb-brand span { font: 12px/1.6 var(--bb-body); letter-spacing: 0; color: var(--bb-muted); }
+.bb-mark { width: 26px; height: 26px; flex: none; align-self: center; margin-right: -2px; color: var(--bb-fg); }
+/* 우측 플로팅 바로가기(_page_actions.html) — style.css 를 읽지 않는 전광판 화면용, 라이트·다크 대응 */
+.page-actions { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); z-index: 250; display: flex; flex-direction: column; gap: 8px; }
+.page-actions[hidden] { display: none; }
+.page-action { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--bb-line); background: var(--bb-paper); box-shadow: 0 6px 18px rgba(15, 23, 42, .14); color: var(--bb-fg); font-size: 17px; line-height: 1; text-decoration: none; cursor: pointer; padding: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+@media (hover: hover) and (pointer: fine) { .page-action:hover { border-color: var(--bb-accent); } }
+@media (min-width: 761px) { .page-actions { right: 24px; bottom: 24px; } }
 .bb-nav { display: flex; align-items: center; justify-content: flex-end; gap: 19px; flex-wrap: wrap; font-size: 12px; font-weight: 600; }
 .bb-nav a { text-decoration: none; white-space: nowrap; }
 .bb-nav a:hover { color: var(--bb-accent); text-decoration: underline; }
