@@ -12,7 +12,7 @@ DEFAULT_DATA_PATH = "data/derived/home_rankings.json"
 TOPICS = (
     ("academy", "academy-apartments", "Education", "입시·수학·영어 학원이 가장 많은 아파트", "반경 1,000m · 입시/보습+수학+영어"),
     ("dong_academy", "academy-neighborhoods", "Neighborhood", "입시·수학·영어 학원이 가장 많은 동네", "학원 주소의 법정동 · 입시/보습+수학+영어"),
-    ("value_combo", "value-transit-academy", "Price × Life", "국민평형 10억 미만 + 역세권 + 학원가", "300세대 이상 · 가장 가까운 역 500m 이내 · 전체 학원 1,000m"),
+    ("value_combo", "value-transit-academy", "Price × Life", "국민평형 10억 미만 + 역세권 + 학원가", "최근 6개월 전용 80~90㎡ 평균 · 300세대 이상 · 역 500m 이내 · 학원 1,000m"),
     ("subway", "subway-lines", "Transit", "반경 500m 안에 지하철 노선이 가장 많은 아파트", "반경 500m · 서로 다른 지하철 노선"),
     ("starbucks", "starbucks", "Daily life", "스세권: 반경 500m 스타벅스가 가장 많은 아파트", "반경 500m · 스타벅스 매장"),
     ("convenience", "convenience-stores", "Daily life", "편세권: 편의점 4사 매장이 가장 많은 아파트", "반경 500m · GS25·CU·세븐일레븐·이마트24"),
@@ -212,7 +212,7 @@ def _values(key, row):
         return f"{n('total')}곳", "입시/보습·수학·영어"
     if key == "value_combo":
         # Show the stored mean in 만원: rounding 9.99억 up to 10억 obscures the strict filter.
-        return f"학원 {n('academy_1km')}곳", f"최근 6개월 전용 80~90㎡ 평균 {n('price84')}만원({n('price84_n')}건) · {row['station']} {n('station_m')}m"
+        return f"학원 {n('academy_1km')}곳", f"평균 {_eok(row['price84'])} ({n('price84_n')}건) · {row['station']} {n('station_m')}m"
     if key == "subway":
         return f"{n('lines')}개 노선", " · ".join(row["line_names"])
     if key == "starbucks":

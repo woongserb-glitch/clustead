@@ -128,7 +128,11 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 .bb-section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 30px 0 13px; }
 .bb-section-heading h2 { font-size: 19px; letter-spacing: -.035em; margin: 0; }
 .bb-section-heading p { color: var(--bb-muted); font-size: 12px; margin: 0; }
-.bb-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.bb-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+/* 같은 줄의 두 카드는 높이를 맞추고, 출처 줄이 길어 한쪽만 두 줄이어도 하단 줄은 바닥에 붙인다. */
+.bb-answer-card { display: flex; flex-direction: column; }
+.bb-answer-card > .bb-card-foot { margin-top: auto; }
+.bb-answer-card > :nth-last-child(2) { margin-bottom: 13px; }
 .bb-card { border: 1px solid var(--bb-line); background: var(--bb-paper); border-radius: 12px; padding: 19px 21px 15px; min-width: 0; }
 .bb-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 29px; }
 .bb-tag { color: var(--bb-accent); font: 500 11px/1.5 var(--bb-display); letter-spacing: .15em; text-transform: uppercase; }
