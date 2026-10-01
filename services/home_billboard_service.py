@@ -67,7 +67,7 @@ def validate_rankings(data):
     definitions = data.get("definitions")
     if not isinstance(definitions, dict) or not isinstance(data.get("sources"), dict):
         raise ValueError("Missing definitions/sources")
-    for source_key in ("academy", "subway", "cafe", "convenience", "nightlife", "medical", "transactions", "master", "school"):
+    for source_key in ("academy", "subway", "cafe", "convenience", "nightlife", "medical", "transactions", "master"):
         source = data["sources"].get(source_key)
         if not isinstance(source, dict) or not isinstance(source.get("name"), str) or not source["name"]:
             raise ValueError(f"Invalid source: {source_key}")
@@ -108,7 +108,7 @@ def validate_rankings(data):
                 value = row.get(field)
                 if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
                     raise ValueError(f"Invalid {key}.{field}")
-    for key in ("new_complexes", "school_changes"):
+    for key in ("new_complexes", "er_changes"):
         if not isinstance(data.get(key), list):
             raise ValueError(f"Missing changes: {key}")
         for row in data[key]:
@@ -120,12 +120,19 @@ def validate_rankings(data):
                     raise ValueError("Invalid new_complexes.households")
                 fields = ("dong", "built")
             else:
-                fields = ("dong", "from", "to")
+                value = row.get("distance")
+                if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                    raise ValueError("Invalid er_changes.distance")
+                fields = ("dong", "hospital")
             if not all(isinstance(row.get(field), str) for field in fields):
                 raise ValueError(f"Invalid change display: {key}")
+    hospitals = data.get("er_hospitals", [])
+    if not isinstance(hospitals, list) or not all(
+            isinstance(h, dict) and all(isinstance(h.get(k), str) for k in ("name", "gu", "dong")) for h in hospitals):
+        raise ValueError("Invalid er_hospitals")
     if not isinstance(data.get("changes_meta"), dict):
         raise ValueError("Missing changes_meta")
-    for key in ("master_compared", "school_compared"):
+    for key in ("master_compared", "er_compared"):
         if type(data["changes_meta"].get(key)) is not bool:
             raise ValueError(f"Invalid changes_meta.{key}")
     return data
@@ -210,7 +217,7 @@ def _answer(key, rows, month):
     elif key == "subway":
         fact = f"단지 대표 좌표 반경 500m 안의 역 {n('stations')}곳에 서로 다른 노선 {n('lines')}개가 지나 집계 대상 중 1위입니다."
     elif key == "starbucks":
-        fact = f"단지 대표 좌표 반경 500m 안의 카카오 로컬 등록 스타벅스가 {n('count')}곳으로 집계 대상 중 1위입니다."
+        fact = f"단지 대표 좌표 반경 500m 안의 kakao map에 등록된 스타벅스가 {n('count')}곳으로 집계 대상 중 1위입니다."
     elif key == "convenience":
         fact = f"단지 대표 좌표 반경 500m 안의 GS25·CU·세븐일레븐·이마트24 합계가 {n('total')}곳으로 집계 대상 중 1위입니다."
     elif key == "quiet":
@@ -222,8 +229,7 @@ def _answer(key, rows, month):
 
 def _source_summary(key, sources):
     return " / ".join(
-        f"{sources[k]['name']} · " + (f"수집 {sources[k]['collected_at']}" if sources[k]['collected_at'] else "수집일 기록 없음")
-        for k in TOPIC_SOURCES[key]
+        sources[k]["name"] for k in TOPIC_SOURCES[key]
     )
 
 
@@ -232,8 +238,8 @@ def build_view(data, options, apartment_path, area_path):
     if data is None:
         return {"data_month": "준비 중", "generated_at": "", "topics": [], "groups": [],
                 "complex_count": None, "district_count": 0, "changes": {
-            "new_complexes": [], "school_changes": [], "master_compared": False,
-            "school_compared": False, "rules": [], "url": "",
+            "new_complexes": [], "er_changes": [], "er_groups": [], "master_compared": False,
+            "er_compared": False, "rules": [], "url": "",
         }}
     topics = []
     for key, slug, tag, title, basis in TOPICS:
@@ -247,6 +253,7 @@ def build_view(data, options, apartment_path, area_path):
                 "name": row["dong"] if is_dong else row["name"],
                 "location": row["gu"] if is_dong else f"{row['gu']} {row['dong']}",
                 "url": area_path(row["gu"], row["dong"]) if is_dong else apartment_path(row["name"], row["gu"], row["dong"]),
+                "location_url": area_path(row["gu"]) if is_dong else "",
                 "value": value, "detail": detail,
             })
         topics.append({"key": key, "slug": slug, "tag": tag, "title": title, "basis": basis,
@@ -255,18 +262,38 @@ def build_view(data, options, apartment_path, area_path):
                        "source_summary": _source_summary(key, data["sources"]),
                        "group": next((g for g, _, _, keys in GROUPS if key in keys), "education"),
                        "url": f"/rankings/{slug}" if options["pages_enabled"] else ""})
-    changes = {**data["changes_meta"], "new_complexes": [], "school_changes": [],
+    changes = {"master_compared": False, "er_compared": False, **data["changes_meta"],
+               "new_complexes": [], "er_changes": [],
                "rules": data["definitions"].get("changes", data["definitions"].get("this_month", [])),
                "url": "/rankings/monthly-changes" if options["pages_enabled"] else ""}
-    for key in ("new_complexes", "school_changes"):
+    for key in ("new_complexes", "er_changes"):
         for row in data[key]:
             dong = row.get("dong", "")
             url = apartment_path(row["name"], row["gu"], dong) if dong else area_path(row["gu"])
             changes[key].append({
                 "name": row["name"], "location": f"{row['gu']} {dong}".strip(), "url": url,
-                "value": f"{_number(row['households'])}세대" if key == "new_complexes" else row["to"] or "배정 정보 없음",
-                "detail": f"준공 {row.get('built') or '기록 없음'}" if key == "new_complexes" else f"이전 {row['from'] or '없음'}",
+                "value": f"{_number(row['households'])}세대" if key == "new_complexes" else f"{_number(row['distance'])}m",
+                "detail": f"준공 {row.get('built') or '기록 없음'}" if key == "new_complexes" else "직선거리",
+                "hospital": row.get("hospital", ""),
             })
+    # 새 응급실별로 묶고, 각 병원 안에서는 가까운 단지 순(er_changes 가 이미 거리순).
+    places = {h["name"]: h for h in data.get("er_hospitals", [])}
+    order = [h["name"] for h in data.get("er_hospitals", [])]
+    order += [r["hospital"] for r in changes["er_changes"] if r["hospital"] not in order]
+    changes["er_groups"] = []
+    for name in dict.fromkeys(order):
+        members = [r for r in changes["er_changes"] if r["hospital"] == name]
+        if not members:
+            continue
+        place = places.get(name, {})
+        changes["er_groups"].append({
+            "hospital": name, "rows": members,
+            "location": f"{place.get('gu', '')} {place.get('dong', '')}".strip(),
+            "url": area_path(place["gu"], place["dong"]) if place.get("gu") and place.get("dong")
+                   else area_path(place["gu"]) if place.get("gu") else "",
+        })
+    # 순위 페이지 행과 JSON-LD 가 화면과 같은 순서가 되게 병원별 순서로 다시 편다.
+    changes["er_changes"] = [r for g in changes["er_groups"] for r in g["rows"]]
     groups = [{"key": key, "title": title, "description": description,
                "topics": [t for t in topics if t["key"] in keys]}
               for key, title, description, keys in GROUPS]
@@ -280,9 +307,9 @@ def ranking_topics(view):
     changes = view["changes"]
     if changes["url"]:
         topics.append({"key": "changes", "slug": "monthly-changes", "tag": "This month",
-                       "title": "이번 달 바뀐 것", "basis": "직전 스냅샷 대비 신규 등록 단지·배정 초등학교 변경",
-                       "rules": changes["rules"], "rows": changes["new_complexes"] + changes["school_changes"],
+                       "title": "이번 달 바뀐 것", "basis": "직전 달 대비 신규 등록 단지·새롭게 추가된 응급실과 가까운 단지",
+                       "rules": changes["rules"], "rows": changes["new_complexes"] + changes["er_changes"],
                        "url": changes["url"], "is_dong": False,
-                       "answer": f"{view['data_month']} 데이터와 직전 스냅샷을 비교한 기록입니다. 비교 자료가 없는 항목은 미비교로 표시합니다.",
-                       "source_summary": next((text for label, text in changes["rules"] if label == "출처와 수집일"), "")})
+                       "answer": f"{view['data_month']} 데이터를 직전 달과 비교한 기록입니다. 비교 자료가 없는 항목은 미비교로 표시합니다.",
+                       "source_summary": next((text for label, text in changes["rules"] if label == "출처"), "")})
     return topics

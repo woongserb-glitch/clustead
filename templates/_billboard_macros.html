@@ -20,7 +20,7 @@
     <li data-ranking-row>
         <span class="bb-rank"{% if marker %} aria-hidden="true"{% endif %}>{{ marker or loop.index }}</span>
         <div class="bb-place">
-            {% if row.url %}<a href="{{ row.url }}">{{ row.name }}</a>{% else %}<strong>{{ row.name }}</strong>{% endif %}
+            {% if row.url %}<a href="{{ row.url }}" data-row-link>{{ row.name }}</a>{% else %}<strong>{{ row.name }}</strong>{% endif %}
             {% if row.location %}<span class="bb-location">{{ row.location }}</span>{% endif %}
         </div>
         <div class="bb-value">{{ row.value }}{% if row.detail %}<small>{{ row.detail }}</small>{% endif %}</div>
@@ -29,9 +29,20 @@
 </ol>
 {%- endmacro %}
 
+{% macro er_group(group, limit=none) -%}
+<div class="bb-er-group">
+    <p class="bb-er-hospital">{% if group.location %}{% if group.url %}<a href="{{ group.url }}">{{ group.location }}</a>{% else %}{{ group.location }}{% endif %} {% endif %}<strong>{{ group.hospital }}</strong></p>
+    <p class="bb-er-note">반경 1km 안 단지 {{ group.rows | length }}곳 · 가까운 순</p>
+    {{ rows(group.rows[:limit] if limit else group.rows) }}
+</div>
+{%- endmacro %}
+
 {% macro district_rows(items) -%}
-<ul class="bb-district-list">
-    {% for row in items %}<li data-ranking-row><strong>{{ row.location }}</strong>{% if row.url %}<a href="{{ row.url }}">{{ row.name }}</a>{% else %}<span>{{ row.name }}</span>{% endif %}<b>{{ row.value }}</b></li>{% endfor %}
+{# 동 이름 상자 폭을 그 달 가장 긴 이름에 맞춰, 칸 가운데에 두되 시작점은 세로로 맞춘다. #}
+{% set dong_width = items | map(attribute='name') | map('length') | max | default(3) %}
+{% set value_chars = items | map(attribute='value') | map('length') | max | default(3) %}
+<ul class="bb-district-list" style="--bb-dong-width: {{ dong_width }}em; --bb-value-chars: {{ value_chars }}">
+    {% for row in items %}<li data-ranking-row>{% if row.location_url %}<a class="bb-district-gu" href="{{ row.location_url }}">{{ row.location }}</a>{% else %}<strong>{{ row.location }}</strong>{% endif %}{% if row.url %}<a class="bb-district-dong" href="{{ row.url }}" data-row-link>{{ row.name }}</a>{% else %}<span class="bb-district-dong">{{ row.name }}</span>{% endif %}<b>{{ row.value }}</b></li>{% endfor %}
 </ul>
 {%- endmacro %}
 
@@ -51,6 +62,6 @@
 <footer class="bb-footer">
     <p>대표 좌표는 단지별 한 지점으로, 단지 내 위치에 따라 거리가 달라질 수 있습니다. 거리는 모두 직선거리이며 도보 거리가 아닙니다. 개수 기준은 범위 안의 시설 수, 최근접 기준은 가장 가까운 시설까지의 거리입니다.</p>
     <p>실거래가는 신고된 거래의 평균이며 매물 호가가 아닙니다. 최신 월 계약분은 신고 기한 30일 때문에 일부만 반영될 수 있습니다. 시설 수는 수집 시점 기준으로, 실제 현황과 다를 수 있습니다.</p>
-    <p>데이터 기준월 <strong>{{ billboard.data_month }}</strong> · 산출일 <time datetime="{{ billboard.generated_at }}">{{ billboard.generated_at[:10] }}</time> · 자세한 출처와 수집일은 각 주제의 산정 기준에서 확인하세요.</p>
+    <p>데이터 기준월 <strong>{{ billboard.data_month }}</strong> · 자세한 출처는 각 주제의 산정 기준에서 확인하세요.</p>
 </footer>
 {%- endmacro %}

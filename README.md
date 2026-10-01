@@ -81,7 +81,7 @@ python -m flask --app app run --host 127.0.0.1 --port 5057 --no-reload
 - `/rankings/value-transit-academy`, `/rankings/subway-lines`: 조합·지하철 순위.
 - `/rankings/quiet-large-complexes`, `/rankings/emergency-facilities`: 대단지·응급실 순위.
 - `/rankings/district-academy-winners`: 구별 1위 동 전체 25개(구 이름순).
-- `/rankings/monthly-changes`: 저장된 신규 단지·배정초 변경 목록.
+- `/rankings/monthly-changes`: 저장된 신규 단지·1km 안에 응급실이 새로 들어온 단지 목록.
 - `/rankings/starbucks`, `/rankings/convenience-stores`: 카카오 순위를 켰을 때만 제공.
 
 설정 예시는 `.env.example`에 있다. JSON은 경로별 프로세스 캐시로 한 번 읽고,
@@ -99,10 +99,10 @@ python -m flask --app app run --host 127.0.0.1 --port 5057 --no-reload
 python scripts/build_home_rankings.py --data-month YYYY-MM --source-dates path/to/current-source-dates.json --previous path/to/previous-home_rankings.json
 ```
 
-기본 출력은 `data/derived/home_rankings.json`이다. 직전 JSON의 단지 코드·배정초
-원문 스냅샷으로 차이를 계산하고 결과 자체도 저장하므로 웹서버에 지난 파일을
+기본 출력은 `data/derived/home_rankings.json`이다. 직전 스냅샷(`home_rankings.snapshot.json`)의 단지 코드·단지별
+1km 응급실 목록으로 차이를 계산하고 결과 자체도 저장하므로 웹서버에 지난 파일을
 보관할 필요는 없다. 같은 기준월 재실행은 저장된 월간 차이를 유지한다.
-최초에는 `--prev-master`와 `--prev-school`로 직전 CSV를 각각 지정할 수 있다.
+최초에는 `--prev-master`와 `--prev-medical`(직전 `medical_baseline.csv`)로 직전 CSV를 각각 지정할 수 있다.
 비교 자료가 없는 항목은 미비교로 명시하며, 0건으로 표시하거나 시안의 변경 목록을
 현재 계산 결과로 간주하지 않는다. 원본 CSV/DB를 재생성하거나 수정하지 않는다.
 

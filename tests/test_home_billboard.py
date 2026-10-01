@@ -39,14 +39,14 @@ def ranking_fixture():
         "sources": {
             key: {"name": f"검증용 {key} 원천", "collected_at": "2026-09-30"}
             for key in ("academy", "subway", "cafe", "convenience", "nightlife",
-                        "medical", "transactions", "master", "school")
+                        "medical", "transactions", "master")
         },
         "definitions": {},
         "new_complexes": [{"name": "신규검증단지", "gu": "강남구", "dong": "도곡동",
                            "households": 1200, "built": "2026.09"}],
-        "school_changes": [{"name": "학교변경검증단지", "gu": "강남구", "dong": "도곡동",
-                            "from": "이전초등학교", "to": "새초등학교"}],
-        "changes_meta": {"master_compared": True, "school_compared": True},
+        "er_changes": [{"name": "응급실변경검증단지", "gu": "강남구", "dong": "도곡동",
+                        "hospital": "검증응급병원", "distance": 300}],
+        "changes_meta": {"master_compared": True, "er_compared": True},
     }
     for key, *_ in billboard.TOPICS:
         data["definitions"][key] = [
@@ -54,7 +54,7 @@ def ranking_fixture():
             ["반경", "1,000m 직선거리 (도보 아님)"],
             ["방식", "개수 기준 또는 최근접 거리 기준"],
             ["동률", "정의된 보조 지표 이후 원본 입력 순서 유지"],
-            ["출처와 수집일", "검증용 원천 · 수집일 2026-09-30"],
+            ["출처", "검증용 원천 · 수집일 2026-09-30"],
         ]
         rows = []
         for index in range(1, 26 if key == "gu_best_dong" else 51):
@@ -65,8 +65,8 @@ def ranking_fixture():
             rows.append(row)
         data[key] = rows
     data["definitions"]["changes"] = [
-        ["기준", "직전 스냅샷과 단지 등록·배정 초등학교 변경 비교"],
-        ["출처와 수집일", "검증용 단지·학교 원천 · 수집일 2026-09-30"],
+        ["기준", "직전 달과 단지 등록·1km 응급실 변경 비교"],
+        ["출처", "검증용 단지·의료 원천"],
     ]
     return data
 
@@ -90,7 +90,7 @@ class RenderedPage(HTMLParser):
             self._row = True
         if tag == "a" and "href" in attrs:
             self.links.append(attrs["href"])
-            if self._row:
+            if self._row and "data-row-link" in attrs:
                 self.row_urls.append(attrs["href"])
         if tag == "link" and attrs.get("rel") == "canonical":
             self.canonical = attrs["href"]
@@ -155,7 +155,8 @@ class ArtifactSchemaTests(unittest.TestCase):
             ("nearest missing", lambda d: d["subway"][0].pop("nearest")),
             ("hospital missing", lambda d: d["emergency"][0].pop("hospital")),
             ("new households missing", lambda d: d["new_complexes"][0].pop("households")),
-            ("school destination missing", lambda d: d["school_changes"][0].pop("to")),
+            ("er hospital missing", lambda d: d["er_changes"][0].pop("hospital")),
+            ("er distance negative", lambda d: d["er_changes"][0].update(distance=-1)),
             ("comparison bool", lambda d: d["changes_meta"].update(master_compared="true")),
         ]
         for label, mutate in cases:
@@ -235,7 +236,7 @@ class BillboardRequestTests(unittest.TestCase):
                     self.assertIn(label, card.group(1))
                     self.assertIn(text, card.group(1))
         self.assertIn("신규검증단지", html)
-        self.assertIn("새초등학교", html)
+        self.assertIn("검증응급병원", html)
 
     def test_rankings_json_ld_matches_server_rows_and_canonical(self):
         for key, slug, _, title, _ in billboard.TOPICS:
@@ -303,15 +304,15 @@ class BillboardRequestTests(unittest.TestCase):
             {**self.data["new_complexes"][0], "name": f"신규검증단지{index:02}"}
             for index in range(35)
         ]
-        self.data["school_changes"] = [
-            {**self.data["school_changes"][0], "name": f"학교변경검증단지{index:02}"}
+        self.data["er_changes"] = [
+            {**self.data["er_changes"][0], "name": f"응급실변경검증단지{index:02}"}
             for index in range(2)
         ]
         self.write_artifact(self.data)
         html = self.get_html("/rankings/monthly-changes")
         page = RenderedPage(html)
         self.assertEqual(len(page.row_urls), 37)
-        self.assertIn("학교변경검증단지01", html)
+        self.assertIn("응급실변경검증단지01", html)
         self.assertNotIn("TOP 20", html)
         item_list = next(node for node in schema_nodes(page.json_ld) if node["@type"] == "ItemList")
         self.assertEqual(item_list["numberOfItems"], 37)
@@ -411,7 +412,7 @@ class BillboardRequestTests(unittest.TestCase):
             ("source date missing", lambda d: d["sources"]["academy"].pop("collected_at")),
             ("station missing", lambda d: d["value_combo"][0].pop("station")),
             ("coverage malformed", lambda d: d.update(complex_count="2886")),
-            ("changes malformed", lambda d: d["school_changes"][0].pop("to")),
+            ("changes malformed", lambda d: d["er_changes"][0].pop("hospital")),
         ]
         for label, change in cases:
             with self.subTest(label=label):

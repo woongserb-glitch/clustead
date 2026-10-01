@@ -23,11 +23,19 @@ def write_csv(path, rows, encoding="utf-8-sig"):
         writer.writerows(rows)
 
 
+def er_items(count, names=("응급A", "응급B", "응급C")):
+    """1km 안 응급실 count 곳 + 반경 밖 1곳 (거리 오름차순이 아니게 섞는다)."""
+    items = [{"name": "원거리병원", "distance": 2500}] + [
+        {"name": name, "distance": 100 * (n + 1)} for n, name in enumerate(names[:count])]
+    return json.dumps(items, ensure_ascii=False)
+
+
 @pytest.fixture
 def dataset(tmp_path):
     """More than fifty rows, boundary filters, stable ties and malformed dong data."""
     data = tmp_path / "data"
     rows = {name: [] for name in builder.BASELINE_COLUMNS}
+    schools = []  # the handover oracle still reads it; the builder no longer does
     masters = []
     for i in range(70):
         ident = {"name": f"단지{70-i:02}", "gu": "가구", "dong": "가동"}
@@ -46,16 +54,18 @@ def dataset(tmp_path):
             "nightlife_baseline": {"nightlife_count_500m": "" if i == 9 else 1 if i == 10 else 0,
                                    "nightlife_nearest_any_distance": "" if i == 11 else 0 if i == 12 else 1000 + i // 2},
             "medical_baseline": {"emergency_count_1km": 3 - i % 2, "nearest_superior_hospital_distance": 200 + i % 3,
-                                 "nearest_superior_hospital_name": "종합병원"},
+                                 "nearest_superior_hospital_name": "종합병원",
+                                 "emergency_items_json": er_items(3 - i % 2)},
             "transaction_summary": {"avg_trade_amount_84": 100000 if i == 4 else "" if i == 5 else 99999},
-            "school_zone_baseline": {"assigned_elementary_school": "가초 (적용시기: 2026.9)" if i == 0 else "나초"},
         }
+        schools.append({**ident, "assigned_elementary_school": "나초"})
         for name in rows:
             if name == "subway_baseline" and i == 69:
                 continue  # common academy/subway key set is intentional
             rows[name].append({**ident, **metrics[name], "unused_poi_json": '[{"ignored":true}]'})
     for name, values in rows.items():
         write_csv(data / "baseline" / f"{name}.csv", values)
+    write_csv(data / "baseline/school_zone_baseline.csv", schools)
     write_csv(data / "apartment/seoul_apartments.csv", masters, "cp949")
     academies = []
     for i in range(60):
@@ -75,7 +85,7 @@ def dataset(tmp_path):
     return data
 
 
-def run_oracle(data, monkeypatch, prev_master=None, prev_school=None):
+def run_oracle(data, monkeypatch, prev_master=None):
     script = ROOT / "outputs/clustead-home-billboard/compute_home_preview.py"
     spec = importlib.util.spec_from_file_location("home_preview_oracle", script)
     module = importlib.util.module_from_spec(spec)
@@ -85,8 +95,6 @@ def run_oracle(data, monkeypatch, prev_master=None, prev_school=None):
     argv = [str(script), "--output", str(output)]
     if prev_master:
         argv.extend(["--prev-master", str(prev_master)])
-    if prev_school:
-        argv.extend(["--prev-school", str(prev_school)])
     monkeypatch.setattr(sys, "argv", argv)
     module.main()
     return json.loads(output.read_text(encoding="utf-8"))
@@ -102,7 +110,7 @@ def test_top_five_exactly_matches_unmodified_reference(dataset, monkeypatch):
     expected = run_oracle(dataset, monkeypatch)
     for key in builder.TOPICS:
         assert actual[key][:5] == expected[key], key
-    for key in ("value_combo_pool", "quiet_pool", "dong_academy_meta", "new_complexes", "school_changes"):
+    for key in ("value_combo_pool", "quiet_pool", "dong_academy_meta", "new_complexes"):
         assert actual[key] == expected[key], key
     assert len(actual["academy"]) == len(actual["dong_academy"]) == 50
     assert len(actual["quiet"]) == len(actual["value_combo"]) == 50
@@ -126,48 +134,51 @@ def test_thresholds_and_missing_values_keep_reference_filters(dataset):
 
 def test_delta_raw_comparison_and_future_snapshot_without_old_csv(dataset, monkeypatch, tmp_path):
     master = list(builder.csv_rows(dataset / "apartment/seoul_apartments.csv", "cp949", builder.MASTER_COLUMNS))
-    school = list(builder.csv_rows(dataset / "baseline/school_zone_baseline.csv", columns=("name", "gu", "dong", "assigned_elementary_school")))
+    medical_columns = ("name", "gu", "dong", *builder.BASELINE_COLUMNS["medical_baseline"])
+    medical = list(builder.csv_rows(dataset / "baseline/medical_baseline.csv", columns=medical_columns))
     old_master = tmp_path / "previous-master.csv"
-    old_school = tmp_path / "previous-school.csv"
+    old_medical = tmp_path / "previous-medical.csv"
     write_csv(old_master, master[:-1], "cp949")
-    school[0]["assigned_elementary_school"] = "가초 (적용시기: 2025.9)"
-    school[1]["assigned_elementary_school"] = "이전초"
-    write_csv(old_school, school)
-    actual = builder.build_rankings(dataset, data_month="2026-09", prev_master=old_master, prev_school=old_school)
-    expected = run_oracle(dataset, monkeypatch, old_master, old_school)
+    previous = [dict(r) for r in medical]
+    previous[0].update(emergency_count_1km=2, emergency_items_json=er_items(2))        # 단지70: 응급C 신규
+    previous[1].update(emergency_items_json=er_items(2, ("응급 A", "응급B")))          # 띄어쓰기만 다름: 신규 아님
+    previous[2].update(name="옛이름단지", emergency_count_1km=0, emergency_items_json="[]")  # 이름 바뀐 단지: 비교 제외
+    write_csv(old_medical, previous[:-1])  # 마지막 단지는 신규 등록이라 new_complexes 에만 나온다
+    actual = builder.build_rankings(dataset, data_month="2026-09", prev_master=old_master, prev_medical=old_medical)
+    expected = run_oracle(dataset, monkeypatch, old_master)
     assert actual["new_complexes"] == expected["new_complexes"]
-    # Oracle's set iteration has no stable display order; compare membership and every value.
-    normalize = lambda rows: sorted(({k: v for k, v in r.items() if k != "dong"} for r in rows), key=lambda r: r["name"])
-    assert normalize(actual["school_changes"]) == normalize(expected["school_changes"])
-    assert len(actual["school_changes"]) == 2
-    annotation_only = next(r for r in actual["school_changes"] if r["name"] == "단지70")
-    assert annotation_only["from"] == annotation_only["to"] == "가초"  # raw change retained before display cleaning
-    assert all(r["dong"] == "가동" for r in actual["school_changes"])
+    assert actual["er_changes"] == [{"name": "단지70", "gu": "가구", "dong": "가동", "hospital": "응급C", "distance": 300}]
+    assert actual["changes_meta"] == {"master_compared": True, "er_compared": True}
+    assert builder.er_place("서울특별시 강서구 양천로 600, 파인블루빌딩 지하1층 (등촌동)") == ("강서구", "등촌동")
+    assert builder.er_place("서울특별시 종로구 대학로 101 (연건동, 서울대학교병원)") == ("종로구", "연건동")
     old_master.unlink()
-    old_school.unlink()
+    old_medical.unlink()
     again = builder.build_rankings(dataset, data_month="2026-09", previous=actual)
     assert again["new_complexes"] == actual["new_complexes"]
-    assert again["school_changes"] == actual["school_changes"]
+    assert again["er_changes"] == actual["er_changes"]
     assert again["changes_meta"] == actual["changes_meta"]
-    # Next month uses stored raw names and codes, including an annotation-only change.
-    school[0]["assigned_elementary_school"] = "가초 (적용시기: 2026.10)"
-    school[1]["assigned_elementary_school"] = "나초"
-    write_csv(dataset / "baseline/school_zone_baseline.csv", school)
+    # Next month compares against the stored snapshot: 단지67 gains 응급D.
+    medical[3].update(emergency_count_1km=4, emergency_items_json=er_items(4, ("응급A", "응급B", "응급C", "응급D")))
+    write_csv(dataset / "baseline/medical_baseline.csv", medical)
     next_month = builder.build_rankings(dataset, data_month="2026-10", previous=again)
     assert next_month["new_complexes"] == []
-    assert len(next_month["school_changes"]) == 1
-    assert next_month["school_changes"][0]["name"] == "단지70"
-    assert next_month["changes_meta"] == {"master_compared": True, "school_compared": True, "previous_month": "2026-09"}
+    assert next_month["er_changes"] == [{"name": "단지67", "gu": "가구", "dong": "가동", "hospital": "응급C", "distance": 300},
+                                        {"name": "단지67", "gu": "가구", "dong": "가동", "hospital": "응급D", "distance": 400}]
+    assert [h["name"] for h in next_month["er_hospitals"]] == ["응급C", "응급D"]
+    assert next_month["changes_meta"] == {"master_compared": True, "er_compared": True, "previous_month": "2026-09"}
 
 
 def test_unknown_dates_and_uncompared_deltas_are_not_inferred(dataset):
     result = builder.build_rankings(dataset, data_month="2026-09", source_dates={"subway": {"source_updated_at": "2026-09-22"}})
     assert all(source["collected_at"] is None for source in result["sources"].values())
-    assert result["changes_meta"] == {"master_compared": False, "school_compared": False}
-    assert "수집일 기록 없음" in str(result["definitions"]["subway"])
+    assert result["changes_meta"] == {"master_compared": False, "er_compared": False}
+    # 수집일은 화면용 정의에 쓰지 않는다(사용자 결정). collected_at 은 sources 에만 남는다.
+    assert "수집" not in json.dumps(result["definitions"], ensure_ascii=False)
     for topic in (*builder.TOPICS, "changes"):
-        labels = {r[0] for r in result["definitions"][topic]}
-        assert {"기준점", "반경", "방식", "동률", "출처와 수집일"} <= labels
+        labels = [r[0] for r in result["definitions"][topic]]
+        # 산정 기준은 기준점·반경·방식·출처만(사용자 결정). 동 단위·변경 주제는 반경이 없다.
+        assert set(labels) <= {"기준점", "반경", "방식", "출처"} and {"기준점", "방식", "출처"} <= set(labels)
+        assert "해당 없음" not in json.dumps(result["definitions"][topic], ensure_ascii=False)
     assert "2025.1~2026.9" in str(result["definitions"]["value_combo"])
     assert "학군" not in json.dumps(result, ensure_ascii=False)
     future = builder.build_rankings(dataset, data_month="2026-10")
@@ -197,13 +208,13 @@ def test_cli_writes_only_output_and_preserves_delta_on_rerun(dataset, tmp_path):
     argv = ["--data-dir", str(dataset), "--output", str(target), "--data-month", "2026-09"]
     builder.main(argv)
     saved = json.loads(target.read_text(encoding="utf-8"))
-    saved["school_changes"] = [{"name": "단지70", "gu": "가구", "dong": "가동", "from": "전초", "to": "가초"}]
-    saved["changes_meta"]["school_compared"] = True
+    saved["er_changes"] = [{"name": "단지70", "gu": "가구", "dong": "가동", "hospital": "응급C", "distance": 300}]
+    saved["changes_meta"]["er_compared"] = True
     target.write_text(json.dumps(saved, ensure_ascii=False), encoding="utf-8")
     builder.main(argv)
     rebuilt = json.loads(target.read_text(encoding="utf-8"))
-    assert rebuilt["school_changes"] == saved["school_changes"]
-    assert rebuilt["changes_meta"]["school_compared"] is True
+    assert rebuilt["er_changes"] == saved["er_changes"]
+    assert rebuilt["changes_meta"]["er_compared"] is True
     assert csv_fingerprints(dataset) == before
     assert not target.with_name(target.name + ".tmp").exists()
     validate_rankings(rebuilt)
