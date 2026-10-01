@@ -29,11 +29,11 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=19">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=22">
     <script type="application/ld+json">{{ home_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
-    <script src="{{ url_for('static', filename='billboard.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', filename='billboard.js') }}?v=3" defer></script>
 </head>
 <body>
     <a class="bb-skip" href="#main">본문으로 이동</a>
@@ -42,10 +42,13 @@
         <main id="main">
             <div class="bb-intro">
                 <div class="bb-intro-copy"><p class="bb-eyebrow">SEOUL APARTMENT · LIFE INFRASTRUCTURE</p><h1>서울시 아파트의 모든 것</h1><p class="bb-intro-description">단지 좌표·동 주소·실거래 조건을 연결해<br class="bb-desktop-break"> 서울 아파트와 동네의 생활 인프라를 비교합니다.</p></div>
-                <div class="bb-intro-search"><p>궁금한 아파트가 있다면</p><form action="/result" method="get" class="bb-search" role="search">
+                <div class="bb-intro-search"><p>궁금한 아파트가 있다면</p><form action="/result" method="get" class="bb-search" role="search" data-name-search>
                         <label class="bb-sr-only" for="apartment-search">아파트명 검색</label>
-                        <input id="apartment-search" type="search" name="apartment" placeholder="아파트명 직접 검색" required>
+                        <input id="apartment-search" type="search" name="apartment" placeholder="아파트명 직접 검색" required
+                               autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="apartment-search-menu" data-name-input>
+                        <input type="hidden" name="gu" data-name-gu disabled><input type="hidden" name="dong" data-name-dong disabled>
                         <input type="hidden" name="src" value="home"><button type="submit">검색 <span aria-hidden="true">→</span></button>
+                        <div class="bb-search-menu" id="apartment-search-menu" role="listbox" data-name-menu hidden></div>
                     </form><a class="bb-explore-link" href="/explore">지역·가격 등 내 조건으로 탐색 <span aria-hidden="true">↗</span></a></div>
             </div>
             <div class="bb-coverage" aria-label="데이터 범위">
@@ -94,7 +97,7 @@
             </section>
             <nav class="bb-question-directory" aria-labelledby="question-directory-title">
                 <div class="bb-directory-heading"><p class="bb-eyebrow">QUESTION INDEX</p><h2 id="question-directory-title">이런 것도 알 수 있어요.</h2></div>
-                <ol>{% for topic in billboard.topics %}<li><a href="#topic-{{ topic.key }}"><span class="bb-index-number">{{ '%02d' | format(loop.index) }}</span><span>{{ topic.question }}</span><span class="bb-index-arrow" aria-hidden="true">↗</span></a></li>{% endfor %}</ol>
+                <ol>{% for topic in directory_topics or billboard.topics %}<li><a href="#topic-{{ topic.key }}" data-topic-key="{{ topic.key }}"><span class="bb-index-number">{{ '%02d' | format(loop.index) }}</span><span>{{ topic.question }}</span><span class="bb-index-arrow" aria-hidden="true">↗</span></a></li>{% endfor %}</ol>
             </nav>
             </div>
 

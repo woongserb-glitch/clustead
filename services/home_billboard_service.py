@@ -271,6 +271,22 @@ def _source_summary(key, sources):
     )
 
 
+# 질문 목록(이런 것도 알 수 있어요.) 인기순 정렬 — 2026-10-01 사용자 요청.
+# 질문 목록 클릭(home_topic_click)과 순위 페이지 방문(ranking_view)을 주제 key 로 세고,
+# 최근 DIRECTORY_DAYS 일 순방문 합계가 DIRECTORY_MIN_SIGNALS 미만이면 기본 순서를 쓴다.
+DIRECTORY_EVENTS = ("home_topic_click", "ranking_view")
+DIRECTORY_DAYS = 30
+DIRECTORY_REFRESH_SECONDS = 6 * 3600
+DIRECTORY_MIN_SIGNALS = 30
+
+
+def order_directory(topics, counts, min_signals=DIRECTORY_MIN_SIGNALS):
+    """많이 본 순. 동률·기록 없음은 기본 순서를 유지한다(안정 정렬)."""
+    if sum(counts.get(t["key"], 0) for t in topics) < min_signals:
+        return list(topics)
+    return sorted(topics, key=lambda t: -counts.get(t["key"], 0))
+
+
 def build_view(data, options, apartment_path, area_path):
     """Presentation only; offline order, filter and values remain untouched."""
     if data is None:
