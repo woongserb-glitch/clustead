@@ -1,0 +1,156 @@
+{% from "_billboard_macros.html" import criteria, rows, district_rows, er_group, header, footer %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% if not billboard_settings.mobile_enabled %}
+    <script>
+        (function () {
+            if (new URLSearchParams(location.search).get('home') === 'billboard') return;
+            if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) location.replace('/explore' + location.search);
+        })();
+    </script>
+    {% endif %}
+    <script>try { var savedBillboardTheme = localStorage.getItem('clustead-billboard-theme'); if (savedBillboardTheme === 'light' || savedBillboardTheme === 'dark') document.documentElement.dataset.theme = savedBillboardTheme; } catch (e) {}</script>
+    <title>Clustead — 숫자로 보는 서울 아파트·동네 생활 인프라</title>
+    <meta name="description" content="서울 아파트와 동네의 학원가·교통·의료·생활 인프라 순위. 주제별 TOP 5와 정확한 반경·집계 방식·출처를 확인하세요.">
+    {% if naver_site_verification %}<meta name="naver-site-verification" content="{{ naver_site_verification }}">{% endif %}
+    <link rel="canonical" href="{{ site_url }}/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Clustead">
+    <meta property="og:title" content="Clustead — 숫자로 보는 서울 아파트·동네 생활 인프라">
+    <meta property="og:description" content="서울 아파트와 동네의 생활 인프라 TOP 5. 반경·집계 방식·출처까지 확인하는 순위.">
+    <meta property="og:url" content="{{ site_url }}/">
+    <meta property="og:image" content="{{ og_image_url }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Clustead — 서울 아파트 생활 인프라 전광판">
+    <meta name="twitter:description" content="서울 아파트와 동네의 생활 인프라 TOP 5와 산정 기준.">
+    <meta name="twitter:image" content="{{ og_image_url }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=13">
+    <script type="application/ld+json">{{ home_json_ld | tojson | safe }}</script>
+    {% include "_pwa_head.html" %}
+    {% include "_analytics_head.html" %}
+    <script src="{{ url_for('static', filename='billboard.js') }}?v=2" defer></script>
+</head>
+<body>
+    <a class="bb-skip" href="#main">본문으로 이동</a>
+    <div class="bb-wrap">
+        {{ header(billboard_settings, home=true) }}
+        <main id="main">
+            <div class="bb-intro">
+                <div class="bb-intro-copy"><p class="bb-eyebrow">SEOUL APARTMENT · LIFE INFRASTRUCTURE</p><h1>서울시 아파트의 모든 것</h1><p class="bb-intro-description">단지 좌표·동 주소·실거래 조건을 연결해<br class="bb-desktop-break"> 서울 아파트와 동네의 생활 인프라를 비교합니다.</p></div>
+                <div class="bb-intro-search"><p>궁금한 아파트가 있다면</p><form action="/result" method="get" class="bb-search" role="search">
+                        <label class="bb-sr-only" for="apartment-search">아파트명 검색</label>
+                        <input id="apartment-search" type="search" name="apartment" placeholder="아파트명 직접 검색" required>
+                        <input type="hidden" name="src" value="home"><button type="submit">검색 <span aria-hidden="true">→</span></button>
+                    </form><a class="bb-explore-link" href="/explore">지역·가격 등 내 조건으로 탐색 <span aria-hidden="true">↗</span></a></div>
+            </div>
+            <div class="bb-coverage" aria-label="데이터 범위">
+                <span class="bb-coverage-date"><span class="bb-status-dot" aria-hidden="true"></span>데이터 기준 <strong>{{ billboard.data_month }}</strong></span>
+                {% if billboard.complex_count %}<span>비교 대상 <strong>{{ '{:,}'.format(billboard.complex_count) }}</strong>개 단지</span>{% endif %}
+                {% if billboard.district_count %}<span>법정동 집계 <strong>{{ billboard.district_count }}</strong>개 자치구</span>{% endif %}
+                <a href="#reading-data">숫자 읽는 법 <span aria-hidden="true">↘</span></a>
+            </div>
+            {# 지역별 보기: 전광판 위로 올림(2026-10-01 사용자 결정). 크롤 링크 역할은 그대로. #}
+            {% with wrap_class = "bb-areas" %}{% include "_area_links.html" %}{% endwith %}
+
+            {% set slide_topics = billboard.topics | rejectattr('key', 'equalto', 'gu_best_dong') | selectattr('rows') | list %}
+            {% set show_month_slide = billboard.changes.master_compared and billboard.changes.new_complexes %}
+            <div class="bb-hero">
+            <section class="bb-board" data-billboard aria-label="서울 아파트 생활 인프라 전광판" aria-roledescription="슬라이드 전광판">
+                <div class="bb-board-label"><span class="bb-dot" aria-hidden="true"></span>SEOUL LIFE, IN NUMBERS<span class="bb-board-edition">{{ billboard.data_month }}</span></div>
+                <div class="bb-slides" data-slides aria-live="off">
+                    {% for topic in slide_topics %}
+                    {% set winner = topic.rows[0] %}
+                    <article class="bb-slide" id="slide-{{ topic.key }}" data-slide role="group" aria-roledescription="슬라이드" aria-label="{{ topic.title }}"{% if not loop.first %} hidden{% endif %}>
+                        <p class="bb-question">{{ topic.question }}</p>
+                        <div class="bb-answer">{% if winner.url %}<a href="{{ winner.url }}">{{ winner.name }}</a>{% else %}<span>{{ winner.name }}</span>{% endif %} <span class="bb-number">{{ winner.value }}</span></div>
+                        <p class="bb-basis">{{ winner.location }}{% if winner.detail %} · {{ winner.detail }}{% endif %}</p>
+                        <p class="bb-basis">{{ topic.basis }}</p>
+                        <a class="bb-slide-link" href="{{ topic.url or '#topic-' ~ topic.key }}">이 질문의 순위 보기 <span aria-hidden="true">↗</span></a>
+                    </article>
+                    {% endfor %}
+                    {% if show_month_slide %}
+                    <article class="bb-slide" id="slide-month" data-slide role="group" aria-roledescription="슬라이드" aria-label="이번 달 새로 등록된 단지"{% if slide_topics %} hidden{% endif %}>
+                        <p class="bb-question">이번 달 서울에 새로 등록된 아파트</p>
+                        <div class="bb-answer"><span>{{ billboard.changes.new_complexes[0].name }}{% if billboard.changes.new_complexes | length > 1 %} 외{% endif %}</span> <span class="bb-number">{{ billboard.changes.new_complexes | length }}곳</span></div>
+                        <p class="bb-basis">데이터 기준 {{ billboard.data_month }} · 직전 단지 목록과 비교</p>
+                        <a class="bb-slide-link" href="{{ billboard.changes.url or '#month-changes' }}">이번 달 변경 목록 보기 <span aria-hidden="true">↗</span></a>
+                    </article>
+                    {% endif %}
+                    {% if not slide_topics and not show_month_slide %}<p class="bb-question">생활 인프라 순위 데이터를 준비하고 있습니다.</p>{% endif %}
+                </div>
+                <div class="bb-board-controls" data-board-controls hidden>
+                    <div class="bb-ticks" role="group" aria-label="전광판 주제 선택">
+                        {% for topic in slide_topics %}<button type="button" data-slide-target="slide-{{ topic.key }}" aria-controls="slide-{{ topic.key }}" aria-label="{{ topic.title }}" aria-current="{{ 'true' if loop.first else 'false' }}"><span></span></button>{% endfor %}
+                        {% if show_month_slide %}<button type="button" data-slide-target="slide-month" aria-controls="slide-month" aria-label="이번 달 새로 등록된 단지" aria-current="{{ 'false' if slide_topics else 'true' }}"><span></span></button>{% endif %}
+                    </div>
+                    <button type="button" class="bb-pause" data-rotation-toggle aria-pressed="false">자동 전환 멈춤</button>
+                </div>
+                <p class="bb-board-note">거리는 직선거리 · 단지와 법정동, 각 주제의 기준에 따라 집계</p>
+            </section>
+            <nav class="bb-question-directory" aria-labelledby="question-directory-title">
+                <div class="bb-directory-heading"><p class="bb-eyebrow">QUESTION INDEX</p><h2 id="question-directory-title">이런 것도 알 수 있어요.</h2></div>
+                <ol>{% for topic in billboard.topics %}<li><a href="#topic-{{ topic.key }}"><span class="bb-index-number">{{ '%02d' | format(loop.index) }}</span><span>{{ topic.question }}</span><span class="bb-index-arrow" aria-hidden="true">↗</span></a></li>{% endfor %}</ol>
+            </nav>
+            </div>
+
+            <nav class="bb-interest-nav" aria-label="관심사별 질문 바로가기"><span>관심사로 보기</span>{% for group in billboard.groups %}<a href="#group-{{ group.key }}">{{ group.title }} <span aria-hidden="true">↓</span></a>{% endfor %}<a href="#month-changes">이번 달 바뀐 것 <span aria-hidden="true">↓</span></a></nav>
+
+            {% for group in billboard.groups %}
+            <section class="bb-topic-group" id="group-{{ group.key }}" aria-labelledby="group-title-{{ group.key }}">
+                <div class="bb-group-heading"><span class="bb-section-number">{{ '%02d' | format(loop.index) }}</span><div><h2 id="group-title-{{ group.key }}">{{ group.title }}</h2><p>{{ group.description }}</p></div><a href="#question-directory-title" class="bb-back-index">질문 목차 ↑</a></div>
+                <div class="bb-grid">
+                    {% for topic in group.topics %}
+                    <article class="bb-card{% if topic.key == 'gu_best_dong' %} bb-wide bb-district-card{% else %} bb-answer-card{% endif %}" id="topic-{{ topic.key }}" aria-labelledby="title-{{ topic.key }}">
+                        <div class="bb-card-head"><span class="bb-tag">{{ topic.tag }} <span class="bb-card-count">{{ 'BY DISTRICT' if topic.key == 'gu_best_dong' else 'TOP 5' }}</span></span>{{ criteria(topic.key, topic.rules) }}</div>
+                        <h3 id="title-{{ topic.key }}">{{ topic.question }}</h3>
+                        <p class="bb-card-basis">{{ topic.basis }}</p>
+                        {% if topic.key == 'gu_best_dong' %}{{ district_rows(topic.rows) }}
+                        {% elif topic.rows %}{{ rows(topic.rows[:5], featured=true) }}
+                        {% else %}<p class="bb-empty">조건에 맞는 결과가 없습니다.</p>{% endif %}
+                        <div class="bb-card-foot"><p class="bb-source-summary">{{ topic.source_summary }}</p>{% if topic.url %}<a href="{{ topic.url }}">전체 보기 <span aria-hidden="true">→</span><span class="bb-sr-only"> · {{ topic.title }}</span></a>{% endif %}</div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+
+            <section class="bb-month-section" aria-labelledby="title-month">
+                <article class="bb-card bb-changes{% if not billboard.changes.new_complexes and not billboard.changes.er_changes %} bb-changes-compact{% endif %}" id="month-changes">
+                    <div class="bb-card-head"><span class="bb-tag">This month</span>{{ criteria('month', billboard.changes.rules) }}</div>
+                    <h3 id="title-month">이번 달 바뀐 것</h3>
+                    <div class="bb-changes-columns"><div>
+                    <h4>새로 등록된 단지{% if billboard.changes.master_compared %} <span>{{ billboard.changes.new_complexes | length }}곳</span>{% endif %}</h4>
+                    {% if not billboard.changes.master_compared %}<p class="bb-empty">직전 단지 목록이 없어 신규 등록 여부를 비교하지 않았습니다.</p>
+                    {% elif billboard.changes.new_complexes %}{{ rows(billboard.changes.new_complexes, '+') }}
+                    {% else %}<p class="bb-empty">직전 목록과 비교해 새로 등록된 단지가 없습니다.</p>{% endif %}
+                    </div><div>
+                    <h4>새롭게 추가된 응급실</h4>
+                    {% if not billboard.changes.er_compared %}<p class="bb-empty">직전 달 응급실 정보가 없어 비교하지 않았습니다.</p>
+                    {% elif billboard.changes.er_groups %}{% for group in billboard.changes.er_groups[:2] %}{{ er_group(group, 5) }}{% endfor %}
+                    {% else %}<p class="bb-empty">이번 달 단지 1km 안에 새로 생긴 응급실이 없습니다.</p>{% endif %}
+                    </div></div>
+                    {% if billboard.changes.url %}<div class="bb-card-foot"><a href="{{ billboard.changes.url }}">전체 보기 <span aria-hidden="true">→</span><span class="bb-sr-only"> · 이번 달 바뀐 것</span></a></div>{% endif %}
+                </article>
+            </section>
+
+            <section class="bb-data-guide" id="reading-data" aria-labelledby="data-guide-title">
+                <div class="bb-guide-heading"><p class="bb-eyebrow">BEHIND THE NUMBERS</p><h2 id="data-guide-title">숫자에도<br>기준이 있습니다.</h2><p>같은 질문에는 같은 기준으로.<br>비교의 범위부터 확인하세요.</p></div>
+                <div class="bb-guide-content">
+                    <div class="bb-trust-grid"><div><span>01</span><h3>서로 다른 원천을 연결</h3><p>시설 정보, 단지 대표 좌표, 법정동 주소와 실거래 조건을 질문에 맞게 연결합니다.</p></div><div><span>02</span><h3>집계 범위를 명확하게</h3><p>단지 주변 반경과 동 전체를 구분하고, 시설 개수와 최근접 거리의 기준을 함께 표시합니다.</p></div><div><span>03</span><h3>출처까지 공개</h3><p>각 카드의 산정 기준에서 기준점·반경·방식과 출처를 확인할 수 있습니다.</p></div></div>
+                    <div class="bb-faq" aria-label="생활 인프라 수치 안내">
+                        <details><summary>아파트 주변 학원 수와 동네 학원 수는 어떻게 다른가요?</summary><p>아파트 순위는 단지 대표 좌표를 중심으로 반경 1,000m 안의 입시/보습·수학·영어 학원·교습소 수를 셉니다. 동네 순위는 학원 주소의 법정동별로 같은 분류의 학원·교습소를 집계합니다. 동을 확인하지 못한 주소는 동별 집계에서 제외하며, 제외 규모는 해당 산정 기준에 표시합니다.</p></details>
+                        <details><summary>표시된 거리는 걸어서 가는 거리인가요?</summary><p>모든 거리는 직선거리입니다. 단지 대표 좌표 한 지점에서 측정하므로 출입구, 단지 내 위치, 실제 이동 경로에 따라 체감 거리가 달라집니다. 개수 기준은 정해진 반경 안의 시설 수이고, 최근접 기준은 가장 가까운 시설까지의 거리입니다.</p></details>
+                        <details><summary>가격과 시설 개수를 비교할 때 무엇을 확인해야 하나요?</summary><p>국민평형 조합의 가격은 전용 80~90㎡ 신고 매매 거래의 평균이며 매물 호가가 아닙니다. 300세대 이상, 평균 10억 원 미만, 가장 가까운 역 500m 이내 조건을 모두 충족한 단지에서 반경 1,000m 내 전체 학원 수를 비교합니다. 계약 기간은 해당 카드의 산정 기준을 확인하세요. 최신 월 거래는 신고 기한 30일 때문에 일부만 반영될 수 있습니다.</p></details>
+                    </div>
+                </div>
+            </section>
+        </main>
+        {{ footer(billboard) }}
+    </div>
+</body>
+</html>

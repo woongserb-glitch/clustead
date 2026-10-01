@@ -42,6 +42,7 @@ from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from services import request_tracker
+from services import home_billboard_service as home_billboard
 
 from services.poi_service import (
     get_category_summaries,
@@ -131,6 +132,9 @@ if os.getenv("CLUSTEAD_TEMPLATE_RELOAD", "0") == "1":
 def clustead_env(key, default=""):
     """Read CLUSTEAD_* first, with LIVEFIT_* kept as a legacy fallback."""
     return os.getenv(f"CLUSTEAD_{key}", os.getenv(f"LIVEFIT_{key}", default))
+
+
+home_billboard.configure(app, clustead_env)
 
 # 리버스 프록시(nginx 등) 뒤에서는 실제 클라이언트 IP가 X-Forwarded-For에 담긴다.
 # 이를 신뢰해야 레이트리밋이 IP별로 동작한다(아니면 모두 프록시 IP로 한 버킷 공유).
@@ -587,11 +591,20 @@ DATA_LASTMOD = _data_lastmod()
 
 @app.route("/sitemap.xml")
 def sitemap_xml():
+    billboard_context = build_billboard_context()
+    billboard_view = billboard_context["billboard"]
+    billboard_lastmod = billboard_view["generated_at"][:10] or None
     urls = [
-        {"loc": _absolute_url("/"), "changefreq": "weekly", "priority": "1.0"},
+        {"loc": _absolute_url("/"), "changefreq": "weekly", "priority": "1.0",
+         "lastmod": billboard_lastmod if app.config["HOME_BILLBOARD_ENABLED"] else DATA_LASTMOD},
         {"loc": _absolute_url("/explore"), "changefreq": "weekly", "priority": "0.8"},
         {"loc": area_index_url(), "changefreq": "weekly", "priority": "0.85"},
     ]
+
+    if app.config["HOME_RANKING_PAGES_ENABLED"]:
+        for topic in home_billboard.ranking_topics(billboard_view):
+            if topic["rows"]:
+                urls.append({"loc": _absolute_url(topic["url"]), "changefreq": "monthly", "priority": "0.8", "lastmod": billboard_lastmod})
 
     seen = {item["loc"] for item in urls}
     for gu, dong in iter_area_scopes():
@@ -623,8 +636,9 @@ def sitemap_xml():
     for item in urls:
         lines.append("  <url>")
         lines.append(f"    <loc>{xml_escape(item['loc'])}</loc>")
-        if DATA_LASTMOD:
-            lines.append(f"    <lastmod>{DATA_LASTMOD}</lastmod>")
+        lastmod = item.get("lastmod", DATA_LASTMOD)
+        if lastmod:
+            lines.append(f"    <lastmod>{lastmod}</lastmod>")
         lines.append(f"    <changefreq>{item['changefreq']}</changefreq>")
         lines.append(f"    <priority>{item['priority']}</priority>")
         lines.append("  </url>")
@@ -6231,6 +6245,8 @@ def render_home_not_found():
     Undefined 가 tojson 에서 터져 404 가 아니라 **500** 이 나간다. 크롤러가
     옛·오타 URL 을 훑을 때 5xx 를 받게 되어 SEO 에도 해로웠다.
     """
+    if app.config["HOME_BILLBOARD_ENABLED"]:
+        return render_template("home_billboard.html", **build_billboard_context()), 404
     return render_template(
         "index.html",
         home_config=build_home_config(),
@@ -6261,19 +6277,80 @@ def build_home_area_links():
 
 @app.route("/")
 def home():
-    home_config = build_home_config()
     analytics_service.track(
         "page_view",
         ip=real_client_ip(),
         user_agent=request.headers.get("User-Agent"),
         path=request.path,
     )
+    if app.config["HOME_BILLBOARD_ENABLED"]:
+        return render_template("home_billboard.html", **build_billboard_context())
     return render_template(
         "index.html",
-        home_config=home_config,
+        home_config=build_home_config(),
         home_json_ld=build_home_json_ld(),
         home_area_links=build_home_area_links(),
     )
+
+
+def build_billboard_context():
+    options = home_billboard.settings(app.config)
+    data = home_billboard.load_rankings(app.config["HOME_RANKINGS_PATH"])
+    view = home_billboard.build_view(data, options, apartment_detail_path, area_landing_path)
+    linked_topics = [topic for topic in home_billboard.ranking_topics(view) if topic["url"]]
+    collection = {
+        "@context": "https://schema.org", "@type": "CollectionPage",
+        "name": "Clustead — 서울 아파트·동네 생활 인프라 질문과 답",
+        "url": _absolute_url("/"), "inLanguage": "ko-KR",
+        "mainEntity": {"@type": "ItemList", "numberOfItems": len(linked_topics),
+                       "itemListElement": [{"@type": "ListItem", "position": i, "name": topic["title"],
+                                            "url": _absolute_url(topic["url"])}
+                                           for i, topic in enumerate(linked_topics, 1)]},
+    }
+    return {
+        "billboard": view,
+        "billboard_settings": options,
+        "home_json_ld": [*build_home_json_ld(), collection],
+        "home_area_links": build_home_area_links(),
+    }
+
+
+@app.route("/graph")
+def graph_home():
+    if not app.config["HOME_GRAPH_ENABLED"]:
+        abort(404)
+    return render_template("index.html", home_config=build_home_config(),
+                           home_json_ld=build_home_json_ld(), home_area_links=build_home_area_links(),
+                           graph_page=True)
+
+
+@app.route("/rankings/<slug>")
+def home_ranking(slug):
+    if not app.config["HOME_RANKING_PAGES_ENABLED"]:
+        abort(404)
+    context = build_billboard_context()
+    topic = next((t for t in home_billboard.ranking_topics(context["billboard"]) if t["slug"] == slug), None)
+    if topic is None:
+        abort(404)
+    # A district winners list is a complete set of districts, not a global TOP N.
+    limit = len(topic["rows"]) if topic["key"] in ("gu_best_dong", "changes") else context["billboard_settings"]["ranking_limit"]
+    topic = {**topic, "rows": topic["rows"][:limit]}
+    canonical = _absolute_url(topic["url"])
+    context.update(
+        ranking_topic=topic, canonical_url=canonical,
+        page_title=f"{topic['title']} | Clustead",
+        meta_description=_truncate_meta(topic["answer"]),
+        ranking_json_ld={
+            "@context": "https://schema.org", "@type": "ItemList", "name": topic["title"],
+            "url": canonical, "numberOfItems": len(topic["rows"]),
+            "itemListElement": [
+                {"@type": "ListItem", "position": i, "name": f"{row['location']} {row['name']}",
+                 "url": _absolute_url(row["url"]), "description": f"{row['value']} · {row['detail']}"}
+                for i, row in enumerate(topic["rows"], 1)
+            ],
+        },
+    )
+    return render_template("rankings.html", **context)
 
 
 @app.route("/area")

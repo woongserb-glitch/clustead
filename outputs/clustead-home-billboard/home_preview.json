@@ -1,0 +1,611 @@
+{
+ "academy": [
+  {
+   "name": "대치효성",
+   "gu": "강남구",
+   "dong": "대치동",
+   "households": 83,
+   "total": 1393,
+   "exam": 908,
+   "math": 332,
+   "english": 153
+  },
+  {
+   "name": "래미안 대치 팰리스",
+   "gu": "강남구",
+   "dong": "대치동",
+   "households": 1608,
+   "total": 1390,
+   "exam": 901,
+   "math": 331,
+   "english": 158
+  },
+  {
+   "name": "대치현대",
+   "gu": "강남구",
+   "dong": "대치동",
+   "households": 630,
+   "total": 1384,
+   "exam": 905,
+   "math": 327,
+   "english": 152
+  },
+  {
+   "name": "대치삼성",
+   "gu": "강남구",
+   "dong": "대치동",
+   "households": 960,
+   "total": 1362,
+   "exam": 876,
+   "math": 331,
+   "english": 155
+  },
+  {
+   "name": "대치SK VIEW",
+   "gu": "강남구",
+   "dong": "대치동",
+   "households": 239,
+   "total": 1360,
+   "exam": 874,
+   "math": 333,
+   "english": 153
+  }
+ ],
+ "dong_academy": [
+  {
+   "gu": "강남구",
+   "dong": "대치동",
+   "total": 1343,
+   "exam": 881,
+   "math": 319,
+   "english": 143
+  },
+  {
+   "gu": "양천구",
+   "dong": "목동",
+   "total": 765,
+   "exam": 382,
+   "math": 238,
+   "english": 145
+  },
+  {
+   "gu": "양천구",
+   "dong": "신정동",
+   "total": 580,
+   "exam": 266,
+   "math": 180,
+   "english": 134
+  },
+  {
+   "gu": "노원구",
+   "dong": "중계동",
+   "total": 417,
+   "exam": 188,
+   "math": 134,
+   "english": 95
+  },
+  {
+   "gu": "강동구",
+   "dong": "명일동",
+   "total": 286,
+   "exam": 132,
+   "math": 92,
+   "english": 62
+  }
+ ],
+ "gu_best_dong": [
+  {
+   "gu": "강남구",
+   "dong": "대치동",
+   "total": 1343
+  },
+  {
+   "gu": "강동구",
+   "dong": "명일동",
+   "total": 286
+  },
+  {
+   "gu": "강북구",
+   "dong": "미아동",
+   "total": 141
+  },
+  {
+   "gu": "강서구",
+   "dong": "내발산동",
+   "total": 228
+  },
+  {
+   "gu": "관악구",
+   "dong": "봉천동",
+   "total": 196
+  },
+  {
+   "gu": "광진구",
+   "dong": "구의동",
+   "total": 171
+  },
+  {
+   "gu": "구로구",
+   "dong": "구로동",
+   "total": 83
+  },
+  {
+   "gu": "금천구",
+   "dong": "시흥동",
+   "total": 97
+  },
+  {
+   "gu": "노원구",
+   "dong": "중계동",
+   "total": 417
+  },
+  {
+   "gu": "도봉구",
+   "dong": "창동",
+   "total": 151
+  },
+  {
+   "gu": "동대문구",
+   "dong": "장안동",
+   "total": 150
+  },
+  {
+   "gu": "동작구",
+   "dong": "상도동",
+   "total": 113
+  },
+  {
+   "gu": "마포구",
+   "dong": "대흥동",
+   "total": 86
+  },
+  {
+   "gu": "서대문구",
+   "dong": "홍은동",
+   "total": 93
+  },
+  {
+   "gu": "서초구",
+   "dong": "반포동",
+   "total": 276
+  },
+  {
+   "gu": "성동구",
+   "dong": "행당동",
+   "total": 103
+  },
+  {
+   "gu": "성북구",
+   "dong": "길음동",
+   "total": 128
+  },
+  {
+   "gu": "송파구",
+   "dong": "방이동",
+   "total": 216
+  },
+  {
+   "gu": "양천구",
+   "dong": "목동",
+   "total": 765
+  },
+  {
+   "gu": "영등포구",
+   "dong": "신길동",
+   "total": 150
+  },
+  {
+   "gu": "용산구",
+   "dong": "이촌동",
+   "total": 23
+  },
+  {
+   "gu": "은평구",
+   "dong": "진관동",
+   "total": 135
+  },
+  {
+   "gu": "종로구",
+   "dong": "평창동",
+   "total": 18
+  },
+  {
+   "gu": "중구",
+   "dong": "신당동",
+   "total": 43
+  },
+  {
+   "gu": "중랑구",
+   "dong": "신내동",
+   "total": 109
+  }
+ ],
+ "dong_academy_meta": {
+  "counted": 15144,
+  "no_dong": 378
+ },
+ "value_combo": [
+  {
+   "name": "상계대동아파트",
+   "gu": "노원구",
+   "dong": "상계동",
+   "households": 358,
+   "price84": 74166,
+   "station": "상계",
+   "station_m": 441,
+   "academy_1km": 583
+  },
+  {
+   "name": "중계건영2차",
+   "gu": "노원구",
+   "dong": "중계동",
+   "households": 742,
+   "price84": 75708,
+   "station": "중계",
+   "station_m": 382,
+   "academy_1km": 481
+  },
+  {
+   "name": "중계중앙하이츠",
+   "gu": "노원구",
+   "dong": "중계동",
+   "households": 499,
+   "price84": 70200,
+   "station": "상계",
+   "station_m": 316,
+   "academy_1km": 455
+  },
+  {
+   "name": "화곡초록",
+   "gu": "강서구",
+   "dong": "화곡동",
+   "households": 626,
+   "price84": 90909,
+   "station": "우장산",
+   "station_m": 369,
+   "academy_1km": 385
+  },
+  {
+   "name": "돈암현대",
+   "gu": "성북구",
+   "dong": "돈암동",
+   "households": 619,
+   "price84": 69640,
+   "station": "길음",
+   "station_m": 322,
+   "academy_1km": 380
+  }
+ ],
+ "value_combo_pool": 150,
+ "subway": [
+  {
+   "name": "남대문(양동) 단지",
+   "gu": "중구",
+   "dong": "남대문로5가",
+   "households": 182,
+   "lines": 6,
+   "stations": 3,
+   "nearest": "서울",
+   "nearest_m": 157
+  },
+  {
+   "name": "동부센트레빌아스테리움서울",
+   "gu": "용산구",
+   "dong": "동자동",
+   "households": 278,
+   "lines": 5,
+   "stations": 2,
+   "nearest": "서울역",
+   "nearest_m": 317
+  },
+  {
+   "name": "엘아이지서울역리가",
+   "gu": "중구",
+   "dong": "만리동1가",
+   "households": 181,
+   "lines": 5,
+   "stations": 2,
+   "nearest": "서울역",
+   "nearest_m": 388
+  },
+  {
+   "name": "후암미주",
+   "gu": "용산구",
+   "dong": "후암동",
+   "households": 226,
+   "lines": 5,
+   "stations": 2,
+   "nearest": "서울역",
+   "nearest_m": 464
+  },
+  {
+   "name": "힐스테이트세운센트럴1단지",
+   "gu": "중구",
+   "dong": "입정동",
+   "households": 414,
+   "lines": 4,
+   "stations": 3,
+   "nearest": "을지로3가",
+   "nearest_m": 200
+  }
+ ],
+ "starbucks": [
+  {
+   "name": "순화동포스코더샵",
+   "gu": "중구",
+   "dong": "순화동",
+   "households": 137,
+   "count": 5,
+   "nearest_m": 20
+  },
+  {
+   "name": "쌍용남산플래티넘",
+   "gu": "중구",
+   "dong": "회현동2가",
+   "households": 236,
+   "count": 5,
+   "nearest_m": 74
+  },
+  {
+   "name": "경희궁자이3단지",
+   "gu": "종로구",
+   "dong": "평동",
+   "households": 589,
+   "count": 5,
+   "nearest_m": 169
+  },
+  {
+   "name": "래미안서초에스티지에스아파트",
+   "gu": "서초구",
+   "dong": "서초동",
+   "households": 593,
+   "count": 5,
+   "nearest_m": 200
+  },
+  {
+   "name": "마포한강2차푸르지오",
+   "gu": "마포구",
+   "dong": "합정동",
+   "households": 198,
+   "count": 4,
+   "nearest_m": 2
+  }
+ ],
+ "convenience": [
+  {
+   "name": "대우디오빌플러스",
+   "gu": "강남구",
+   "dong": "역삼동",
+   "households": 168,
+   "total": 45,
+   "GS25": 17,
+   "CU": 13,
+   "세븐일레븐": 13,
+   "이마트24": 2
+  },
+  {
+   "name": "인현신성",
+   "gu": "중구",
+   "dong": "인현동2가",
+   "households": 182,
+   "total": 45,
+   "GS25": 13,
+   "CU": 14,
+   "세븐일레븐": 13,
+   "이마트24": 5
+  },
+  {
+   "name": "역삼경남",
+   "gu": "강남구",
+   "dong": "역삼동",
+   "households": 164,
+   "total": 44,
+   "GS25": 22,
+   "CU": 7,
+   "세븐일레븐": 11,
+   "이마트24": 4
+  },
+  {
+   "name": "대우디오빌역삼",
+   "gu": "강남구",
+   "dong": "역삼동",
+   "households": 457,
+   "total": 44,
+   "GS25": 20,
+   "CU": 8,
+   "세븐일레븐": 12,
+   "이마트24": 4
+  },
+  {
+   "name": "역삼쌍용플래티넘밸류",
+   "gu": "강남구",
+   "dong": "역삼동",
+   "households": 166,
+   "total": 44,
+   "GS25": 16,
+   "CU": 15,
+   "세븐일레븐": 11,
+   "이마트24": 2
+  }
+ ],
+ "quiet": [
+  {
+   "name": "서초더샵포레",
+   "gu": "서초구",
+   "dong": "내곡동",
+   "households": 1264,
+   "nearest_nightlife_m": 5187
+  },
+  {
+   "name": "서초포레스타2단지아파트",
+   "gu": "서초구",
+   "dong": "내곡동",
+   "households": 1077,
+   "nearest_nightlife_m": 4765
+  },
+  {
+   "name": "강동리버스트4단지",
+   "gu": "강동구",
+   "dong": "강일동",
+   "households": 1239,
+   "nearest_nightlife_m": 4638
+  },
+  {
+   "name": "강동 리버스트 7단지 아파트",
+   "gu": "강동구",
+   "dong": "강일동",
+   "households": 1025,
+   "nearest_nightlife_m": 4543
+  },
+  {
+   "name": "강동리버스트6단지",
+   "gu": "강동구",
+   "dong": "강일동",
+   "households": 1244,
+   "nearest_nightlife_m": 4356
+  }
+ ],
+ "quiet_pool": 325,
+ "emergency": [
+  {
+   "name": "신대방경남아너스빌",
+   "gu": "동작구",
+   "dong": "신대방동",
+   "households": 427,
+   "er_1km": 4,
+   "hospital": "대림성모병원",
+   "hospital_m": 180
+  },
+  {
+   "name": "당산신동아파밀리에",
+   "gu": "영등포구",
+   "dong": "당산동1가",
+   "households": 167,
+   "er_1km": 4,
+   "hospital": "씨엠병원",
+   "hospital_m": 309
+  },
+  {
+   "name": "영등포자이르네",
+   "gu": "영등포구",
+   "dong": "대림동",
+   "households": 212,
+   "er_1km": 4,
+   "hospital": "대림성모병원",
+   "hospital_m": 334
+  },
+  {
+   "name": "동작상떼빌주상복합",
+   "gu": "동작구",
+   "dong": "신대방동",
+   "households": 545,
+   "er_1km": 4,
+   "hospital": "대림성모병원",
+   "hospital_m": 356
+  },
+  {
+   "name": "동작협성휴포레시그니처아파트",
+   "gu": "동작구",
+   "dong": "신대방동",
+   "households": 274,
+   "er_1km": 4,
+   "hospital": "대림성모병원",
+   "hospital_m": 487
+  }
+ ],
+ "new_complexes": [
+  {
+   "name": "강변역센트럴아이파크",
+   "gu": "광진구",
+   "dong": "구의동",
+   "households": 215,
+   "built": "2026.08"
+  },
+  {
+   "name": "이문아이파크자이3단지",
+   "gu": "동대문구",
+   "dong": "이문동",
+   "households": 152,
+   "built": "2026.06"
+  },
+  {
+   "name": "궁전아파트",
+   "gu": "서초구",
+   "dong": "반포동",
+   "households": 108,
+   "built": "1984.02"
+  },
+  {
+   "name": "서초벽산블루밍아파트",
+   "gu": "서초구",
+   "dong": "서초동",
+   "households": 60,
+   "built": "2006.06"
+  },
+  {
+   "name": "보문센트럴아이파크아파트",
+   "gu": "성북구",
+   "dong": "보문동1가",
+   "households": 199,
+   "built": "2026.09"
+  },
+  {
+   "name": "더샵송파루미스타",
+   "gu": "송파구",
+   "dong": "가락동",
+   "households": 179,
+   "built": "2026.05"
+  },
+  {
+   "name": "디마크당산",
+   "gu": "영등포구",
+   "dong": "당산동6가",
+   "households": 152,
+   "built": "2025.11"
+  }
+ ],
+ "school_changes": [
+  {
+   "name": "서강GS",
+   "gu": "마포구",
+   "from": "서울신석초",
+   "to": "서울서강초"
+  },
+  {
+   "name": "일원동 수서아파트",
+   "gu": "강남구",
+   "from": "서울대청초",
+   "to": "서울대청초서울영희초공동"
+  },
+  {
+   "name": "반포경남",
+   "gu": "서초구",
+   "from": "서울반원초서울잠원초공동",
+   "to": "서울잠원초"
+  },
+  {
+   "name": "수서1-1단지아파트",
+   "gu": "강남구",
+   "from": "서울대청초",
+   "to": "서울대청초서울영희초공동"
+  },
+  {
+   "name": "아크로 서울포레스트",
+   "gu": "성동구",
+   "from": "",
+   "to": "서울경일초"
+  },
+  {
+   "name": "마곡엠밸리9단지",
+   "gu": "강서구",
+   "from": "서울송정초",
+   "to": "서울공항초서울송정초공동"
+  },
+  {
+   "name": "래미안원베일리",
+   "gu": "서초구",
+   "from": "서울반원초서울잠원초공동",
+   "to": "서울잠원초"
+  }
+ ]
+}

@@ -1,6 +1,7 @@
 import csv
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
@@ -66,6 +67,32 @@ def simplify_line_name(value):
     return " ".join(text.split()).strip()
 
 
+# 역사마스터의 '호선'은 철도 운영상 노선명이라 이용자가 타는 노선과 다르다(2026-10-01 사용자 결정:
+# 사이트 전체에서 이용자 노선명으로 합친다). 예: 서울역은 1호선·경부선이 따로 세어져 노선 수가 부풀었다.
+LINE_ALIASES = {
+    "경부선": "1호선", "경인선": "1호선", "장항선": "1호선",
+    "과천선": "4호선", "안산선": "4호선", "진접선": "4호선",
+    "일산선": "3호선", "별내선": "8호선", "7호선(인천)": "7호선",
+    "9호선(연장)": "9호선", "신분당선(연장)": "신분당선", "신분당선(연장2)": "신분당선",
+    "분당선": "수인분당선", "수인선": "수인분당선", "중앙선": "경의중앙선",
+    "공항철도1호선": "공항철도", "광역급행철도": "GTX-A",
+}
+# 경원선은 구간에 따라 1호선(청량리~소요산)과 경의중앙선(용산~왕십리)이 다닌다.
+GYEONGWON_JUNGANG_STATIONS = {"왕십리", "응봉", "옥수", "한남", "서빙고", "이촌", "용산"}
+
+
+def station_key(name):
+    """'서울역'과 GTX-A '서울', '이촌(국립중앙박물관)'과 '이촌'을 같은 역으로 묶는 키."""
+    text = re.sub(r"\([^)]*\)", "", clean(name)).strip()
+    return text[:-1] if text.endswith("역") and len(text) > 1 else text
+
+
+def canonical_line(line, station_name):
+    if line == "경원선":
+        return "경의중앙선" if station_key(station_name) in GYEONGWON_JUNGANG_STATIONS else "1호선"
+    return LINE_ALIASES.get(line, line)
+
+
 def get_field(row, *names):
     for name in names:
         value = clean(row.get(name))
@@ -86,7 +113,7 @@ def parse_station_rows():
     for row in rows:
         station_id = get_field(row, "역사_ID", "역사ID", "STATION_ID", "STN_ID")
         name = get_field(row, "역사명", "역명", "STATION_NM", "STN_NM")
-        line = simplify_line_name(get_field(row, "호선", "호선명", "LINE_NM", "LINE"))
+        line = canonical_line(simplify_line_name(get_field(row, "호선", "호선명", "LINE_NM", "LINE")), name)
         lat = to_float(get_field(row, "위도", "LAT", "Y"))
         lng = to_float(get_field(row, "경도", "LNG", "X"))
 
@@ -106,7 +133,7 @@ def parse_station_rows():
 
 def add_to_cluster(clusters, row):
     for cluster in clusters:
-        if cluster["name"] != row["name"]:
+        if station_key(cluster["name"]) != station_key(row["name"]):
             continue
 
         distance = get_distance_m(
@@ -118,6 +145,9 @@ def add_to_cluster(clusters, row):
 
         if distance <= STATION_CLUSTER_RADIUS_M:
             cluster["rows"].append(row)
+            # 표시 이름은 '역'으로 끝나는 쪽, 그다음 긴 쪽(GTX-A '서울' → '서울역').
+            if (row["name"].endswith("역"), len(row["name"])) > (cluster["name"].endswith("역"), len(cluster["name"])):
+                cluster["name"] = row["name"]
             cluster["lines"].add(row["line"])
             cluster["station_ids"].add(row["station_id"])
             count = len(cluster["rows"])

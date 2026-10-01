@@ -1,0 +1,49 @@
+{
+  "data_month": "2026-09",
+  "note": "수집일은 downloaded_at 또는 인계 시안의 명시 기록에만 근거한다. 원천 갱신일·기준일·파일 수정일·베이스라인 생성일을 수집일로 추론하지 않는다. 월간 갱신 시 근거와 날짜를 다시 확인한다.",
+  "sources": {
+    "academy": {
+      "collected_at": "2026-10-01",
+      "source_updated_at": "2026-10-01",
+      "evidence": "data/registry/pipeline_runs/update_check_20261001_110549.json: academy.downloaded_at=2026-10-01T11:00:51"
+    },
+    "subway": {
+      "collected_at": "2026-10-01",
+      "source_updated_at": "2026-09-22",
+      "evidence": "data/registry/pipeline_runs/update_check_20261001_110549.json: subway-station-master.downloaded_at=2026-10-01T11:00:45"
+    },
+    "cafe": {
+      "collected_at": "2026-10-01",
+      "evidence": "outputs/clustead-home-billboard/prototype.html: 스세권 산정 기준에 2026.10.1 수집 명시 (인계 시안 기록)"
+    },
+    "convenience": {
+      "collected_at": "2026-10-01",
+      "evidence": "outputs/clustead-home-billboard/prototype.html: 편세권 산정 기준에 2026.10.1 수집 명시 (인계 시안 기록)"
+    },
+    "nightlife": {
+      "collected_at": "2026-10-01",
+      "source_updated_at": "2026-10-01",
+      "evidence": "data/registry/pipeline_runs/update_check_20261001_110549.json: nightlife.downloaded_at=2026-10-01T11:04:08"
+    },
+    "medical": {
+      "collected_at": "2026-10-01",
+      "source_updated_at": "2026-09-08",
+      "evidence": "data/registry/pipeline_runs/update_check_20261001_110549.json: medical-hospital.downloaded_at=2026-10-01T11:04:32"
+    },
+    "transactions": {
+      "collected_at": null,
+      "contract_start": "2025-01",
+      "contract_end": "2026-09",
+      "evidence": "인계 CODEX_PROMPT.md의 84㎡ 가격 계약기간. 해당 CSV의 수집일은 기록 확인 불가"
+    },
+    "master": {
+      "collected_at": null,
+      "as_of": "2026-09-30",
+      "evidence": "인계 prototype.html의 단지 기준일. 수집일 명시 기록 확인 불가"
+    },
+    "school": {
+      "collected_at": null,
+      "evidence": "data/baseline/school_zone_baseline.meta.json에는 생성·enrich 시각만 있어 수집일로 사용하지 않음"
+    }
+  }
+}

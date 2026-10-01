@@ -1,0 +1,1005 @@
+<title>Clustead 전광판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: a dark LED-style billboard band that cycles the #1 answer of every topic,
+   then a grid of topic cards (TOP 5 + the exact counting rule printed under each list). */
+:root {
+  --ink: #15243b;      /* brand navy: billboard + headings */
+  --steel: #38495d;    /* secondary text */
+  --mist: #f4f2ec;     /* page ground */
+  --paper: #fffdf8;    /* card surface */
+  --line: #ddd8cc;
+  --accent: #2563eb;   /* brand support blue: links, focus */
+  --led: #ffc94a;      /* billboard digits */
+  --led-dim: #6b5a2c;
+  --fg: #1b2433;
+  --muted: #5d6878;
+  --rule-bg: #efece3;
+  --display: 'Jost', 'Century Gothic', 'Noto Sans KR', sans-serif;
+  --body: 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #0d1626; --steel: #a9b6c8; --mist: #111827; --paper: #172133; --line: #2a3850;
+    --accent: #7aa2ff; --led: #ffcf5c; --led-dim: #6f5f33; --fg: #e8ecf3; --muted: #9aa7ba; --rule-bg: #1d2a40;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #0d1626; --steel: #a9b6c8; --mist: #111827; --paper: #172133; --line: #2a3850;
+  --accent: #7aa2ff; --led: #ffcf5c; --led-dim: #6f5f33; --fg: #e8ecf3; --muted: #9aa7ba; --rule-bg: #1d2a40;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--mist); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.55; margin: 0; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; }
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font-family: var(--display); font-weight: 600; letter-spacing: .14em; font-size: 15px; color: var(--fg); }
+.brand small { font-family: var(--body); letter-spacing: 0; font-weight: 500; color: var(--muted); margin-left: 8px; font-size: 13px; }
+.asof { font-size: 13px; color: var(--muted); }
+.mock { display: inline-block; font-size: 12px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; margin-left: 6px; }
+
+/* Billboard */
+.board { margin-top: 14px; background: var(--ink); color: #fff; border-radius: 14px; padding: 22px 22px 18px; position: relative; overflow: hidden; }
+.board::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.2px); background-size: 6px 6px; pointer-events: none; }
+.board-label { display: flex; gap: 10px; align-items: center; font-family: var(--display); font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--led); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--led); box-shadow: 0 0 10px var(--led); animation: blink 1.6s infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+.slide { position: relative; min-height: 132px; margin-top: 10px; }
+.q { font-size: 15px; color: #c9d3e2; }
+.answer { font-family: var(--body); font-weight: 900; font-size: clamp(26px, 4.4vw, 44px); line-height: 1.15; margin-top: 4px; text-wrap: balance; }
+.answer .num { font-family: var(--display); color: var(--led); font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(255,201,74,.35); }
+.basis { margin-top: 8px; font-size: 13px; color: #aebbd0; }
+.slide.enter .answer, .slide.enter .q, .slide.enter .basis { animation: rise .55s ease both; }
+@keyframes rise { from { transform: translateY(10px); opacity: .0; } to { transform: none; opacity: 1; } }
+.ticks { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+.ticks button { width: 26px; height: 6px; border-radius: 3px; border: 0; background: var(--led-dim); cursor: pointer; padding: 0; }
+.ticks button[aria-current="true"] { background: var(--led); }
+.ticks button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.marquee { margin-top: 16px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 10px; overflow: hidden; white-space: nowrap; font-size: 13px; color: #c9d3e2; }
+.marquee span { display: inline-block; padding-right: 48px; animation: scroll 60s linear infinite; }
+.marquee b { color: var(--led); font-weight: 700; }
+@keyframes scroll { to { transform: translateX(-50%); } }
+
+/* Cards */
+.lede { margin: 26px 0 12px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.lede h2 { margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -.01em; }
+.lede p { margin: 0; color: var(--muted); font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 14px; min-width: 0; display: flex; flex-direction: column; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; position: relative; }
+.rule-btn { font: inherit; font-size: 12px; color: var(--steel); background: var(--rule-bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px 3px 8px; cursor: help; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.rule-btn::before { content: "i"; font-family: var(--display); font-weight: 700; font-size: 10px; width: 15px; height: 15px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--steel); color: var(--paper); }
+.rule-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rule-wrap { position: relative; }
+.rule-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 5; width: min(360px, 82vw); box-shadow: 0 10px 30px rgba(15,25,40,.18); border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 12px 14px; font-size: 12.5px; color: var(--steel); }
+.rule-pop[hidden] { display: none !important; }
+.rule-wrap:hover .rule-pop, .rule-wrap:focus-within .rule-pop { display: block !important; }
+.rule-pop dl { margin: 0; display: grid; grid-template-columns: 58px minmax(0,1fr); gap: 4px 10px; }
+.rule-pop dt { font-weight: 700; color: var(--fg); font-size: 11.5px; }
+.rule-pop dd { margin: 0; }
+.card .tag { font-family: var(--display); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); }
+.card h3 { margin: 4px 0 12px; font-size: 18px; line-height: 1.35; font-weight: 900; text-wrap: balance; }
+ol.top { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+ol.top li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px dashed var(--line); }
+ol.top li:last-child { border-bottom: 0; }
+.rk { font-family: var(--display); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+li:first-child .rk { color: var(--accent); }
+.nm { min-width: 0; }
+.nm strong { font-weight: 700; }
+.nm .loc { display: block; font-size: 12px; color: var(--muted); }
+.val { text-align: right; font-family: var(--display); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.val small { display: block; font-family: var(--body); font-weight: 400; font-size: 11.5px; color: var(--muted); }
+.rule { margin-top: 12px; background: var(--rule-bg); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; color: var(--steel); }
+.rule dt { font-weight: 700; color: var(--fg); font-size: 11.5px; letter-spacing: .04em; }
+.rule dl { margin: 0; display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 3px 10px; }
+.rule dd { margin: 0; }
+.sub { font-size: 13px; font-weight: 700; margin: 12px 0 4px; color: var(--steel); }
+.gu { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; font-size: 13px; }
+.gu div { display: flex; justify-content: space-between; gap: 6px; border-bottom: 1px dashed var(--line); padding: 4px 0; min-width: 0; }
+.gu b { font-weight: 700; white-space: nowrap; }
+.gu span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.wide { grid-column: 1 / -1; }
+footer.note { margin-top: 26px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0,1fr); } .slide { min-height: 168px; } }
+@media (prefers-reduced-motion: reduce) { .dot, .marquee span, .slide.enter * { animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">CLUSTEAD<small>서울 아파트 생활 인프라</small></div>
+    <div class="asof">데이터 기준 2026년 9월 · 2,886개 단지<span class="mock">홈 시안</span></div>
+  </header>
+
+  <section class="board" aria-label="Clustead 전광판">
+    <div class="board-label"><span class="dot" aria-hidden="true"></span>AI도 모르는 서울 아파트 1위</div>
+    <div class="slide" id="slide" aria-live="polite"></div>
+    <div class="ticks" id="ticks" role="tablist" aria-label="주제 선택"></div>
+    <div class="marquee" aria-hidden="true"><span id="marq"></span><span id="marq2"></span></div>
+  </section>
+
+  <div class="lede">
+    <h2>Clustead만 답할 수 있는 질문</h2>
+    <p>카드의 <b>산정 기준</b>에 마우스를 올리거나 누르면 반경·집계 방식·출처가 보입니다. 거리는 모두 직선거리입니다.</p>
+  </div>
+  <div class="grid" id="grid"></div>
+
+  <footer class="note">
+    대표 좌표: K-apt 등록 단지 좌표 1점(대단지는 단지 내 위치에 따라 실제 동별 거리와 차이가 있습니다). 개수 기준은 반경 안에 있는 시설 수, 최근접 기준은 가장 가까운 한 곳까지의 거리입니다.
+    실거래가는 국토교통부 실거래가 공개시스템의 신고 건으로, 현재 매물 호가가 아닙니다. 9월 계약분은 신고 기한(30일)이 남아 일부만 반영됐습니다.
+  </footer>
+</div>
+
+<script>
+const D = {
+ "academy": [
+  {
+   "name": "대치효성",
+   "gu": "강남구",
+   "dong": "대치동",
+   "total": 1393,
+   "exam": 908,
+   "math": 332,
+   "english": 153,
+   "households": 83
+  },
+  {
+   "name": "래미안 대치 팰리스",
+   "gu": "강남구",
+   "dong": "대치동",
+   "total": 1390,
+   "exam": 901,
+   "math": 331,
+   "english": 158,
+   "households": 1608
+  },
+  {
+   "name": "대치현대",
+   "gu": "강남구",
+   "dong": "대치동",
+   "total": 1384,
+   "exam": 905,
+   "math": 327,
+   "english": 152,
+   "households": 630
+  },
+  {
+   "name": "대치삼성",
+   "gu": "강남구",
+   "dong": "대치동",
+   "total": 1362,
+   "exam": 876,
+   "math": 331,
+   "english": 155,
+   "households": 960
+  },
+  {
+   "name": "대치SK VIEW",
+   "gu": "강남구",
+   "dong": "대치동",
+   "total": 1360,
+   "exam": 874,
+   "math": 333,
+   "english": 153,
+   "households": 239
+  }
+ ],
+ "value_combo": [
+  {
+   "name": "상계대동아파트",
+   "gu": "노원구",
+   "dong": "상계동",
+   "households": 358,
+   "price84": 74166,
+   "station": "상계",
+   "station_m": 441,
+   "academy_1km": 583
+  },
+  {
+   "name": "중계건영2차",
+   "gu": "노원구",
+   "dong": "중계동",
+   "households": 742,
+   "price84": 75708,
+   "station": "중계",
+   "station_m": 382,
+   "academy_1km": 481
+  },
+  {
+   "name": "중계중앙하이츠",
+   "gu": "노원구",
+   "dong": "중계동",
+   "households": 499,
+   "price84": 70200,
+   "station": "상계",
+   "station_m": 316,
+   "academy_1km": 455
+  },
+  {
+   "name": "화곡초록",
+   "gu": "강서구",
+   "dong": "화곡동",
+   "households": 626,
+   "price84": 90909,
+   "station": "우장산",
+   "station_m": 369,
+   "academy_1km": 385
+  },
+  {
+   "name": "돈암현대",
+   "gu": "성북구",
+   "dong": "돈암동",
+   "households": 619,
+   "price84": 69640,
+   "station": "길음",
+   "station_m": 322,
+   "academy_1km": 380
+  }
+ ],
+ "value_combo_pool": 150,
+ "subway": [
+  {
+   "name": "남대문(양동) 단지",
+   "gu": "중구",
+   "dong": "남대문로5가",
+   "lines": 6,
+   "stations": 3,
+   "nearest": "서울",
+   "nearest_m": 157,
+   "households": 182
+  },
+  {
+   "name": "동부센트레빌아스테리움서울",
+   "gu": "용산구",
+   "dong": "동자동",
+   "lines": 5,
+   "stations": 2,
+   "nearest": "서울역",
+   "nearest_m": 317,
+   "households": 278
+  },
+  {
+   "name": "엘아이지서울역리가",
+   "gu": "중구",
+   "dong": "만리동1가",
+   "lines": 5,
+   "stations": 2,
+   "nearest": "서울역",
+   "nearest_m": 388,
+   "households": 181
+  },
+  {
+   "name": "후암미주",
+   "gu": "용산구",
+   "dong": "후암동",
+   "lines": 5,
+   "stations": 2,
+   "nearest": "서울역",
+   "nearest_m": 464,
+   "households": 226
+  },
+  {
+   "name": "힐스테이트세운센트럴1단지",
+   "gu": "중구",
+   "dong": "입정동",
+   "lines": 4,
+   "stations": 3,
+   "nearest": "을지로3가",
+   "nearest_m": 200,
+   "households": 414
+  }
+ ],
+ "starbucks": [
+  {
+   "name": "순화동포스코더샵",
+   "gu": "중구",
+   "dong": "순화동",
+   "count": 5,
+   "nearest_m": 20,
+   "households": 137
+  },
+  {
+   "name": "쌍용남산플래티넘",
+   "gu": "중구",
+   "dong": "회현동2가",
+   "count": 5,
+   "nearest_m": 74,
+   "households": 236
+  },
+  {
+   "name": "경희궁자이3단지",
+   "gu": "종로구",
+   "dong": "평동",
+   "count": 5,
+   "nearest_m": 169,
+   "households": 589
+  },
+  {
+   "name": "래미안서초에스티지에스아파트",
+   "gu": "서초구",
+   "dong": "서초동",
+   "count": 5,
+   "nearest_m": 200,
+   "households": 593
+  },
+  {
+   "name": "마포한강2차푸르지오",
+   "gu": "마포구",
+   "dong": "합정동",
+   "count": 4,
+   "nearest_m": 2,
+   "households": 198
+  }
+ ],
+ "convenience": [
+  {
+   "name": "대우디오빌플러스",
+   "gu": "강남구",
+   "dong": "역삼동",
+   "total": 45,
+   "GS25": 17,
+   "CU": 13,
+   "세븐일레븐": 13,
+   "이마트24": 2,
+   "households": 168
+  },
+  {
+   "name": "인현신성",
+   "gu": "중구",
+   "dong": "인현동2가",
+   "total": 45,
+   "GS25": 13,
+   "CU": 14,
+   "세븐일레븐": 13,
+   "이마트24": 5,
+   "households": 182
+  },
+  {
+   "name": "역삼경남",
+   "gu": "강남구",
+   "dong": "역삼동",
+   "total": 44,
+   "GS25": 22,
+   "CU": 7,
+   "세븐일레븐": 11,
+   "이마트24": 4,
+   "households": 164
+  },
+  {
+   "name": "대우디오빌역삼",
+   "gu": "강남구",
+   "dong": "역삼동",
+   "total": 44,
+   "GS25": 20,
+   "CU": 8,
+   "세븐일레븐": 12,
+   "이마트24": 4,
+   "households": 457
+  },
+  {
+   "name": "역삼쌍용플래티넘밸류",
+   "gu": "강남구",
+   "dong": "역삼동",
+   "total": 44,
+   "GS25": 16,
+   "CU": 15,
+   "세븐일레븐": 11,
+   "이마트24": 2,
+   "households": 166
+  }
+ ],
+ "quiet": [
+  {
+   "name": "서초더샵포레",
+   "gu": "서초구",
+   "dong": "내곡동",
+   "households": 1264,
+   "nearest_nightlife_m": 5187
+  },
+  {
+   "name": "서초포레스타2단지아파트",
+   "gu": "서초구",
+   "dong": "내곡동",
+   "households": 1077,
+   "nearest_nightlife_m": 4765
+  },
+  {
+   "name": "강동리버스트4단지",
+   "gu": "강동구",
+   "dong": "강일동",
+   "households": 1239,
+   "nearest_nightlife_m": 4638
+  },
+  {
+   "name": "강동 리버스트 7단지 아파트",
+   "gu": "강동구",
+   "dong": "강일동",
+   "households": 1025,
+   "nearest_nightlife_m": 4543
+  },
+  {
+   "name": "강동리버스트6단지",
+   "gu": "강동구",
+   "dong": "강일동",
+   "households": 1244,
+   "nearest_nightlife_m": 4356
+  }
+ ],
+ "quiet_pool": 325,
+ "emergency": [
+  {
+   "name": "신대방경남아너스빌",
+   "gu": "동작구",
+   "dong": "신대방동",
+   "er_1km": 4,
+   "hospital": "대림성모병원",
+   "hospital_m": 180,
+   "households": 427
+  },
+  {
+   "name": "당산신동아파밀리에",
+   "gu": "영등포구",
+   "dong": "당산동1가",
+   "er_1km": 4,
+   "hospital": "씨엠병원",
+   "hospital_m": 309,
+   "households": 167
+  },
+  {
+   "name": "영등포자이르네",
+   "gu": "영등포구",
+   "dong": "대림동",
+   "er_1km": 4,
+   "hospital": "대림성모병원",
+   "hospital_m": 334,
+   "households": 212
+  },
+  {
+   "name": "동작상떼빌주상복합",
+   "gu": "동작구",
+   "dong": "신대방동",
+   "er_1km": 4,
+   "hospital": "대림성모병원",
+   "hospital_m": 356,
+   "households": 545
+  },
+  {
+   "name": "동작협성휴포레시그니처아파트",
+   "gu": "동작구",
+   "dong": "신대방동",
+   "er_1km": 4,
+   "hospital": "대림성모병원",
+   "hospital_m": 487,
+   "households": 274
+  }
+ ],
+ "gu_academy": [
+  {
+   "gu": "강남구",
+   "name": "대치효성",
+   "dong": "대치동",
+   "total": 1393
+  },
+  {
+   "gu": "강동구",
+   "name": "명일삼익그린2차",
+   "dong": "명일동",
+   "total": 420
+  },
+  {
+   "gu": "강북구",
+   "name": "송천센트레빌",
+   "dong": "미아동",
+   "total": 197
+  },
+  {
+   "gu": "강서구",
+   "name": "마곡수명산파크1단지",
+   "dong": "내발산동",
+   "total": 358
+  },
+  {
+   "gu": "관악구",
+   "name": "관악드림타운",
+   "dong": "봉천동",
+   "total": 188
+  },
+  {
+   "gu": "광진구",
+   "name": "광장동금호베스트빌",
+   "dong": "광장동",
+   "total": 226
+  },
+  {
+   "gu": "구로구",
+   "name": "신도림우성3차",
+   "dong": "신도림동",
+   "total": 145
+  },
+  {
+   "gu": "금천구",
+   "name": "남서울 무지개",
+   "dong": "시흥동",
+   "total": 91
+  },
+  {
+   "gu": "노원구",
+   "name": "중계성원1차",
+   "dong": "중계동",
+   "total": 472
+  },
+  {
+   "gu": "도봉구",
+   "name": "쌍문경남",
+   "dong": "쌍문동",
+   "total": 197
+  },
+  {
+   "gu": "동대문구",
+   "name": "세양청마루",
+   "dong": "답십리동",
+   "total": 250
+  },
+  {
+   "gu": "동작구",
+   "name": "보라매코오롱하늘채",
+   "dong": "대방동",
+   "total": 207
+  },
+  {
+   "gu": "마포구",
+   "name": "마포자이 더 센트리지 아파트",
+   "dong": "염리동",
+   "total": 281
+  },
+  {
+   "gu": "서대문구",
+   "name": "DMC래미안클라시스",
+   "dong": "남가좌동",
+   "total": 223
+  },
+  {
+   "gu": "서초구",
+   "name": "반포삼호가든맨션5차",
+   "dong": "반포동",
+   "total": 410
+  },
+  {
+   "gu": "성동구",
+   "name": "행당대림",
+   "dong": "행당동",
+   "total": 185
+  },
+  {
+   "gu": "성북구",
+   "name": "정릉힐스테이트",
+   "dong": "정릉동",
+   "total": 262
+  },
+  {
+   "gu": "송파구",
+   "name": "잠실한양3차",
+   "dong": "방이동",
+   "total": 333
+  },
+  {
+   "gu": "양천구",
+   "name": "목동4단지",
+   "dong": "목동",
+   "total": 657
+  },
+  {
+   "gu": "영등포구",
+   "name": "보라매 sk뷰",
+   "dong": "신길동",
+   "total": 262
+  },
+  {
+   "gu": "용산구",
+   "name": "효창파크푸르지오",
+   "dong": "효창동",
+   "total": 102
+  },
+  {
+   "gu": "은평구",
+   "name": "동광갈현베르빌",
+   "dong": "갈현동",
+   "total": 213
+  },
+  {
+   "gu": "종로구",
+   "name": "경희궁자이1단지(임대아파트)",
+   "dong": "행촌동",
+   "total": 69
+  },
+  {
+   "gu": "중구",
+   "name": "래미안신당하이베르임대",
+   "dong": "신당동",
+   "total": 152
+  },
+  {
+   "gu": "중랑구",
+   "name": "면목삼익",
+   "dong": "면목동",
+   "total": 170
+  }
+ ],
+ "dong_academy": [
+  {
+   "gu": "강남구",
+   "dong": "대치동",
+   "total": 1343,
+   "exam": 881,
+   "math": 319,
+   "english": 143
+  },
+  {
+   "gu": "양천구",
+   "dong": "목동",
+   "total": 765,
+   "exam": 382,
+   "math": 238,
+   "english": 145
+  },
+  {
+   "gu": "양천구",
+   "dong": "신정동",
+   "total": 580,
+   "exam": 266,
+   "math": 180,
+   "english": 134
+  },
+  {
+   "gu": "노원구",
+   "dong": "중계동",
+   "total": 417,
+   "exam": 188,
+   "math": 134,
+   "english": 95
+  },
+  {
+   "gu": "강동구",
+   "dong": "명일동",
+   "total": 286,
+   "exam": 132,
+   "math": 92,
+   "english": 62
+  }
+ ],
+ "gu_best_dong": [
+  {
+   "gu": "강남구",
+   "dong": "대치동",
+   "total": 1343
+  },
+  {
+   "gu": "강동구",
+   "dong": "명일동",
+   "total": 286
+  },
+  {
+   "gu": "강북구",
+   "dong": "미아동",
+   "total": 141
+  },
+  {
+   "gu": "강서구",
+   "dong": "내발산동",
+   "total": 228
+  },
+  {
+   "gu": "관악구",
+   "dong": "봉천동",
+   "total": 196
+  },
+  {
+   "gu": "광진구",
+   "dong": "구의동",
+   "total": 171
+  },
+  {
+   "gu": "구로구",
+   "dong": "구로동",
+   "total": 83
+  },
+  {
+   "gu": "금천구",
+   "dong": "시흥동",
+   "total": 97
+  },
+  {
+   "gu": "노원구",
+   "dong": "중계동",
+   "total": 417
+  },
+  {
+   "gu": "도봉구",
+   "dong": "창동",
+   "total": 151
+  },
+  {
+   "gu": "동대문구",
+   "dong": "장안동",
+   "total": 150
+  },
+  {
+   "gu": "동작구",
+   "dong": "상도동",
+   "total": 113
+  },
+  {
+   "gu": "마포구",
+   "dong": "대흥동",
+   "total": 86
+  },
+  {
+   "gu": "서대문구",
+   "dong": "홍은동",
+   "total": 93
+  },
+  {
+   "gu": "서초구",
+   "dong": "반포동",
+   "total": 276
+  },
+  {
+   "gu": "성동구",
+   "dong": "행당동",
+   "total": 103
+  },
+  {
+   "gu": "성북구",
+   "dong": "길음동",
+   "total": 128
+  },
+  {
+   "gu": "송파구",
+   "dong": "방이동",
+   "total": 216
+  },
+  {
+   "gu": "양천구",
+   "dong": "목동",
+   "total": 765
+  },
+  {
+   "gu": "영등포구",
+   "dong": "신길동",
+   "total": 150
+  },
+  {
+   "gu": "용산구",
+   "dong": "이촌동",
+   "total": 23
+  },
+  {
+   "gu": "은평구",
+   "dong": "진관동",
+   "total": 135
+  },
+  {
+   "gu": "종로구",
+   "dong": "평창동",
+   "total": 18
+  },
+  {
+   "gu": "중구",
+   "dong": "신당동",
+   "total": 43
+  },
+  {
+   "gu": "중랑구",
+   "dong": "신내동",
+   "total": 109
+  }
+ ],
+ "dong_academy_meta": {
+  "counted": 15144,
+  "no_dong": 378
+ },
+ "new_complexes": [
+  {
+   "name": "강변역센트럴아이파크",
+   "gu": "광진구",
+   "dong": "구의동",
+   "households": 215,
+   "built": "2026.08"
+  },
+  {
+   "name": "이문아이파크자이3단지",
+   "gu": "동대문구",
+   "dong": "이문동",
+   "households": 152,
+   "built": "2026.06"
+  },
+  {
+   "name": "궁전아파트",
+   "gu": "서초구",
+   "dong": "반포동",
+   "households": 108,
+   "built": "1984.02"
+  },
+  {
+   "name": "서초벽산블루밍아파트",
+   "gu": "서초구",
+   "dong": "서초동",
+   "households": 60,
+   "built": "2006.06"
+  },
+  {
+   "name": "보문센트럴아이파크아파트",
+   "gu": "성북구",
+   "dong": "보문동1가",
+   "households": 199,
+   "built": "2026.09"
+  },
+  {
+   "name": "더샵송파루미스타",
+   "gu": "송파구",
+   "dong": "가락동",
+   "households": 179,
+   "built": "2026.05"
+  },
+  {
+   "name": "디마크당산",
+   "gu": "영등포구",
+   "dong": "당산동6가",
+   "households": 152,
+   "built": "2025.11"
+  }
+ ],
+ "school_changes": [
+  {
+   "name": "래미안원베일리",
+   "gu": "서초구",
+   "from": "서울반원초서울잠원초공동",
+   "to": "서울잠원초"
+  },
+  {
+   "name": "일원동 수서아파트",
+   "gu": "강남구",
+   "from": "서울대청초",
+   "to": "서울대청초서울영희초공동"
+  },
+  {
+   "name": "마곡엠밸리9단지",
+   "gu": "강서구",
+   "from": "서울송정초",
+   "to": "서울공항초서울송정초공동"
+  },
+  {
+   "name": "서강GS",
+   "gu": "마포구",
+   "from": "서울신석초",
+   "to": "서울서강초"
+  },
+  {
+   "name": "수서1-1단지아파트",
+   "gu": "강남구",
+   "from": "서울대청초",
+   "to": "서울대청초서울영희초공동"
+  },
+  {
+   "name": "반포경남",
+   "gu": "서초구",
+   "from": "서울반원초서울잠원초공동",
+   "to": "서울잠원초"
+  },
+  {
+   "name": "아크로 서울포레스트",
+   "gu": "성동구",
+   "from": "",
+   "to": "서울경일초"
+  }
+ ]
+};
+const eok = m => (m / 10000).toFixed(1).replace(/\.0$/, '') + '억';
+const n = v => Number(v).toLocaleString('ko-KR');
+const loc = r => `${r.gu} ${r.dong}`;
+
+const topics = [
+  { key: 'academy', tag: 'Education', q: '입시·수학·영어 학원이 가장 많은 아파트',
+    hl: r => [`${r.name}`, `${n(r.total)}곳`], hlBasis: '반경 1km · 입시/보습+수학+영어',
+    val: r => [`${n(r.total)}곳`, `입시 ${n(r.exam)} · 수학 ${n(r.math)} · 영어 ${n(r.english)}`],
+    rule: [['기준점', '단지 대표 좌표'], ['범위', '반경 1,000m 이내 (직선)'], ['방식', '개수 기준: 학원 분류가 입시/보습·수학·영어인 학원·교습소 수의 합'], ['동률', '반경 500m 내 전체 학원 수가 많은 순'], ['출처', '서울시 학원·교습소 정보 (2026.10.1 수집, 주소 위치 변환)']] },
+  { key: 'dong_academy', tag: 'Neighborhood', q: '입시·수학·영어 학원이 가장 많은 동네',
+    hl: r => [`${r.gu} ${r.dong}`, `${n(r.total)}곳`], hlBasis: '동 안에 있는 입시/보습+수학+영어 학원·교습소',
+    val: r => [`${n(r.total)}곳`, `입시 ${n(r.exam)} · 수학 ${n(r.math)} · 영어 ${n(r.english)}`], place: true,
+    rule: [['단위', '동(법정동): 학원 주소에 적힌 법정동 기준'], ['방식', '개수 기준: 그 동에 있는 학원 분류 입시/보습·수학·영어 학원·교습소 수의 합 (개원 상태만)'], ['참고', () => `주소에서 동을 확인하지 못한 ${n(D.dong_academy_meta.no_dong)}곳(전체의 약 2%)은 집계에서 빠졌습니다`], ['출처', '서울시 학원·교습소 정보 (2026.10.1 수집)']] },
+  { key: 'value_combo', tag: 'Price × Life', q: '국민평형 10억 미만 + 역세권 + 학원가',
+    hl: r => [`${r.name}`, `학원 ${n(r.academy_1km)}곳`], hlBasis: r => `전용 84㎡ 평균 ${eok(r.price84)} · ${r.station}역 ${n(r.station_m)}m`,
+    val: r => [`학원 ${n(r.academy_1km)}곳`, `84㎡ ${eok(r.price84)} · ${r.station}역 ${n(r.station_m)}m`],
+    rule: [['조건', '전용 80~90㎡ 매매 실거래 평균 10억 원 미만 (2025.1~2026.9 계약) · 300세대 이상 · 가장 가까운 지하철역 500m 이내'], ['정렬', '반경 1,000m 내 전체 학원 수가 많은 순 (개수 기준)'], ['동률', '가장 가까운 역까지 거리가 짧은 순'], ['후보', () => `조건을 모두 만족한 ${n(D.value_combo_pool)}개 단지 중 순위`], ['출처', '국토교통부 실거래가, 서울시 역사마스터, 서울시 학원·교습소 정보']] },
+  { key: 'subway', tag: 'Transit', q: '반경 500m 안에 지하철 노선이 가장 많은 아파트',
+    hl: r => [`${r.name}`, `${r.lines}개 노선`], hlBasis: r => `역 ${r.stations}곳 · ${r.nearest}역 ${n(r.nearest_m)}m`,
+    val: r => [`${r.lines}개 노선`, `역 ${r.stations}곳 · ${r.nearest} ${n(r.nearest_m)}m · ${n(r.households)}세대`],
+    rule: [['기준점', '단지 대표 좌표'], ['범위', '반경 500m 이내 (직선)'], ['방식', '개수 기준: 반경 안 역들이 지나는 서로 다른 노선 수 (환승역은 노선별로 셈)'], ['동률', '반경 안 역 수가 많은 순, 그다음 가장 가까운 역까지 거리'], ['출처', '서울시 역사마스터 정보 (2026.9.22)']] },
+  { key: 'starbucks', tag: 'Daily life', q: '스세권 1위: 반경 500m 스타벅스가 가장 많은 아파트',
+    hl: r => [`${r.name}`, `스타벅스 ${r.count}곳`], hlBasis: r => `가장 가까운 매장 ${n(r.nearest_m)}m`,
+    val: r => [`${r.count}곳`, `가장 가까운 매장 ${n(r.nearest_m)}m`],
+    rule: [['기준점', '단지 대표 좌표'], ['범위', '반경 500m 이내 (직선)'], ['방식', '개수 기준: 카카오맵에 등록된 스타벅스 매장 수'], ['동률', '가장 가까운 매장까지 거리가 짧은 순'], ['출처', '카카오 로컬 검색 (2026.10.1 수집)']] },
+  { key: 'convenience', tag: 'Daily life', q: '편세권 1위: 편의점 4사 매장이 가장 많은 아파트',
+    hl: r => [`${r.name}`, `편의점 ${r.total}곳`], hlBasis: 'GS25·CU·세븐일레븐·이마트24 합계 · 반경 500m',
+    val: r => [`${r.total}곳`, `GS25 ${r.GS25} · CU ${r.CU} · 세븐 ${r['세븐일레븐']} · 이마트24 ${r['이마트24']}`],
+    rule: [['기준점', '단지 대표 좌표'], ['범위', '반경 500m 이내 (직선)'], ['방식', '개수 기준: GS25·CU·세븐일레븐·이마트24 매장 수의 합 (한 브랜드가 없어도 포함)'], ['출처', '카카오 로컬 검색 (2026.10.1 수집)']] },
+  { key: 'quiet', tag: 'Safety', q: '유흥시설이 없는 1,000세대 이상 조용한 대단지',
+    hl: r => [`${r.name}`, `${n(r.nearest_nightlife_m)}m`], hlBasis: r => `가장 가까운 유흥주점까지 · ${n(r.households)}세대`,
+    val: r => [`${n(r.nearest_nightlife_m)}m`, `${n(r.households)}세대`],
+    rule: [['조건', '1,000세대 이상 · 반경 500m 이내 유흥주점 0곳'], ['정렬', '최근접 기준: 가장 가까운 유흥주점까지 직선거리가 먼 순 (반경 제한 없이 측정)'], ['후보', () => `조건을 만족한 ${n(D.quiet_pool)}개 단지 중 순위`], ['출처', '서울시 유흥주점영업 인허가 정보, 영업 중 업소 (2026.10.1)']] },
+  { key: 'emergency', tag: 'Health', q: '반경 1km 안에 응급실이 가장 많은 아파트',
+    hl: r => [`${r.name}`, `응급실 ${r.er_1km}곳`], hlBasis: r => `가장 가까운 종합병원급 ${r.hospital} ${n(r.hospital_m)}m`,
+    val: r => [`${r.er_1km}곳`, `${r.hospital} ${n(r.hospital_m)}m`],
+    rule: [['기준점', '단지 대표 좌표'], ['범위', '반경 1,000m 이내 (직선)'], ['방식', '개수 기준: 응급실을 운영하는 의료기관 수 (병의원 정보의 응급실 운영 여부)'], ['동률', '가장 가까운 종합병원급(종합병원·상급종합병원)까지 거리가 짧은 순'], ['출처', '서울시 병의원 위치 정보 (2026.9.8)']] },
+];
+
+function cell(r, vals, place) {
+  const title = place ? `${r.dong}` : r.name, sub = place ? r.gu : loc(r);
+  return `<li><span class="rk"></span><span class="nm"><strong>${title}</strong><span class="loc">${sub}</span></span><span class="val">${vals[0]}<small>${vals[1]}</small></span></li>`;
+}
+let popId = 0;
+function ruleBox(rule) {
+  const id = 'rule-' + (++popId);
+  return `<span class="rule-wrap"><button type="button" class="rule-btn" aria-expanded="false" aria-controls="${id}">산정 기준</button><div class="rule-pop" id="${id}" role="note" hidden><dl>${rule.map(([k, v]) => `<dt>${k}</dt><dd>${typeof v === 'function' ? v() : v}</dd>`).join('')}</dl></div></span>`;
+}
+function head(tag, rule) { return `<div class="card-head"><span class="tag">${tag}</span>${ruleBox(rule)}</div>`; }
+const grid = document.getElementById('grid');
+topics.forEach(t => {
+  const rows = D[t.key];
+  grid.insertAdjacentHTML('beforeend', `<article class="card">${head(t.tag, t.rule)}<h3>${t.q}</h3><ol class="top">${rows.map(r => cell(r, t.val(r), t.place)).join('')}</ol></article>`);
+});
+grid.querySelectorAll('ol.top').forEach(ol => ol.querySelectorAll('.rk').forEach((s, i) => s.textContent = i + 1));
+
+// This month's changes
+const fresh = D.new_complexes.map(r => `<li><span class="rk">+</span><span class="nm"><strong>${r.name}</strong><span class="loc">${r.gu} ${r.dong}</span></span><span class="val">${n(r.households)}세대<small>준공 ${r.built}</small></span></li>`).join('');
+const zones = D.school_changes.map(r => `<li><span class="rk">↻</span><span class="nm"><strong>${r.name}</strong><span class="loc">${r.gu}</span></span><span class="val" style="white-space:normal">${r.to}<small>이전 ${r.from || '없음'}</small></span></li>`).join('');
+const monthRule = [['신규', '서울시 공동주택 아파트 정보 2026.9.30 기준, 직전 갱신(9.5) 대비 새로 등록된 단지. 세대수가 비어 있던 2곳은 시공사·언론 자료로 보정'], ['배정초', '단지 대표 좌표가 속한 초등학교 통학구역. 학구도 2025.9.22판 → 2026.3.20판 비교'], ['출처', '서울시 열린데이터광장, 한국교육시설안전원 초등학교통학구역']];
+grid.insertAdjacentHTML('beforeend', `<article class="card">${head('This month', monthRule)}<h3>이번 달 바뀐 것</h3>
+  <div class="sub">새로 등록된 단지 ${D.new_complexes.length}곳</div><ol class="top">${fresh}</ol>
+  <div class="sub">배정 초등학교가 바뀐 단지 ${D.school_changes.length}곳</div><ol class="top">${zones}</ol></article>`);
+
+// Gu winners (neighborhood level)
+grid.insertAdjacentHTML('beforeend', `<article class="card wide">${head('By district', [['방식', '각 구 안에서 법정동별 입시/보습·수학·영어 학원·교습소 수(개원 상태)가 가장 많은 동'], ['출처', '서울시 학원·교습소 정보 (2026.10.1 수집)']])}<h3>우리 구에서 학원이 가장 많은 동</h3>
+  <div class="gu">${D.gu_best_dong.map(r => `<div><b>${r.gu}</b><span title="${r.dong}">${r.dong}</span><b>${n(r.total)}</b></div>`).join('')}</div></article>`);
+
+// Criteria popovers: hover/focus via CSS, tap toggles (touch has no hover), Esc closes.
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.rule-btn');
+  document.querySelectorAll('.rule-btn[aria-expanded="true"]').forEach(b => { if (b !== btn) { b.setAttribute('aria-expanded', 'false'); document.getElementById(b.getAttribute('aria-controls')).hidden = true; } });
+  if (btn) { const pop = document.getElementById(btn.getAttribute('aria-controls')); const open = pop.hidden; pop.hidden = !open; btn.setAttribute('aria-expanded', String(open)); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.rule-btn').forEach(b => { b.setAttribute('aria-expanded', 'false'); document.getElementById(b.getAttribute('aria-controls')).hidden = true; }); });
+
+// Billboard
+const slides = topics.map(t => {
+  const r = D[t.key][0];
+  const [name, num] = t.hl(r);
+  return { q: t.q, name, num, basis: typeof t.hlBasis === 'function' ? t.hlBasis(r) : t.hlBasis };
+});
+slides.push({ q: '이번 달 서울에 새로 등록된 아파트', name: `${D.new_complexes[0].name} 외`, num: `${D.new_complexes.length}곳`, basis: '서울시 공동주택 아파트 정보 2026.9.30 기준' });
+const slideEl = document.getElementById('slide'), ticks = document.getElementById('ticks');
+let cur = 0, timer = null;
+function show(i) {
+  cur = (i + slides.length) % slides.length;
+  const s = slides[cur];
+  slideEl.classList.remove('enter'); void slideEl.offsetWidth;
+  slideEl.innerHTML = `<div class="q">Q. ${s.q}</div><div class="answer">${s.name} <span class="num">${s.num}</span></div><div class="basis">${s.basis} · 단지 대표 좌표 기준</div>`;
+  slideEl.classList.add('enter');
+  ticks.querySelectorAll('button').forEach((b, j) => b.setAttribute('aria-current', j === cur));
+}
+slides.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.setAttribute('aria-label', s.q);
+  b.addEventListener('click', () => { show(i); restart(); });
+  ticks.appendChild(b);
+});
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function restart() { clearInterval(timer); if (!reduce) timer = setInterval(() => show(cur + 1), 4500); }
+document.querySelector('.board').addEventListener('mouseenter', () => clearInterval(timer));
+document.querySelector('.board').addEventListener('mouseleave', restart);
+show(0); restart();
+const marq = slides.map(s => `${s.q} <b>${s.name} ${s.num}</b>`).join('   ·   ');
+document.getElementById('marq').innerHTML = marq; document.getElementById('marq2').innerHTML = marq;
+</script>
