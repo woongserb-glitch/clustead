@@ -95,9 +95,9 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 .bb-pause:disabled { cursor: default; color: #bdc7d5; }
 .bb-board-note { margin: 10px 0 0; border-top: 1px solid #ffffff21; padding-top: 10px; color: #aebbd0; font-size: 11px; }
 .bb-question-directory { border: 1px solid var(--bb-line); border-radius: 14px; padding: 23px 21px 12px; background: var(--bb-paper); }
-.bb-directory-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-bottom: 13px; }
+.bb-directory-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-bottom: 13px; text-align: left; }
 .bb-directory-heading .bb-eyebrow { font-size: 9px; padding-top: 3px; }
-.bb-directory-heading h2 { font-size: 20px; letter-spacing: -.035em; line-height: 1.35; margin: 0; }
+.bb-directory-heading h2 { font-size: 20px; letter-spacing: -.035em; line-height: 1.35; margin: 0; white-space: nowrap; }
 .bb-question-directory ol { list-style: none; padding: 0; margin: 0; }
 .bb-question-directory li { border-top: 1px solid var(--bb-line); }
 .bb-question-directory li a { display: grid; grid-template-columns: 19px minmax(0, 1fr) 10px; gap: 8px; align-items: baseline; padding: 9px 0; text-decoration: none; font-size: 11px; color: var(--bb-steel); line-height: 1.6; }
@@ -235,8 +235,6 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
     .bb-hero { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; }
     .bb-board { padding-inline: 24px; }
     .bb-question-directory { padding-inline: 16px; }
-    .bb-directory-heading { flex-direction: column; gap: 7px; }
-    .bb-directory-heading h2 br { display: none; }
     .bb-directory-heading h2 { font-size: 17px; }
     .bb-district-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .bb-ranking-layout { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
@@ -275,7 +273,7 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
     .bb-board-label { font-size: 10px; letter-spacing: .14em; }
     .bb-board-edition { font-size: 9px; }
     .bb-question-directory { padding: 15px 17px 9px; }
-    .bb-directory-heading { flex-direction: row; align-items: baseline; padding-bottom: 10px; }
+    .bb-directory-heading { padding-bottom: 10px; }
     .bb-directory-heading h2 { font-size: 16px; }
     .bb-question-directory li a { padding-block: 9px; font-size: 12px; }
     .bb-interest-nav { margin: 17px 0 29px; gap: 7px; }

@@ -29,7 +29,7 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=4">
     <script type="application/ld+json">{{ home_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -91,7 +91,7 @@
                 <p class="bb-board-note">거리는 직선거리 · 단지와 법정동, 각 주제의 기준에 따라 집계</p>
             </section>
             <nav class="bb-question-directory" aria-labelledby="question-directory-title">
-                <div class="bb-directory-heading"><p class="bb-eyebrow">QUESTION INDEX</p><h2 id="question-directory-title">어떤 생활이<br>중요한가요?</h2></div>
+                <div class="bb-directory-heading"><p class="bb-eyebrow">QUESTION INDEX</p><h2 id="question-directory-title">이런 질문에 답합니다.</h2></div>
                 <ol>{% for topic in billboard.topics %}<li><a href="#topic-{{ topic.key }}"><span class="bb-index-number">{{ '%02d' | format(loop.index) }}</span><span>{{ topic.question }}</span><span class="bb-index-arrow" aria-hidden="true">↗</span></a></li>{% endfor %}</ol>
             </nav>
             </div>
