@@ -68,6 +68,9 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 .bb-explore-link:hover { color: var(--bb-accent); text-decoration: underline; }
 .bb-search { display: flex; border: 1px solid var(--bb-line); border-radius: 10px; background: var(--bb-paper); padding: 6px; }
 .bb-search input { width: 100%; min-width: 0; background: transparent; color: var(--bb-fg); border: 0; border-radius: 6px; padding: 11px 12px; font-size: 14px; }
+/* 입력칸 자체 테두리는 버튼에 겹쳐 보여서 끄고, 상자 전체 테두리로 포커스를 표시한다. */
+.bb-search input:focus, .bb-search input:focus-visible { outline: none; }
+.bb-search:focus-within { border-color: var(--bb-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bb-accent) 22%, transparent); }
 .bb-search button { border: 0; border-radius: 6px; background: var(--bb-ink); color: #fff; font-size: 13px; padding: 6px 16px; flex: none; }
 .bb-coverage { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 22px; padding: 13px 0; border-top: 1px solid var(--bb-line); font-size: 11px; color: var(--bb-muted); }
 .bb-coverage > span { display: inline-flex; align-items: baseline; gap: 5px; }
