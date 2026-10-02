@@ -160,7 +160,7 @@ def _fetch_category(category, lat, lng):
 
         try:
             response = requests.get(url, headers=headers, params=params, timeout=5)
-            data = response.json()
+            data = _kakao_json(response)
             documents = data.get("documents", [])
 
             if not documents:
@@ -188,6 +188,20 @@ def _fetch_category(category, lat, lng):
         safe_print(f" - {poi['label']} / {poi['distance']}m")
 
     return True, all_pois
+
+
+def _kakao_json(response):
+    """카카오 응답을 검사해 JSON 을 돌려준다(2026-10-02).
+
+    401·429·5xx 도 JSON 본문(documents 없음)으로 오기 때문에 그냥 .json() 만 하면
+    '결과 0건'으로 오인되어 30일 캐시되고, 월간 빌드에서는 값이 조용히 0 이 된다.
+    성공 상태와 documents 구조가 아니면 예외를 던져 호출부의 실패 경로로 보낸다."""
+    if response.status_code != 200:
+        raise RuntimeError(f"kakao HTTP {response.status_code}")
+    data = response.json()
+    if not isinstance(data, dict) or not isinstance(data.get("documents"), list):
+        raise RuntimeError("kakao response without documents")
+    return data
 
 
 def search_category(category, lat, lng):
@@ -277,7 +291,7 @@ def _fetch_keyword(query, lat, lng, radius, category_group_code=None, label_cate
 
         try:
             response = requests.get(url, headers=headers, params=params, timeout=5)
-            data = response.json()
+            data = _kakao_json(response)
             documents = data.get("documents", [])
             if not documents:
                 break
@@ -356,7 +370,7 @@ def get_subway_pois_for_baseline(lat, lng):
 
     try:
         response = requests.get(url, headers=headers, params=params, timeout=5)
-        data = response.json()
+        data = _kakao_json(response)
 
         pois = []
 
@@ -399,7 +413,7 @@ def count_category_exact(category, lat, lng, radius, max_depth=4):
         docs, total = [], 0
         for page in range(1, 4):
             params = {"category_group_code": code, "rect": f"{x1},{y1},{x2},{y2}", "size": 15, "page": page}
-            data = requests.get(url, headers=headers, params=params, timeout=8).json()
+            data = _kakao_json(requests.get(url, headers=headers, params=params, timeout=8))
             total = data.get("meta", {}).get("total_count", 0)
             docs.extend(data.get("documents", []))
             if data.get("meta", {}).get("is_end", True):
@@ -437,11 +451,11 @@ def legal_region_from_coords(lat, lng, allow_network=True):
     if not allow_network or not rest_key:
         return ("", "")
     try:
-        data = requests.get(
+        data = _kakao_json(requests.get(
             "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json",
             headers={"Authorization": f"KakaoAK {rest_key}"},
             params={"x": lng, "y": lat}, timeout=5,
-        ).json()
+        ))
     except Exception as e:
         print("Kakao region error:", e)
         return ("", "")

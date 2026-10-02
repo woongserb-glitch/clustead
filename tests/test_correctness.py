@@ -87,6 +87,16 @@ def pure_kakao_cache():
     from pathlib import Path
     import services.kakao_local_service as K
 
+    # 모듈 전역을 바꾸므로 끝나면 되돌린다(다른 테스트가 진짜 _fetch_category 를 쓴다).
+    saved = (K._CACHE_DIR, K._CACHE_ENABLED, K._fetch_category)
+    try:
+        _kakao_cache_body(K, tempfile, Path)
+    finally:
+        K._CACHE_DIR, K._CACHE_ENABLED, K._fetch_category = saved
+        K._MEMORY_CACHE.clear()
+
+
+def _kakao_cache_body(K, tempfile, Path):
     K._CACHE_DIR = Path(tempfile.mkdtemp()) / "kakao"
     K._MEMORY_CACHE.clear()
     K._CACHE_ENABLED = True
