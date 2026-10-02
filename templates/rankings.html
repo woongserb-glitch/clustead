@@ -21,13 +21,13 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=4">
     <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=24">
     <script type="application/ld+json">{{ ranking_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
     <script src="{{ url_for('static', filename='billboard.js') }}?v=4" defer></script>
-    <script src="{{ url_for('static', filename='theme.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', filename='theme.js') }}?v=2" defer></script>
 </head>
 <body>
     <a class="bb-skip" href="#main">본문으로 이동</a>
