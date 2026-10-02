@@ -4,6 +4,7 @@ import sys
 import re
 import math
 import base64
+import hmac
 
 from services.ranking_service import (
     get_ranked_apartments,
@@ -30,6 +31,7 @@ from flask import (
     Flask,
     Response,
     abort,
+    redirect,
     g,
     jsonify,
     render_template,
@@ -272,15 +274,41 @@ FLASK_DEBUG = os.getenv("FLASK_DEBUG", "0") == "1"
 ADMIN_TOKEN = clustead_env("ADMIN_TOKEN", "")
 
 
+ADMIN_COOKIE = "clustead_admin"
+
+
+def _admin_token_ok(supplied):
+    return bool(ADMIN_TOKEN and supplied) and hmac.compare_digest(str(supplied), ADMIN_TOKEN)
+
+
 def _require_admin():
-    """admin 라우트 가드. 미인가 시 404로 abort(존재 자체를 숨김)."""
+    """admin 라우트 가드. 미인가 시 404로 abort(존재 자체를 숨김).
+
+    2026-10-02: 토큰이 URL 에 계속 붙어 다니면 접속·느린요청 로그에 남는다. 그래서
+    ?admin_token= 으로 한 번 들어오면 HttpOnly 쿠키로 바꿔 주고 토큰 없는 주소로 보낸다.
+    이후 관리자 페이지·API 는 쿠키(또는 X-Admin-Token 헤더)로 인증한다."""
     if FLASK_DEBUG:
         return
-    if ADMIN_TOKEN:
-        supplied = request.headers.get("X-Admin-Token") or request.args.get("admin_token", "")
-        if supplied == ADMIN_TOKEN:
-            return
+    if _admin_token_ok(request.headers.get("X-Admin-Token")) or _admin_token_ok(request.cookies.get(ADMIN_COOKIE)):
+        return
+    if _admin_token_ok(request.args.get("admin_token")):
+        if request.method == "GET":
+            args = request.args.to_dict(flat=False)
+            args.pop("admin_token", None)
+            resp = redirect(url_for(request.endpoint, **(request.view_args or {}), **args))
+            resp.set_cookie(ADMIN_COOKIE, ADMIN_TOKEN, max_age=12 * 3600, path="/admin",
+                            httponly=True, secure=request.is_secure, samesite="Strict")
+            abort(resp)
+        return
     abort(404)
+
+
+_ADMIN_TOKEN_RE = re.compile(r"(admin_token=)[^&]*")
+
+
+def _loggable_path():
+    """로그용 경로. 관리자 토큰 값은 가린다."""
+    return _ADMIN_TOKEN_RE.sub(r"\1***", request.full_path)
 
 
 @app.context_processor
@@ -364,7 +392,7 @@ def _client_ip():
 def _track_request_begin():
     try:
         g._req_t0 = time.monotonic()
-        request_tracker.begin(request.method, request.full_path, _client_ip())
+        request_tracker.begin(request.method, _loggable_path(), _client_ip())
     except Exception:
         pass
 
@@ -378,7 +406,7 @@ def _track_request_slowlog(resp):
             if elapsed >= _SLOWLOG_SEC:
                 ua = (request.headers.get("User-Agent") or "")[:120]
                 print(
-                    f"[SLOWLOG] {elapsed:.1f}s {request.method} {request.full_path} "
+                    f"[SLOWLOG] {elapsed:.1f}s {request.method} {_loggable_path()} "
                     f"-> {resp.status_code} ip={_client_ip()} ua={ua}",
                     flush=True,
                 )
@@ -405,6 +433,8 @@ def add_cdn_cache_headers(resp):
             resp.headers.setdefault(
                 "Cache-Control", "public, max-age=300, s-maxage=86400"
             )
+        elif request.path.startswith("/admin"):
+            resp.headers["Cache-Control"] = "private, no-store"
     except Exception:  # 캐시 헤더 실패가 응답 자체를 깨뜨리지 않도록.
         pass
     return resp
@@ -6312,7 +6342,9 @@ def _directory_interest():
 @limiter.limit("60 per minute")
 def home_topic_click():
     """질문 목록 클릭 기록(sendBeacon). 알려진 주제 key 만 받는다."""
-    payload = request.get_json(silent=True, force=True) or {}
+    payload = request.get_json(silent=True, force=True)
+    if not isinstance(payload, dict):
+        return ("", 204)  # 배열·숫자·문자열 본문은 조용히 무시(500 방지)
     key = str(payload.get("key") or "")[:40]
     if key in {key for key, *_ in home_billboard.TOPICS}:
         analytics_service.track("home_topic_click", ip=real_client_ip(),
@@ -6527,6 +6559,11 @@ def _grid_bounds_from_args():
     except ValueError:
         return None
 
+    # NaN·무한대·터무니없는 좌표는 셀 계산에서 500 을 낸다(2026-10-02). 한반도 범위만 받는다.
+    if not all(math.isfinite(v) for v in (min_lat, min_lng, max_lat, max_lng)):
+        return None
+    if not (33 <= min_lat <= 39 and 33 <= max_lat <= 39 and 124 <= min_lng <= 132 and 124 <= max_lng <= 132):
+        return None
     if min_lat > max_lat or min_lng > max_lng:
         return None
 
@@ -7350,6 +7387,9 @@ def _decode_share_payload(raw):
         padding = "=" * (-len(raw) % 4)
         decoded = base64.urlsafe_b64decode((raw + padding).encode("ascii"))
         payload = json.loads(decoded.decode("utf-8"))
+        # 짝 없는 surrogate 문자는 json 이 받아주지만 공유 URL 을 다시 만들 때
+        # UTF-8 인코딩에서 터진다(500). 여기서 걸러 잘못된 공유 링크로 취급한다(2026-10-02).
+        json.dumps(payload, ensure_ascii=False).encode("utf-8")
     except Exception:
         return {}
     if not isinstance(payload, dict):
