@@ -12,3 +12,5 @@ data/
 tests/golden/
 outputs/local-home/
 outputs/home-scout/*.json
+outputs/home-scout/server-copies/
+outputs/home-scout/*/*.json

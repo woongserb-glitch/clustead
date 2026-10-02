@@ -109,6 +109,20 @@ python scripts/build_home_rankings.py --data-month YYYY-MM --source-dates path/t
 비교 자료가 없는 항목은 미비교로 명시하며, 0건으로 표시하거나 시안의 변경 목록을
 현재 계산 결과로 간주하지 않는다. 원본 CSV/DB를 재생성하거나 수정하지 않는다.
 
+데이터 갱신 후 **배포 전**에 홈 아이템 스카우트를 실행해 후보를 검토한다.
+`--prev-dir`에는 갱신 전 baseline·단지 마스터 백업을 지정한다.
+
+```bash
+python scripts/scout_home_items.py --data-month YYYY-MM --prev-dir path/to/pre-refresh-backup
+```
+
+결과는 `outputs/home-scout/YYYY-MM/report.md`(첫 화면 상위 10개)와 `candidates.json`에 저장한다.
+현재 순위·snapshot과 학원 주소 집계 사본도 매번 보관해 다음 달 비교에 사용한다.
+질문 인기는 `--analytics-db`로 명시한 서버의 읽기 전용 사본만 조회하며, 없으면 미집계다.
+로컬 개발 분석 DB는 사용하지 않는다. 실행·원천 대조·서버 사본 수령 방법은
+[`outputs/home-scout/AGENT_RUNBOOK.md`](outputs/home-scout/AGENT_RUNBOOK.md)를 따른다.
+사용자가 선택한 후보만 홈에 반영한다. 스카우트는 원본 재빌드·푸시·배포를 수행하지 않는다.
+
 `scripts/verify_deployed_data.py`의 배포 대상에 산출 JSON을 포함했다.
 `python scripts/verify_deployed_data.py --list`는 서버 접속 없이 목록 self-check를
 실행한다. 이번 작업에서는 push·배포·Cloudflare 설정 변경을 하지 않는다.
