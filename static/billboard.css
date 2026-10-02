@@ -17,24 +17,9 @@
     --bb-display: var(--c-font-display);
     --bb-body: var(--c-font-body);
 }
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-        color-scheme: dark;
-        --c-ink: #0d1626; --c-steel: #b5c2d4; --c-page: #111827;
-        --c-surface: #172133; --c-surface-2: #1b2638; --c-line: #334158; --c-line-soft: #26334a;
-        --c-accent: #8aafff; --c-accent-strong: #a9c4ff;
-        --c-fg: #e8ecf3; --c-muted: #a8b4c5; --c-faint: #7f8ca0; --c-rule: #1d2a40;
-        --bb-led: #ffcf5c;
-    }
-}
-:root[data-theme="dark"] {
-    color-scheme: dark;
-    --c-ink: #0d1626; --c-steel: #b5c2d4; --c-page: #111827;
-    --c-surface: #172133; --c-surface-2: #1b2638; --c-line: #334158; --c-line-soft: #26334a;
-    --c-accent: #8aafff; --c-accent-strong: #a9c4ff;
-    --c-fg: #e8ecf3; --c-muted: #a8b4c5; --c-faint: #7f8ca0; --c-rule: #1d2a40;
-    --bb-led: #ffcf5c;
-}
+/* 다크 모드의 공통 색(--c-*)은 brand.css 가 정한다. 여기서는 전광판 전용 색만. */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bb-led: #ffcf5c; } }
+:root[data-theme="dark"] { --bb-led: #ffcf5c; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--bb-mist); color: var(--bb-fg); font: 15px/1.6 var(--bb-body); }
@@ -57,10 +42,7 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 .page-action { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--bb-line); background: var(--bb-paper); box-shadow: 0 6px 18px rgba(15, 23, 42, .14); color: var(--bb-fg); font-size: 17px; line-height: 1; text-decoration: none; cursor: pointer; padding: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @media (hover: hover) and (pointer: fine) { .page-action:hover { border-color: var(--bb-accent); } }
 @media (min-width: 761px) { .page-actions { right: 24px; bottom: 24px; } }
-.bb-theme-button { color: #fff; border: 1px solid #15243b; background: #15243b; border-radius: 7px; padding: 6px 9px; font-size: 11px; white-space: nowrap; cursor: pointer; }
 /* 버튼은 누르면 바뀔 모드의 색으로 보인다: 라이트 화면의 '다크 모드'는 남색, 다크 화면의 '라이트 모드'는 밝은색. */
-:root[data-theme="dark"] .bb-theme-button { color: #15243b; border-color: #f4f2ec; background: #f4f2ec; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bb-theme-button { color: #15243b; border-color: #f4f2ec; background: #f4f2ec; } }
 .bb-intro { display: flex; justify-content: space-between; align-items: center; gap: 50px; margin: 22px 0 16px; }
 .bb-intro h1 { font-size: clamp(34px, 4.5vw, 52px); letter-spacing: -.065em; font-weight: 800; margin: 6px 0 10px; line-height: 1.16; text-wrap: balance; }
 .bb-eyebrow { font: 500 10px/1.5 var(--bb-display); letter-spacing: .16em; color: var(--bb-muted); margin: 0; }

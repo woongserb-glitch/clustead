@@ -3,6 +3,7 @@
    2026-10-02 사용자 결정: 전 페이지를 홈의 아이보리·남색 팔레트로 통일한다.
    색을 바꿀 때는 이 파일의 :root 만 고친다. 다크 모드는 billboard.css 가 홈·순위에서만 덮어쓴다. */
 :root {
+    color-scheme: light;     /* light-dark() 가 다크 토큰 블록의 color-scheme: dark 와 함께 동작 */
     --c-ink: #15243b;        /* 브랜드 남색: 주요 버튼, 강조 바탕 */
     --c-steel: #38495d;      /* 보조 글자 */
     --c-page: #f4f2ec;       /* 페이지 바탕(아이보리, 브랜드 Mist) */
@@ -16,9 +17,35 @@
     --c-faint: #8c93a0;      /* 더 옅은 글자(단위, 보조 표기) */
     --c-accent: #2563eb;     /* 링크·포커스·강조 */
     --c-accent-strong: #1d4ed8;
+    --c-primary: #15243b;    /* 주요 버튼 바탕(라이트: 남색) */
+    --c-on-primary: #ffffff; /* 주요 버튼 글자 */
     --c-font-display: 'Jost', 'Century Gothic', 'Malgun Gothic', sans-serif;
     --c-font-body: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
+
+/* 다크 모드(전 페이지 공통, 2026-10-02). 저장된 선택이 없으면 폰은 기기 설정을 따르고, PC 는
+   _theme_head.html 이 라이트로 시작한다. 색은 이 토큰만 바꾸고, 각 페이지는 토큰을 쓴다. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --c-ink: #0d1626; --c-steel: #b5c2d4; --c-page: #111827;
+        --c-surface: #172133; --c-surface-2: #1b2638; --c-line: #334158; --c-line-soft: #26334a;
+        --c-accent: #8aafff; --c-accent-strong: #a9c4ff;
+        --c-fg: #e8ecf3; --c-muted: #a8b4c5; --c-faint: #7f8ca0; --c-rule: #1d2a40;
+        --c-primary: #f4f2ec; --c-on-primary: #15243b;
+    }
+}
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --c-ink: #0d1626; --c-steel: #b5c2d4; --c-page: #111827;
+    --c-surface: #172133; --c-surface-2: #1b2638; --c-line: #334158; --c-line-soft: #26334a;
+    --c-accent: #8aafff; --c-accent-strong: #a9c4ff;
+    --c-fg: #e8ecf3; --c-muted: #a8b4c5; --c-faint: #7f8ca0; --c-rule: #1d2a40;
+    --c-primary: #f4f2ec; --c-on-primary: #15243b;
+}
+
+/* 테마 버튼: 누르면 바뀔 모드의 색(라이트 화면은 남색, 다크 화면은 밝은색) = 주요 버튼 색 */
+.site-theme-button, .bb-theme-button { color: var(--c-on-primary); border: 1px solid var(--c-primary); background: var(--c-primary); border-radius: 7px; padding: 6px 9px; font: inherit; font-size: 11px; white-space: nowrap; cursor: pointer; }
 
 /* ---------- 공통 상단 머리(_site_header.html, 홈은 같은 마크업을 매크로로 그린다) ---------- */
 .site-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-bottom: 19px; margin-bottom: 4px; border-bottom: 1px solid var(--c-line); font-family: var(--c-font-body); }
@@ -41,6 +68,7 @@
     .site-nav { width: 100%; justify-content: flex-start; gap: 16px; }
     /* /graph 는 폰에서 Explore 로 넘어가므로 메뉴에서 숨긴다(2026-10-01 사용자 결정). */
     .site-nav-graph { display: none; }
+    .site-theme-button { margin-left: auto; }
 }
 @media (max-width: 360px) {
     .site-nav { gap: 12px; font-size: 11px; }

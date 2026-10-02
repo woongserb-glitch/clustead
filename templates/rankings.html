@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script>try { var savedBillboardTheme = localStorage.getItem('clustead-billboard-theme'); if (savedBillboardTheme === 'light' || savedBillboardTheme === 'dark') document.documentElement.dataset.theme = savedBillboardTheme; else if (window.matchMedia('(min-width: 761px)').matches) document.documentElement.dataset.theme = 'light'; } catch (e) {}</script>
+    {% include "_theme_head.html" %}
     <title>{{ page_title }}</title>
     <meta name="description" content="{{ meta_description }}">
     {% if naver_site_verification %}<meta name="naver-site-verification" content="{{ naver_site_verification }}">{% endif %}
@@ -21,17 +21,18 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=1">
-    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=23">
+    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=24">
     <script type="application/ld+json">{{ ranking_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
-    <script src="{{ url_for('static', filename='billboard.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', filename='billboard.js') }}?v=4" defer></script>
+    <script src="{{ url_for('static', filename='theme.js') }}?v=1" defer></script>
 </head>
 <body>
     <a class="bb-skip" href="#main">본문으로 이동</a>
     <div class="bb-wrap">
-        {% with site_header_theme = true %}{% include "_site_header.html" %}{% endwith %}
+        {% include "_site_header.html" %}
         <main class="bb-ranking-page" id="main">
             <nav class="bb-breadcrumb" aria-label="현재 위치"><a href="/">홈</a><span aria-hidden="true">/</span><span>생활 인프라 순위</span></nav>
             <div class="bb-ranking-heading"><p class="bb-tag">{{ ranking_topic.tag }}</p><h1>{{ ranking_topic.question or ranking_topic.title }}</h1>{% if ranking_topic.answer %}<p class="bb-ranking-answer">{{ ranking_topic.answer }}</p>{% endif %}<p>데이터 기준 {{ billboard.data_month }} · {% if ranking_topic.key == 'gu_best_dong' %}구별 1위 동{% elif ranking_topic.key == 'changes' %}변경 목록{% else %}TOP {{ ranking_topic.rows | length }}{% endif %}</p>{% if ranking_topic.source_summary %}<p class="bb-ranking-source">{{ ranking_topic.source_summary }}</p>{% endif %}</div>

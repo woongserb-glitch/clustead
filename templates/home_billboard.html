@@ -12,7 +12,7 @@
         })();
     </script>
     {% endif %}
-    <script>try { var savedBillboardTheme = localStorage.getItem('clustead-billboard-theme'); if (savedBillboardTheme === 'light' || savedBillboardTheme === 'dark') document.documentElement.dataset.theme = savedBillboardTheme; else if (window.matchMedia('(min-width: 761px)').matches) document.documentElement.dataset.theme = 'light'; } catch (e) {}</script>
+    {% include "_theme_head.html" %}
     <title>Clustead — 숫자로 보는 서울 아파트·동네 생활 인프라</title>
     <meta name="description" content="서울 아파트와 동네의 학원가·교통·의료·생활 인프라 순위. 주제별 TOP 5와 정확한 반경·집계 방식·출처를 확인하세요.">
     {% if naver_site_verification %}<meta name="naver-site-verification" content="{{ naver_site_verification }}">{% endif %}
@@ -29,17 +29,18 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=1">
-    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=23">
+    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=24">
     <script type="application/ld+json">{{ home_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
-    <script src="{{ url_for('static', filename='billboard.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', filename='billboard.js') }}?v=4" defer></script>
+    <script src="{{ url_for('static', filename='theme.js') }}?v=1" defer></script>
 </head>
 <body>
     <a class="bb-skip" href="#main">본문으로 이동</a>
     <div class="bb-wrap">
-        {% with site_header_theme = true %}{% include "_site_header.html" %}{% endwith %}
+        {% include "_site_header.html" %}
         <main id="main">
             <div class="bb-intro">
                 <div class="bb-intro-copy"><p class="bb-eyebrow">SEOUL APARTMENT · LIFE INFRASTRUCTURE</p><h1>서울시 아파트의 모든 것</h1><p class="bb-intro-description">단지 좌표·동 주소·실거래 조건을 연결해<br class="bb-desktop-break"> 서울 아파트와 동네의 생활 인프라를 비교합니다.</p></div>
