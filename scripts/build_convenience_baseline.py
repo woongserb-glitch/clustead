@@ -8,6 +8,7 @@ from services.preload_service import (
 )
 
 from services.kakao_local_service import (
+    count_category_exact,
     require_fetchable,
     search_category
 )
@@ -106,6 +107,18 @@ with open(
             # 브랜드 검색과 카테고리 검색을 합쳐 센다(같은 매장은 한 번). 키워드 검색도 드물게
             # 매장을 놓쳐서(2026-10-02: 오금현대 메가MGC 방이오금점) 한쪽만 쓰면 줄어드는 단지가 생긴다.
             brand_and_category = merge_places(places, brand_places)
+            # 카테고리 검색은 45곳에서 멈춘다. 한도에 걸린 단지만 반경을 나눠 정확히 센다(2026-10-02: 12단지).
+            if count_500m >= 45:
+                exact_500m = count_category_exact(
+                    "convenience",
+                    apartment["lat"],
+                    apartment["lng"],
+                    500
+                )
+                if exact_500m is not None and exact_500m > count_500m:
+                    print(f"[EXACT] {apartment['name']} 편의점 500m {count_500m} → {exact_500m}")
+                    count_500m = exact_500m
+
             subtype_stats = extract_subtype_stats(
                 "convenience",
                 brand_and_category,

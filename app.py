@@ -5378,7 +5378,9 @@ _CATEGORY_NEAREST = {
     "super_mart": ("mart", (), "nearest_super_mart_distance", "슈퍼마켓", "super_mart_count_500m", "500m", "곳", ""),
     "warehouse_mart": ("mart", (), "nearest_warehouse_mart_distance", "창고형마트", "warehouse_mart_count_5000m", "5km", "곳", ""),
     # 카페·편의점은 대표 시설명과 최근접 거리 컬럼이 없어 개수만 쓴다.
-    "cafe": ("cafe", (), "", "카페", "cafe_count_500m", "500m", "곳", ""),
+    # 카페는 등급과 같은 기준(주요 프랜차이즈 10개 브랜드 수)을 쓴다. 전체 카페 수는 카카오
+    # 검색 한도(45곳)에 걸려 붐비는 동네에서 '45곳'으로 멈춘다(2026-10-02).
+    "cafe": ("cafe", (), "", "주요 카페 프랜차이즈", "franchise_total_500m", "500m", "곳", ""),
     "convenience": ("convenience", (), "", "편의점", "convenience_count_500m", "500m", "곳", ""),
 }
 
