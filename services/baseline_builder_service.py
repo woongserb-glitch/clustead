@@ -160,3 +160,39 @@ def get_subtype_csv_values(category, stats, radius):
         values.append(stats.get(key, {}).get("nearest_distance", ""))
 
     return values
+
+
+def _place_key(place):
+    return (place.get("label"), round(float(place["lat"]), 6), round(float(place["lng"]), 6))
+
+
+def search_brand_places(category, lat, lng, radius):
+    """카카오 카테고리 검색은 한 번에 45곳까지만 돌려줘서, 카페가 많은 동네는 반경 안
+    프랜차이즈가 목록에서 잘린다(2026-10-02: 카페 500m 1,029단지가 45에서 멈춤).
+    SUBTYPE_RULES 브랜드마다 키워드 검색(같은 업종 코드, 거리순)으로 따로 받아 그 한도를 피한다.
+    표본 검증: 한도 미달 40단지에서 카페 10개·편의점 4개 브랜드 모두 기존 값과 일치(600/600).
+    다만 키워드 검색도 드물게 매장을 놓치므로 빌더는 카테고리 결과와 합쳐서(merge_places) 센다.
+
+    반환: (브랜드 매장 목록, 45곳을 꽉 채워 또 잘렸을 수 있는 브랜드 이름 목록)
+    """
+    from services.kakao_local_service import CATEGORY_CONFIG, search_keyword
+    from services.poi_service import SUBTYPE_RULES
+
+    code = CATEGORY_CONFIG[category]["code"]
+    found, capped = {}, []
+    for rule in SUBTYPE_RULES.get(category, []):
+        keywords = [k.lower() for k in rule.get("keywords", [])]
+        pois = search_keyword(rule["keywords"][0].strip(), lat, lng, radius, code, label_category=category)
+        if len(pois) >= 45:
+            capped.append(rule["name"])
+        for poi in pois:
+            # 키워드 검색은 이름 외 정보로도 걸리므로, 기존과 같은 이름 규칙에 맞는 것만 남긴다.
+            if any(k in str(poi.get("label", "")).lower() for k in keywords):
+                found.setdefault(_place_key(poi), poi)
+    return list(found.values()), capped
+
+
+def merge_places(primary, extra):
+    """카테고리 검색 목록에 브랜드 검색으로만 찾은 매장을 덧붙인다(같은 매장은 한 번)."""
+    seen = {_place_key(p) for p in primary}
+    return list(primary) + [p for p in extra if _place_key(p) not in seen]

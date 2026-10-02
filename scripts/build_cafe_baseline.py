@@ -16,6 +16,8 @@ from services.baseline_builder_service import (
     build_result_card_items,
     count_places_within_radius,
     extract_subtype_stats,
+    merge_places,
+    search_brand_places,
     get_subtype_csv_columns,
     get_subtype_csv_values,
 )
@@ -92,9 +94,23 @@ with open(
                 )
             )
 
+            # 브랜드별 개수는 브랜드 키워드 검색으로 센다(카테고리 검색 45곳 한도 회피, 2026-10-02).
+            # 전체 개수(count_300m·500m)는 지금처럼 카테고리 검색 값이다.
+            brand_places, brand_capped = search_brand_places(
+                "cafe",
+                apartment["lat"],
+                apartment["lng"],
+                500
+            )
+            if brand_capped:
+                print(f"[WARN] {apartment['name']} 브랜드 검색도 45곳 한도: {brand_capped}")
+
+            # 브랜드 검색과 카테고리 검색을 합쳐 센다(같은 매장은 한 번). 키워드 검색도 드물게
+            # 매장을 놓쳐서(2026-10-02: 오금현대 메가MGC 방이오금점) 한쪽만 쓰면 줄어드는 단지가 생긴다.
+            brand_and_category = merge_places(places, brand_places)
             subtype_stats = extract_subtype_stats(
                 "cafe",
-                places,
+                brand_and_category,
                 500
             )
 
@@ -118,7 +134,7 @@ with open(
                 "cafe",
                 apartment["lat"],
                 apartment["lng"],
-                places,
+                brand_and_category,
                 500
             )
 
