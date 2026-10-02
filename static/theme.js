@@ -11,7 +11,8 @@
     }
     function sync(button) {
         var label = isDark() ? '라이트 모드' : '다크 모드';
-        button.textContent = label;
+        // 폰에서는 메뉴 줄이 늘지 않게 아이콘만 보인다(글자는 brand.css 가 숨김).
+        button.innerHTML = '<span class="site-theme-icon" aria-hidden="true">' + (isDark() ? '☀︎' : '☾') + '</span><span class="site-theme-label">' + label + '</span>';
         button.setAttribute('aria-label', label + '로 보기');
     }
     document.querySelectorAll('[data-theme-toggle]').forEach(function (button) {
