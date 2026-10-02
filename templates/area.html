@@ -2,6 +2,7 @@
 <html lang="ko">
 
 <head>
+    {% include "_theme_head.html" %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ seo.title }}</title>
@@ -19,15 +20,16 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=1">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261002a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=3">
+    <script src="{{ url_for('static', filename='theme.js') }}?v=1" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261002c">
     <style>
         .area-directory { display: flex; flex-wrap: wrap; gap: 8px; }
         .area-directory a {
             display: inline-block; padding: 6px 12px; border: 1px solid var(--c-line-soft);
             border-radius: 999px; font-size: 14px; color: var(--c-fg); text-decoration: none; background: var(--c-surface);
         }
-        .area-directory a:hover { border-color: #5B8DEF; color: var(--c-accent); }
+        .area-directory a:hover { border-color: light-dark(#5B8DEF, #2a477e); color: var(--c-accent); }
         .area-directory-group { margin-bottom: 18px; }
         .area-directory-group h3 { margin: 0 0 10px; font-size: 15px; }
         .area-directory-group h3 a { color: var(--c-fg); text-decoration: none; }
@@ -43,11 +45,11 @@
         .area-domain-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
         .area-domain-pills a {
             display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px;
-            border-radius: 999px; border: 1px solid #dbeafe; background: #eff6ff;
-            color: #1d4ed8; font-size: 13px; font-weight: 600; text-decoration: none;
+            border-radius: 999px; border: 1px solid light-dark(#dbeafe, #2a4e7e); background: light-dark(#eff6ff, #1b2e46);
+            color: light-dark(#1d4ed8, #8ba5ee); font-size: 13px; font-weight: 600; text-decoration: none;
         }
         .area-domain-pills a b { font-weight: 700; }
-        .area-domain-pills.is-low a { border-color: #fde68a; background: #fffbeb; color: #b45309; }
+        .area-domain-pills.is-low a { border-color: light-dark(#fde68a, #7e6d2a); background: light-dark(#fffbeb, #463e1b); color: light-dark(#b45309, #eeb68b); }
 
         /* 분석 단지 + 상위/하위 6 장을 한 행에 둔다. 세로로 쌓으면 헤더만으로
            화면 한 판을 잡아먹는다. 좁아지면 밴드부터 줄바꿈된다. */
@@ -67,10 +69,10 @@
         }
         .area-rank-list li {
             display: flex; align-items: center; gap: 8px;
-            padding: 10px 12px; border: 1px solid #dbeafe; border-radius: 12px;
+            padding: 10px 12px; border: 1px solid light-dark(#dbeafe, #2a4e7e); border-radius: 12px;
             background: var(--c-surface); font-size: 13px; font-weight: 800; color: var(--c-fg);
         }
-        .area-rank-band.is-low .area-rank-list li { border-color: #fde68a; }
+        .area-rank-band.is-low .area-rank-list li { border-color: light-dark(#fde68a, #7e6d2a); }
         .area-rank-list li > i { font-style: normal; flex: none; }
         .area-rank-list li > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .area-rank-list li .domain-grade { margin-left: auto; }
@@ -92,12 +94,12 @@
             transition: border-color 0.12s, background 0.12s;
         }
         .area-domain-dong + .area-domain-dong { margin-top: 6px; }
-        .area-domain-dong:hover { border-color: #5B8DEF; background: #f7faff; }
+        .area-domain-dong:hover { border-color: light-dark(#5B8DEF, #2a477e); background: light-dark(#f7faff, #1b2b46); }
         .area-domain-dong-head { display: flex; align-items: center; gap: 8px; }
         .area-domain-dong-head strong { font-size: 14px; }
         .area-domain-dong-head .domain-grade { margin-left: auto; }
         .area-domain-dong-name { margin: 5px 0 0 22px; font-size: 13px; }
-        .area-domain-dong-name a { color: #2563eb; font-weight: 700; text-decoration: none; }
+        .area-domain-dong-name a { color: light-dark(#2563eb, #8baaee); font-weight: 700; text-decoration: none; }
         .area-domain-dong-name a:hover { text-decoration: underline; }
         .area-domain-dong-name span { margin-left: 5px; color: var(--c-faint); font-size: 12px; }
         /* 위 줄의 도메인 이름은 이모지 뒤에서 시작한다. 대표 단지 줄도 같은 위치에서
@@ -121,7 +123,7 @@
             text-align: right; line-height: 1.5;
         }
         .area-domain-dongs > span { margin-right: 4px; color: var(--c-faint); }
-        .area-domain-dongs a { color: #2563eb; font-weight: 700; text-decoration: none; }
+        .area-domain-dongs a { color: light-dark(#2563eb, #8baaee); font-weight: 700; text-decoration: none; }
         .area-domain-dongs a:hover { text-decoration: underline; }
         .area-domain-dongs i { font-style: normal; margin: 0 3px; color: var(--c-faint); }
         .area-domain-apts { margin: 0 0 0 22px; padding-left: 0; font-size: 12.5px; list-style: none; counter-reset: apt; }

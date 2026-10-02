@@ -2,6 +2,7 @@
 <html lang="ko">
 
 <head>
+    {% include "_theme_head.html" %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ seo.title }}</title>
@@ -19,21 +20,22 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=1">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261002a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=3">
+    <script src="{{ url_for('static', filename='theme.js') }}?v=1" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261002c">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
     <style>
-        .area-gu-domain-strip span.is-high { border-color: #dbeafe; background: #eff6ff; color: #1d4ed8; }
-        .area-gu-domain-strip span.is-low { border-color: #fde68a; background: #fffbeb; color: #b45309; }
+        .area-gu-domain-strip span.is-high { border-color: light-dark(#dbeafe, #2a4e7e); background: light-dark(#eff6ff, #1b2e46); color: light-dark(#1d4ed8, #8ba5ee); }
+        .area-gu-domain-strip span.is-low { border-color: light-dark(#fde68a, #7e6d2a); background: light-dark(#fffbeb, #463e1b); color: light-dark(#b45309, #eeb68b); }
         .area-gu-apts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; }
         .area-gu-apts > span { color: var(--c-faint); font-size: 12px; }
         .area-gu-apts a {
             padding: 3px 9px; border: 1px solid var(--c-line-soft); border-radius: 999px;
             background: var(--c-surface); color: var(--c-fg); text-decoration: none;
         }
-        .area-gu-apts a:hover { border-color: #5B8DEF; color: var(--c-accent); }
+        .area-gu-apts a:hover { border-color: light-dark(#5B8DEF, #2a477e); color: var(--c-accent); }
         .area-hub-rank { display: flex; align-items: center; gap: 5px; font-size: 12.5px; white-space: nowrap; }
         .area-hub-rank a { color: var(--c-fg); font-weight: 600; text-decoration: none; }
         .area-hub-rank a:hover { color: var(--c-accent); }

@@ -2,29 +2,7 @@
 (function () {
     'use strict';
 
-    var themeButton = document.querySelector('[data-theme-toggle]');
-    var darkPreference = window.matchMedia('(prefers-color-scheme: dark)');
-    function isDark() {
-        var selected = document.documentElement.dataset.theme;
-        return selected ? selected === 'dark' : darkPreference.matches;
-    }
-    function updateThemeButton() {
-        if (!themeButton) return;
-        var label = isDark() ? '라이트 모드' : '다크 모드';
-        themeButton.textContent = label;
-        themeButton.setAttribute('aria-label', label + '로 보기');
-    }
-    if (themeButton) {
-        themeButton.hidden = false;
-        updateThemeButton();
-        themeButton.addEventListener('click', function () {
-            var next = isDark() ? 'light' : 'dark';
-            document.documentElement.dataset.theme = next;
-            try { localStorage.setItem('clustead-billboard-theme', next); } catch (e) {}
-            updateThemeButton();
-        });
-        if (darkPreference.addEventListener) darkPreference.addEventListener('change', updateThemeButton);
-    }
+    // 다크/라이트 전환은 공통 static/theme.js 가 맡는다(2026-10-02).
 
     // 아파트명 자동완성(예전 그래프 홈의 /api/search/apartments 동작을 옮김).
     // 목록에서 고르면 구·동도 함께 보내 이름이 같은 단지를 구분한다.

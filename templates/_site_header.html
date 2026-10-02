@@ -10,6 +10,6 @@
         <a href="/compare"{% if _path.startswith("/compare") %} aria-current="page"{% endif %}>단지 비교</a>
         <a href="/area"{% if _path.startswith("/area") %} aria-current="page"{% endif %}>지역별 보기</a>
         {% if config.HOME_GRAPH_ENABLED %}<a class="site-nav-graph bb-nav-graph" href="/graph">클러스터로 탐색</a>{% endif %}
-        {% if site_header_theme %}<button type="button" class="bb-theme-button" data-theme-toggle hidden aria-label="다크 모드로 보기">다크 모드</button>{% endif %}
+        <button type="button" class="site-theme-button bb-theme-button" data-theme-toggle hidden aria-label="다크 모드로 보기">다크 모드</button>
     </nav>
 </header>

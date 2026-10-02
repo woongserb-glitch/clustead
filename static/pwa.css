@@ -114,7 +114,7 @@
     font-weight: 700;
     color: var(--c-fg);
     background: var(--c-surface-2);
-    border: 1px solid #dbe2ea;
+    border: 1px solid light-dark(#dbe2ea, #3e536a);
     border-radius: 6px;
     vertical-align: middle;
 }
@@ -162,4 +162,4 @@
     cursor: pointer;
 }
 
-#clusteadPwaGuide .pwa-guide-close:hover { color: #2b3444; }
+#clusteadPwaGuide .pwa-guide-close:hover { color: light-dark(#2b3444, #aeb9cc); }
