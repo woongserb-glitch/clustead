@@ -1,5 +1,6 @@
 import json
 import os
+import math
 import time
 from pathlib import Path
 
@@ -372,3 +373,50 @@ def get_subway_pois_for_baseline(lat, lng):
     except Exception as e:
         print("[SUBWAY BASELINE ERROR]", e)
         return []
+
+
+def count_category_exact(category, lat, lng, radius, max_depth=4):
+    """반경 안 업종 매장 수를 45곳 한도 없이 센다(2026-10-02).
+
+    카테고리 검색은 한 번에 45곳까지만 주므로, 반경을 감싼 사각형을 4등분해(rect 검색)
+    각 칸의 total_count 가 45를 넘으면 더 나눈다. 같은 매장은 id 로 한 번만 세고,
+    대표 좌표에서 직선거리가 반경 이내인 것만 센다. 한도에 걸린 단지에만 쓴다(호출 수 절약).
+    반환: 개수, 실패하면 None.
+    """
+    from services.geo_service import get_distance_m
+
+    rest_key = os.getenv("KAKAO_REST_API_KEY", "")
+    if not rest_key or category not in CATEGORY_CONFIG:
+        return None
+    code = CATEGORY_CONFIG[category]["code"]
+    headers = {"Authorization": f"KakaoAK {rest_key}"}
+    url = "https://dapi.kakao.com/v2/local/search/category.json"
+    dlat = radius / 111000.0
+    dlng = radius / (111000.0 * math.cos(math.radians(lat)))
+    found = {}
+
+    def fetch(x1, y1, x2, y2, depth):
+        docs, total = [], 0
+        for page in range(1, 4):
+            params = {"category_group_code": code, "rect": f"{x1},{y1},{x2},{y2}", "size": 15, "page": page}
+            data = requests.get(url, headers=headers, params=params, timeout=8).json()
+            total = data.get("meta", {}).get("total_count", 0)
+            docs.extend(data.get("documents", []))
+            if data.get("meta", {}).get("is_end", True):
+                break
+        if total > 45 and depth < max_depth:
+            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+            for a, b, c, d in ((x1, y1, mx, my), (mx, y1, x2, my), (x1, my, mx, y2), (mx, my, x2, y2)):
+                fetch(a, b, c, d, depth + 1)
+            return
+        if total > 45:
+            raise RuntimeError("rect split depth exceeded")
+        for doc in docs:
+            found[doc["id"]] = (float(doc["y"]), float(doc["x"]))
+
+    try:
+        fetch(lng - dlng, lat - dlat, lng + dlng, lat + dlat, 0)
+    except Exception as e:
+        print("Kakao exact count error:", category, e)
+        return None
+    return sum(1 for y, x in found.values() if get_distance_m(lat, lng, y, x) <= radius)
