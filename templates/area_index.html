@@ -19,7 +19,8 @@
     <meta name="twitter:image" content="{{ seo.og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260906a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261002a">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -27,21 +28,22 @@
         .area-gu-domain-strip span.is-high { border-color: #dbeafe; background: #eff6ff; color: #1d4ed8; }
         .area-gu-domain-strip span.is-low { border-color: #fde68a; background: #fffbeb; color: #b45309; }
         .area-gu-apts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; }
-        .area-gu-apts > span { color: #94a3b8; font-size: 12px; }
+        .area-gu-apts > span { color: var(--c-faint); font-size: 12px; }
         .area-gu-apts a {
-            padding: 3px 9px; border: 1px solid #e2e8f0; border-radius: 999px;
-            background: #fff; color: #15243B; text-decoration: none;
+            padding: 3px 9px; border: 1px solid var(--c-line-soft); border-radius: 999px;
+            background: var(--c-surface); color: var(--c-fg); text-decoration: none;
         }
-        .area-gu-apts a:hover { border-color: #5B8DEF; color: #5B8DEF; }
+        .area-gu-apts a:hover { border-color: #5B8DEF; color: var(--c-accent); }
         .area-hub-rank { display: flex; align-items: center; gap: 5px; font-size: 12.5px; white-space: nowrap; }
-        .area-hub-rank a { color: #15243B; font-weight: 600; text-decoration: none; }
-        .area-hub-rank a:hover { color: #5B8DEF; }
-        .area-hub-rank span { color: #cbd5e1; }
+        .area-hub-rank a { color: var(--c-fg); font-weight: 600; text-decoration: none; }
+        .area-hub-rank a:hover { color: var(--c-accent); }
+        .area-hub-rank span { color: var(--c-faint); }
     </style>
 </head>
 
 <body>
     <div class="page area-page">
+        {% include "_site_header.html" %}
         <header class="tool-hero area-hero">
             <div class="area-breadcrumb">
                 <a href="/">홈</a>

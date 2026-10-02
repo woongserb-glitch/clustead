@@ -1,4 +1,4 @@
-{% from "_billboard_macros.html" import rows, district_rows, er_group, rule_list, header, footer %}
+{% from "_billboard_macros.html" import rows, district_rows, er_group, rule_list, footer %}
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -21,7 +21,8 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=22">
+    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=23">
     <script type="application/ld+json">{{ ranking_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -30,7 +31,7 @@
 <body>
     <a class="bb-skip" href="#main">본문으로 이동</a>
     <div class="bb-wrap">
-        {{ header(billboard_settings) }}
+        {% with site_header_theme = true %}{% include "_site_header.html" %}{% endwith %}
         <main class="bb-ranking-page" id="main">
             <nav class="bb-breadcrumb" aria-label="현재 위치"><a href="/">홈</a><span aria-hidden="true">/</span><span>생활 인프라 순위</span></nav>
             <div class="bb-ranking-heading"><p class="bb-tag">{{ ranking_topic.tag }}</p><h1>{{ ranking_topic.question or ranking_topic.title }}</h1>{% if ranking_topic.answer %}<p class="bb-ranking-answer">{{ ranking_topic.answer }}</p>{% endif %}<p>데이터 기준 {{ billboard.data_month }} · {% if ranking_topic.key == 'gu_best_dong' %}구별 1위 동{% elif ranking_topic.key == 'changes' %}변경 목록{% else %}TOP {{ ranking_topic.rows | length }}{% endif %}</p>{% if ranking_topic.source_summary %}<p class="bb-ranking-source">{{ ranking_topic.source_summary }}</p>{% endif %}</div>
