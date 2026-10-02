@@ -119,10 +119,10 @@ def haversine_m(lat1, lng1, lat2, lng2):
 
 
 def parse_gu_dong(address):
-    parts = clean(address).split()
-    gu = next((part for part in parts if part.endswith("구")), "")
-    dong = next((part for part in parts if part.endswith(("동", "가"))), "")
-    return gu, dong
+    # 예전 방식(공백으로 나눠 '동/가'로 끝나는 첫 단어)은 '(가산동)'처럼 괄호에 붙은 동을 못 읽어
+    # 94%가 빈칸이었다. 공통 판별(services.address_dong)을 쓴다(2026-10-02). 결과 CSV 에는 저장되지 않는 값.
+    from services.address_dong import gu_from_address, legal_dong_from_address
+    return gu_from_address(address), legal_dong_from_address(address)
 
 
 def classify_hospital_subtype(row, name):

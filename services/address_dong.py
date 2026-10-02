@@ -55,3 +55,53 @@ def gu_from_address(address):
     """'서울특별시 강남구 …'에서 자치구. 없으면 빈 문자열."""
     match = GU_NAME.search(address or "")
     return match.group(1) if match else ""
+
+
+def trailing_dong(address, known_dongs):
+    """괄호 밖에 적힌 동('2,3층 구로동'). 오인을 막으려 그 구에서 실제로 쓰이는 동 이름일 때만."""
+    if not known_dongs:
+        return ""
+    outside = re.sub(r"\([^()]*\)", " ", address or "")
+    for word in reversed(re.split(r"[\s,]+", outside)):
+        word = word.strip(".")
+        if word in known_dongs:
+            return word
+    return ""
+
+
+def resolve_academy_region(row, known_dongs_by_gu, region_lookup=None):
+    """학원 원천 행 → (구, 법정동, 판별 방법). 방법: 'paren' | 'trailing' | 'coords' | ''.
+
+    1) 상세주소 괄호 안 '(법정동, 건물명)'  2) 괄호 밖 끝에 적힌 동(그 구의 알려진 동만)
+    3) 좌표 → 법정동(region_lookup(lat, lng) -> (구, 동)). 구는 도로명주소를 우선한다.
+    """
+    detail = row.get("도로명상세주소") or ""
+    gu = gu_from_address(row.get("도로명주소")) or (row.get("행정구역명") or "").strip()
+    dong = legal_dong_from_address(detail)
+    if dong and gu:
+        return gu, dong, "paren"
+    dong = trailing_dong(detail, known_dongs_by_gu.get(gu, set()))
+    if dong and gu:
+        return gu, dong, "trailing"
+    if region_lookup:
+        try:
+            lat, lng = float(row.get("lat")), float(row.get("lng"))
+        except (TypeError, ValueError):
+            return gu, "", ""
+        coord_gu, coord_dong = region_lookup(lat, lng)
+        if coord_dong and (not gu or coord_gu == gu):
+            return coord_gu or gu, coord_dong, "coords"
+    return gu, "", ""
+
+
+def known_academy_dongs(rows, extra=None):
+    """{구: 법정동 이름 집합} — 학원 주소 괄호에 실제로 적힌 동 + 단지 마스터 등 추가 목록."""
+    known = {}
+    for row in rows:
+        gu = gu_from_address(row.get("도로명주소")) or (row.get("행정구역명") or "").strip()
+        dong = legal_dong_from_address(row.get("도로명상세주소"))
+        if gu and dong:
+            known.setdefault(gu, set()).add(dong)
+    for gu, dongs in (extra or {}).items():
+        known.setdefault(gu, set()).update(dongs)
+    return known

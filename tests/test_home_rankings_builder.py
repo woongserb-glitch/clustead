@@ -44,6 +44,7 @@ def dong_name(n):
 def no_raw_workbooks(monkeypatch):
     """빌더 테스트는 국토부 원본 엑셀 없이 돈다(직거래 키는 빈 집합)."""
     monkeypatch.setattr(price_trend, "load_direct_trade_keys", lambda raw_dir, years: set())
+    monkeypatch.setattr(builder, "academy_region_lookup", lambda lat, lng: ("", ""))
 
 
 @pytest.fixture
@@ -141,13 +142,13 @@ def test_top_five_exactly_matches_unmodified_reference(dataset, monkeypatch):
     for key in ORACLE_TOPICS:
         # 노선 이름(line_names)은 기준 답 이후에 더한 표시용 필드다.
         assert [{k: v for k, v in r.items() if k != "line_names"} for r in actual[key][:5]] == expected[key], key
-    for key in ("quiet_pool", "dong_academy_meta", "new_complexes"):
+    for key in ("quiet_pool", "new_complexes"):
         assert actual[key] == expected[key], key
     assert len(actual["academy"]) == len(actual["dong_academy"]) == 50
     assert len(actual["quiet"]) == len(actual["value_combo"]) == 50
     assert actual["convenience"][0]["name"] == "단지70"  # never use name as a new tie breaker
     assert actual["dong_academy"][0]["dong"] == dong_name(60)
-    assert actual["dong_academy_meta"] == {"counted": 120, "no_dong": 2}
+    assert actual["dong_academy_meta"] == {"counted": 120, "no_dong": 2, "by_method": {"paren": 120}}
     assert csv_fingerprints(dataset) == before
     validate_rankings(actual)
 
@@ -335,3 +336,16 @@ def test_legal_dong_parsing_skips_building_names_and_uses_address_gu():
         assert legal_dong_from_address(address) == expected, address
     assert gu_from_address("서울특별시 서초구 서초대로 1") == "서초구"
     assert gu_from_address("주소 없음") == ""
+
+
+def test_academy_region_falls_back_to_trailing_dong_then_coordinates():
+    from services.address_dong import resolve_academy_region
+    known = {"구로구": {"구로동", "고척동"}}
+    row = lambda detail, **kw: {"도로명주소": "서울특별시 구로구 도림로 1", "도로명상세주소": detail, "lat": "37.5", "lng": "126.9", **kw}
+    lookup = lambda lat, lng: ("구로구", "개봉동")
+    assert resolve_academy_region(row("(구로동, 상가)"), known, lookup) == ("구로구", "구로동", "paren")
+    assert resolve_academy_region(row("2,3층 구로동"), known, lookup) == ("구로구", "구로동", "trailing")
+    assert resolve_academy_region(row("경남2차아파트상가 301호"), known, lookup) == ("구로구", "개봉동", "coords")
+    assert resolve_academy_region(row("(3층)"), known, None) == ("구로구", "", "")
+    # 좌표의 구가 주소의 구와 다르면 믿지 않는다.
+    assert resolve_academy_region(row("(3층)"), known, lambda a, b: ("강남구", "대치동")) == ("구로구", "", "")
