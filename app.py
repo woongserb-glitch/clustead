@@ -1242,7 +1242,29 @@ def assigned_elementary_name(summary):
     return clean_evidence_label(nearest.get("label") or nearest.get("name"))
 
 
+_ZERO_COUNT_RE = re.compile(r"^(반경 \S+ 내 )(.+?) 0(곳|기|대|개)이 있습니다\.\s*(.*)$")
+
+
+def _topic_particle(word):
+    """은/는 — 마지막 글자 받침 유무로 고른다."""
+    last = (word or " ")[-1]
+    if "가" <= last <= "힣":
+        return "은" if (ord(last) - 0xAC00) % 28 else "는"
+    return "는"
+
+
 def build_category_evidence(summary):
+    """카드 설명 문장. 개수가 0이면 '0곳이 있습니다' 대신 '없습니다'로 바꾼다(2026-10-02)."""
+    text = _build_category_evidence_raw(summary)
+    match = _ZERO_COUNT_RE.match(text or "")
+    if not match:
+        return text
+    head, noun, _unit, rest = match.groups()
+    sentence = f"{head}{noun}{_topic_particle(noun)} 없습니다."
+    return f"{sentence} {rest}".strip() if rest else sentence
+
+
+def _build_category_evidence_raw(summary):
     key = summary.get("key")
     radius = format_distance_m(summary.get("radius"))
     count = to_int(summary.get("count"), 0)
@@ -1298,6 +1320,10 @@ def build_category_evidence(summary):
 
     if key == "fire-station":
         _, nearest_distance = nearest_name_and_distance(summary)
+        if count <= 0:
+            if nearest_distance:
+                return f"반경 {radius} 안에 119안전센터·구조대가 없습니다. 가장 가까운 안전센터는 {nearest_distance} 거리입니다."
+            return f"반경 {radius} 안에 119안전센터·구조대가 없습니다."
         if nearest_distance:
             return f"반경 {radius} 내 119안전센터 및 구조대가 {format_count_phrase(count)} 있습니다. 가장 가까운 안전센터는 {nearest_distance} 거리입니다."
         return f"반경 {radius} 내 119안전센터 및 구조대가 {format_count_phrase(count)} 있습니다."
@@ -1337,7 +1363,7 @@ def build_category_evidence(summary):
             return f"대표 배정 초등학교는 {name}입니다. 대표 좌표 기준 약 {distance} 거리에 위치합니다."
         if name:
             return f"대표 배정 초등학교는 {name}입니다."
-        return "대표 배정 초등학교 정보를 확인 중입니다."
+        return "학구도에서 배정 초등학교를 찾지 못했습니다."
 
     if key == "academy":
         subtype_text = subtype_sentence(summary, unit="곳", limit=2)
@@ -1359,7 +1385,7 @@ def build_category_evidence(summary):
     if key == "park":
         nearest_name, nearest_distance = nearest_name_and_distance(summary)
         if count <= 0:
-            return f"반경 {radius} 내 확인된 공원 데이터가 아직 없습니다."
+            return f"반경 {radius} 안에 공원이 없습니다."
         if nearest_name and nearest_distance:
             return f"반경 {radius} 내 공원 {format_count_phrase(count)}이 있습니다. 가장 가까운 공원은 {nearest_name}으로 {nearest_distance} 거리입니다."
         return f"반경 {radius} 내 공원 {format_count_phrase(count)}이 있습니다."
@@ -1368,7 +1394,7 @@ def build_category_evidence(summary):
         nearest_name, _ = nearest_name_and_distance(summary)
         if nearest_name:
             return f"가장 가까운 한강공원은 {hangang_park_name(nearest_name)}입니다."
-        return "가까운 한강공원 접근 정보를 확인합니다."
+        return f"반경 {radius} 안에 한강공원이 없습니다."
 
     if key == "nightlife":
         if count <= 0:

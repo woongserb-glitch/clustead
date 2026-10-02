@@ -21,7 +21,8 @@
 <div class="detail-meta">
     <span>반경 {{ summary.radius|distance_m }}</span>
     <span>근처 {{ summary.count|thousands }}{{ summary.count_unit or "곳" }}</span>
-    {% if summary.grade and summary.key != "school-environment" %}
+    {# 한강은 반경 밖이면 "접근성 나쁨"이 아니라 해당 없음이라 등급을 숨긴다(2026-10-02). #}
+    {% if summary.grade and summary.key != "school-environment" and not (summary.key == "hangang" and not summary.count) %}
     <span class="grade-badge grade-{{ summary.grade|lower }}">{{ summary.grade }}등급</span>
     {% endif %}
     <span class="source-badge">{{ summary.source }}</span>
@@ -195,7 +196,7 @@
     </div>
 </li>
 {% endfor %}
-{% else %}
+{% elif "없습니다" not in (summary.description or "") %}
 <li>{{ summary.empty }}</li>
 {% endif %}
 {%- endmacro %}
