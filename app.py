@@ -441,7 +441,7 @@ def manifest_webmanifest():
         "scope": "/",
         "display": "standalone",
         "orientation": "portrait-primary",
-        "background_color": "#f7f8fb",
+        "background_color": "#f4f2ec",
         "theme_color": "#15243B",
         "icons": [
             {

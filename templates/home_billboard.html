@@ -1,4 +1,4 @@
-{% from "_billboard_macros.html" import criteria, rows, district_rows, er_group, header, footer %}
+{% from "_billboard_macros.html" import criteria, rows, district_rows, er_group, footer %}
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -29,7 +29,8 @@
     <meta name="twitter:image" content="{{ og_image_url }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=22">
+    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='billboard.css') }}?v=23">
     <script type="application/ld+json">{{ home_json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -38,7 +39,7 @@
 <body>
     <a class="bb-skip" href="#main">본문으로 이동</a>
     <div class="bb-wrap">
-        {{ header(billboard_settings, home=true) }}
+        {% with site_header_theme = true %}{% include "_site_header.html" %}{% endwith %}
         <main id="main">
             <div class="bb-intro">
                 <div class="bb-intro-copy"><p class="bb-eyebrow">SEOUL APARTMENT · LIFE INFRASTRUCTURE</p><h1>서울시 아파트의 모든 것</h1><p class="bb-intro-description">단지 좌표·동 주소·실거래 조건을 연결해<br class="bb-desktop-break"> 서울 아파트와 동네의 생활 인프라를 비교합니다.</p></div>

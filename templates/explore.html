@@ -16,7 +16,8 @@
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20260906a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261002a">
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
 </head>
@@ -31,19 +32,15 @@
     </div>
 
     <div class="page">
+        {% include "_site_header.html" %}
         <header class="tool-hero tool-hero-home">
             <div class="result-hero-top">
-                <a class="back-link" href="/">← 홈으로</a>
-                {# 모바일에선 Explore가 곧 홈 → 브랜드 로고를 노출(데스크톱은 숨김) #}
-                <span class="explore-home-brand">{% include "_brand_logo.html" %}</span>
-                <a class="result-download-btn" href="/compare">⚖ 단지 비교</a>
+                {# '← 홈으로'·모바일 로고·'단지 비교'는 공통 상단 머리(_site_header)로 대체(2026-10-02) #}
+                <span></span>
                 {% include "_pwa_install_button.html" %}
             </div>
             <div class="top-label">CLUSTEAD EXPLORE</div>
-            <h1>
-                <span class="hero-title-tool">서울시 아파트 탐색서비스</span>
-                <span class="hero-title-home">내 삶에 맞는<br>서울 아파트 찾기</span>
-            </h1>
+            <h1>서울시 아파트 탐색서비스</h1>
             <p>지역, 학교, 지하철, 버스, 병원, 대형마트, 실거래가까지<br>원하는 조건을 직접 조합해 찾아보세요.</p>
         </header>
 

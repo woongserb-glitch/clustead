@@ -1,32 +1,39 @@
-/* Clustead home and ranking pages. Jost is self-hosted in vendor/jost/. */
+/* Clustead home and ranking pages. Jost is self-hosted in vendor/jost/.
+   공통 토큰·상단 머리는 brand.css(먼저 읽는다). 이 파일의 다크 모드는 --c-* 토큰을 덮어써서
+   공통 머리·하단 문구까지 함께 어두워지게 한다. */
 :root {
     color-scheme: light;
-    --bb-ink: #15243b;
-    --bb-steel: #38495d;
-    --bb-mist: #f4f2ec;
-    --bb-paper: #fffdf8;
-    --bb-line: #ddd8cc;
-    --bb-accent: #2563eb;
+    /* 색·글꼴 값은 brand.css 의 공통 토큰을 따른다(전 페이지 통일, 2026-10-02). */
+    --bb-ink: var(--c-ink);
+    --bb-steel: var(--c-steel);
+    --bb-mist: var(--c-page);
+    --bb-paper: var(--c-surface);
+    --bb-line: var(--c-line);
+    --bb-accent: var(--c-accent);
     --bb-led: #ffc94a;
-    --bb-fg: #1b2433;
-    --bb-muted: #5d6878;
-    --bb-rule: #efece3;
-    --bb-display: 'Jost', 'Century Gothic', 'Malgun Gothic', sans-serif;
-    --bb-body: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    --bb-fg: var(--c-fg);
+    --bb-muted: var(--c-muted);
+    --bb-rule: var(--c-rule);
+    --bb-display: var(--c-font-display);
+    --bb-body: var(--c-font-body);
 }
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         color-scheme: dark;
-        --bb-ink: #0d1626; --bb-steel: #b5c2d4; --bb-mist: #111827;
-        --bb-paper: #172133; --bb-line: #334158; --bb-accent: #8aafff;
-        --bb-led: #ffcf5c; --bb-fg: #e8ecf3; --bb-muted: #a8b4c5; --bb-rule: #1d2a40;
+        --c-ink: #0d1626; --c-steel: #b5c2d4; --c-page: #111827;
+        --c-surface: #172133; --c-surface-2: #1b2638; --c-line: #334158; --c-line-soft: #26334a;
+        --c-accent: #8aafff; --c-accent-strong: #a9c4ff;
+        --c-fg: #e8ecf3; --c-muted: #a8b4c5; --c-faint: #7f8ca0; --c-rule: #1d2a40;
+        --bb-led: #ffcf5c;
     }
 }
 :root[data-theme="dark"] {
     color-scheme: dark;
-    --bb-ink: #0d1626; --bb-steel: #b5c2d4; --bb-mist: #111827;
-    --bb-paper: #172133; --bb-line: #334158; --bb-accent: #8aafff;
-    --bb-led: #ffcf5c; --bb-fg: #e8ecf3; --bb-muted: #a8b4c5; --bb-rule: #1d2a40;
+    --c-ink: #0d1626; --c-steel: #b5c2d4; --c-page: #111827;
+    --c-surface: #172133; --c-surface-2: #1b2638; --c-line: #334158; --c-line-soft: #26334a;
+    --c-accent: #8aafff; --c-accent-strong: #a9c4ff;
+    --c-fg: #e8ecf3; --c-muted: #a8b4c5; --c-faint: #7f8ca0; --c-rule: #1d2a40;
+    --bb-led: #ffcf5c;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -44,19 +51,12 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 .bb-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .bb-skip { position: fixed; top: 8px; left: 12px; z-index: 100; padding: 10px 16px; background: var(--bb-paper); color: var(--bb-accent); transform: translateY(-180%); border-radius: 8px; }
 .bb-skip:focus { transform: translateY(0); }
-.bb-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-bottom: 19px; border-bottom: 1px solid var(--bb-line); }
-.bb-brand { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; font: 600 22px/1.3 var(--bb-display); letter-spacing: .13em; text-decoration: none; }
-.bb-brand span { font: 12px/1.6 var(--bb-body); letter-spacing: 0; color: var(--bb-muted); }
-.bb-mark { width: 26px; height: 26px; flex: none; align-self: center; margin-right: -2px; color: var(--bb-fg); }
 /* 우측 플로팅 바로가기(_page_actions.html) — style.css 를 읽지 않는 전광판 화면용, 라이트·다크 대응 */
 .page-actions { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); z-index: 250; display: flex; flex-direction: column; gap: 8px; }
 .page-actions[hidden] { display: none; }
 .page-action { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--bb-line); background: var(--bb-paper); box-shadow: 0 6px 18px rgba(15, 23, 42, .14); color: var(--bb-fg); font-size: 17px; line-height: 1; text-decoration: none; cursor: pointer; padding: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @media (hover: hover) and (pointer: fine) { .page-action:hover { border-color: var(--bb-accent); } }
 @media (min-width: 761px) { .page-actions { right: 24px; bottom: 24px; } }
-.bb-nav { display: flex; align-items: center; justify-content: flex-end; gap: 19px; flex-wrap: wrap; font-size: 12px; font-weight: 600; }
-.bb-nav a { text-decoration: none; white-space: nowrap; }
-.bb-nav a:hover { color: var(--bb-accent); text-decoration: underline; }
 .bb-theme-button { color: #fff; border: 1px solid #15243b; background: #15243b; border-radius: 7px; padding: 6px 9px; font-size: 11px; white-space: nowrap; cursor: pointer; }
 /* 버튼은 누르면 바뀔 모드의 색으로 보인다: 라이트 화면의 '다크 모드'는 남색, 다크 화면의 '라이트 모드'는 밝은색. */
 :root[data-theme="dark"] .bb-theme-button { color: #15243b; border-color: #f4f2ec; background: #f4f2ec; }
@@ -262,10 +262,6 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 .bb-related a { display: inline-block; border: 1px solid var(--bb-line); border-radius: 8px; background: var(--bb-paper); font-size: 12px; color: var(--bb-steel); padding: 8px 12px; text-decoration: none; }
 .bb-related a:hover { color: var(--bb-accent); border-color: var(--bb-accent); }
 @media (max-width: 1000px) {
-    .bb-header { align-items: flex-start; }
-    .bb-brand { max-width: 250px; }
-    .bb-brand span { display: block; }
-    .bb-nav { gap: 14px; }
     .bb-intro-search { width: 380px; }
     .bb-hero { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; }
     .bb-board { padding-inline: 24px; }
@@ -275,11 +271,7 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
     .bb-ranking-layout { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
-    .bb-nav-graph { display: none; }
     .bb-wrap { padding: 17px 16px 26px; }
-    .bb-header { flex-wrap: wrap; gap: 15px; padding-bottom: 15px; }
-    .bb-brand { max-width: none; font-size: 21px; }
-    .bb-nav { width: 100%; justify-content: flex-start; gap: 16px; font-size: 12px; }
     .bb-theme-button { margin-left: auto; }
     .bb-intro { align-items: stretch; flex-direction: column; gap: 20px; margin: 30px 0 20px; }
     .bb-intro h1 { font-size: 38px; line-height: 1.18; margin-bottom: 13px; }
@@ -362,8 +354,6 @@ h1, h2, h3, h4, p, li, dd { word-break: keep-all; overflow-wrap: anywhere; }
 }
 @media (max-width: 360px) {
     .bb-wrap { padding-inline: 12px; }
-    .bb-nav { gap: 12px; font-size: 11px; }
-    .bb-brand span { font-size: 11px; }
     .bb-card { padding-inline: 12px; }
     .bb-district-list { column-gap: 10px; font-size: 11px; }
 }
