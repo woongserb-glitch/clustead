@@ -24,7 +24,14 @@ if str(ROOT) not in sys.path:
 from scripts.build_academy_baseline import classify_academy
 from services.home_billboard_service import validate_rankings
 from scripts import home_price_trend
-from services.address_dong import gu_from_address, legal_dong_from_address
+from services.address_dong import (gu_from_address, known_academy_dongs, legal_dong_from_address,
+                                   resolve_academy_region)
+
+
+def academy_region_lookup(lat, lng):
+    """좌표 → (구, 법정동). 테스트는 이 함수를 바꿔 끼운다(네트워크 없이)."""
+    from services.kakao_local_service import legal_region_from_coords
+    return legal_region_from_coords(lat, lng)
 
 csv.field_size_limit(2**31 - 1)
 LIMIT = 50
@@ -322,19 +329,24 @@ def build_rankings(data_dir, *, data_month, source_dates=None, previous=None, pr
     out["academy"] = [{**lab(k), "total": int(trio(k)), "exam": int(f(ac[k]["exam_count"])),
                        "math": int(f(ac[k]["math_count"])), "english": int(f(ac[k]["english_count"]))} for k in t[:LIMIT]]
 
-    cnt, no_dong = defaultdict(Counter), 0
-    for r in csv_rows(data_dir / "academy/academy_geocoded.csv"):
-        if (r.get("등록상태명") or "").strip() != "개원":
-            continue
+    # 학원 주소의 법정동(2026-10-02): 괄호 안 '(법정동, 건물명)' → 괄호 밖 끝의 동(그 구에서 실제로
+    # 쓰이는 이름만) → 좌표의 법정동(카카오, 캐시) 순으로 찾는다. 구는 도로명주소를 우선한다.
+    academy_rows = [r for r in csv_rows(data_dir / "academy/academy_geocoded.csv")
+                    if (r.get("등록상태명") or "").strip() == "개원"]
+    master_dongs = defaultdict(set)
+    for r in masters:
+        master_dongs[r["주소(시군구)"]].add(r["주소(읍면동)"])
+    known_dongs = known_academy_dongs(academy_rows, master_dongs)
+    cnt, no_dong, methods = defaultdict(Counter), 0, Counter()
+    for r in academy_rows:
         subtype = classify_academy(r)
         if subtype not in ("입시/보습", "수학", "영어"):
             continue
-        # 동은 '(법정동, 건물명)'에서 건물명을 걸러 읽고, 구는 실제 도로명주소를 우선한다(2026-10-02).
-        dong = legal_dong_from_address(r.get("도로명상세주소"))
-        gu = gu_from_address(r.get("도로명주소")) or (r.get("행정구역명") or "").strip()
+        gu, dong, method = resolve_academy_region(r, known_dongs, academy_region_lookup)
         if not dong or not gu:
             no_dong += 1
             continue
+        methods[method] += 1
         cnt[(gu, dong)][subtype] += 1
     rows = sorted(((g, d, sum(c.values()), c) for (g, d), c in cnt.items()), key=lambda x: -x[2])
     out["dong_academy"] = [{"gu": g, "dong": d, "total": n, "exam": c["입시/보습"], "math": c["수학"], "english": c["영어"]}
@@ -343,7 +355,8 @@ def build_rankings(data_dir, *, data_month, source_dates=None, previous=None, pr
     for g, d, n, _ in rows:
         best.setdefault(g, {"gu": g, "dong": d, "total": n})
     out["gu_best_dong"] = [best[g] for g in sorted(best)]
-    out["dong_academy_meta"] = {"counted": sum(sum(c.values()) for c in cnt.values()), "no_dong": no_dong}
+    out["dong_academy_meta"] = {"counted": sum(sum(c.values()) for c in cnt.values()), "no_dong": no_dong,
+                                "by_method": dict(methods)}
 
     # 매매 거래(가격 추이·국민평형 가격 공용). 직거래 키는 국토부 원본 엑셀에서 읽는다(약 30초).
     prev_start, _, _, recent_end = home_price_trend.windows(data_month)

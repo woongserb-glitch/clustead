@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
 
 from scripts import build_home_rankings as home
 from scripts import home_price_trend as price
-from services.address_dong import gu_from_address, legal_dong_from_address
+from services.address_dong import known_academy_dongs, resolve_academy_region
 from scripts.build_academy_baseline import classify_academy
 from scripts.build_subway_baseline import canonical_line, station_key
 from services.home_billboard_service import DIRECTORY_EVENTS, QUESTIONS, TOPICS
@@ -253,16 +253,18 @@ def academy_address_snapshot(path, month):
     if not path.is_file():
         return {"schema_version": 1, "data_month": month, "status": "미집계", "reason": "학원 원본 없음"}
     rows, groups, skipped, seen, duplicates = [], defaultdict(Counter), 0, set(), 0
-    for record, row in enumerate(home.csv_rows(path), 1):
-        if (row.get("등록상태명") or "").strip() != "개원":
-            continue
+    open_rows = [(record, row) for record, row in enumerate(home.csv_rows(path), 1)
+                 if (row.get("등록상태명") or "").strip() == "개원"]
+    known = known_academy_dongs([row for _, row in open_rows])
+    # 홈 순위와 같은 판별(services.address_dong). 좌표 → 법정동은 빌더가 남긴 카카오 캐시만 읽는다(네트워크 없음).
+    from services.kakao_local_service import legal_region_from_coords
+    cached_region = lambda lat, lng: legal_region_from_coords(lat, lng, allow_network=False)
+    for record, row in open_rows:
         subtype = classify_academy(row)
         if subtype not in ("입시/보습", "수학", "영어"):
             continue
         address = row.get("도로명상세주소") or ""
-        # 홈 순위와 같은 판별(services.address_dong): 건물명 제외, 구는 도로명주소 우선.
-        dong = legal_dong_from_address(address)
-        gu = gu_from_address(row.get("도로명주소")) or (row.get("행정구역명") or "").strip()
+        gu, dong, _ = resolve_academy_region(row, known, cached_region)
         if not dong or not gu:
             skipped += 1
             continue

@@ -420,3 +420,35 @@ def count_category_exact(category, lat, lng, radius, max_depth=4):
         print("Kakao exact count error:", category, e)
         return None
     return sum(1 for y, x in found.values() if get_distance_m(lat, lng, y, x) <= radius)
+
+
+def legal_region_from_coords(lat, lng, allow_network=True):
+    """좌표가 속한 (자치구, 법정동). 카카오 coord2regioncode 의 법정동(B) 결과, 디스크 캐시 사용.
+
+    주소에 동 이름이 없는 학원(예: 상세주소 '(3층)')의 동을 찾는 데 쓴다(2026-10-02).
+    allow_network=False 면 캐시만 본다(월간 스카우트처럼 네트워크를 쓰지 않는 곳).
+    못 찾으면 ("", "").
+    """
+    key = _cache_key("region", lat, lng)
+    cached = _cache_get(key)
+    if cached is not None:
+        return tuple(cached) if len(cached) == 2 else ("", "")
+    rest_key = os.getenv("KAKAO_REST_API_KEY", "")
+    if not allow_network or not rest_key:
+        return ("", "")
+    try:
+        data = requests.get(
+            "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json",
+            headers={"Authorization": f"KakaoAK {rest_key}"},
+            params={"x": lng, "y": lat}, timeout=5,
+        ).json()
+    except Exception as e:
+        print("Kakao region error:", e)
+        return ("", "")
+    for doc in data.get("documents", []):
+        if doc.get("region_type") == "B" and doc.get("region_1depth_name", "").startswith("서울"):
+            region = [doc.get("region_2depth_name", ""), doc.get("region_3depth_name", "")]
+            _cache_set(key, region)
+            return tuple(region)
+    _cache_set(key, ["", ""])
+    return ("", "")
