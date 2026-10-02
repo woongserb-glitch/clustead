@@ -110,11 +110,15 @@ def main():
             continue
 
         nearby = []
+        overall_nearest = {}
         for item in fire_items:
             try:
                 distance = round(get_distance_m(apt_lat, apt_lng, item["lat"], item["lng"]))
             except Exception:
                 continue
+
+            if not overall_nearest or distance < overall_nearest["distance"]:
+                overall_nearest = {"label": item["label"], "subtype": item["subtype"], "distance": distance}
 
             if distance <= RADIUS_M:
                 nearby.append({
@@ -131,7 +135,10 @@ def main():
         rescue_count = sum(1 for item in nearby if item.get("subtype") == "구조대")
         etc_count = sum(1 for item in nearby if item.get("subtype") == "기타")
 
-        nearest = nearby[0] if nearby else {}
+        # 최근접은 반경과 무관하게 채운다(2026-10-02, 데이터 정합성 검토 D2). 예전엔 1.5km 밖이면
+        # 비워서 점수가 없었고, 랭킹이 빈 점수를 건너뛰어 가장 먼 213개 단지가 '안전' 등급에서
+        # 오히려 유리했다(S·A 25곳). 개수(fire_station_count_1500m)는 그대로 1.5km 기준이다.
+        nearest = nearby[0] if nearby else overall_nearest
 
         results.append({
             "name": apt_name,

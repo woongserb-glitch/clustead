@@ -530,6 +530,14 @@ def get_park_subtype(area):
     return "소형공원"
 
 
+# 원천(서울시 주요공원현황) WGS84 좌표가 틀린 공원 → 같은 행의 GRS80TM(EPSG:5181) 좌표를 변환한 값.
+# 답십리근린공원(동대문구 답십리로 209)이 대치동 부근(37.5074)으로 들어와 강남구 21개 단지의
+# "가장 가까운 공원"이 됐다(2026-10-02 데이터 정합성 검토 D1). 원천을 매달 새로 받으므로 여기서 고친다.
+PARK_COORD_OVERRIDES = {
+    "답십리근린공원": (37.573854, 127.063859),
+}
+
+
 def load_park_data():
     global park_data
 
@@ -555,6 +563,8 @@ def load_park_data():
                         subtype = get_park_subtype(area)
 
                         name = row.get("공원명", "공원")
+                        if name in PARK_COORD_OVERRIDES:
+                            lat, lng = PARK_COORD_OVERRIDES[name]
 
                         loaded.append({
                             "lat": lat,
