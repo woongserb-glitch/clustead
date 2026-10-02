@@ -35,6 +35,11 @@ def er_items(count, names=("응급A", "응급B", "응급C")):
     return json.dumps(items, ensure_ascii=False)
 
 
+def dong_name(n):
+    """한글 동 이름(숫자로 시작하는 '60동'은 건물 동 번호로 보고 제외하므로 픽스처에서 쓰지 않는다)."""
+    return "가나다라마바사아자차"[n % 10] + "가나다라마바사"[n // 10] + "동"
+
+
 @pytest.fixture(autouse=True)
 def no_raw_workbooks(monkeypatch):
     """빌더 테스트는 국토부 원본 엑셀 없이 돈다(직거래 키는 빈 집합)."""
@@ -93,7 +98,7 @@ def dataset(tmp_path):
     academies = []
     for i in range(60):
         for course in ("수학", "영어"):
-            academies.append({"등록상태명": "개원", "도로명상세주소": f"도로 ({60-i}동, 건물)",
+            academies.append({"등록상태명": "개원", "도로명상세주소": f"도로 ({dong_name(60-i)}, 건물)",
                               "행정구역명": "가구" if i < 30 else "나구", "학원명": "가학원", "교습과정명": course})
     academies.extend([
         {"등록상태명": "개원", "도로명상세주소": "주소에 법정동 없음", "행정구역명": "가구", "학원명": "학원", "교습과정명": "보습"},
@@ -141,7 +146,7 @@ def test_top_five_exactly_matches_unmodified_reference(dataset, monkeypatch):
     assert len(actual["academy"]) == len(actual["dong_academy"]) == 50
     assert len(actual["quiet"]) == len(actual["value_combo"]) == 50
     assert actual["convenience"][0]["name"] == "단지70"  # never use name as a new tie breaker
-    assert actual["dong_academy"][0]["dong"] == "60동"
+    assert actual["dong_academy"][0]["dong"] == dong_name(60)
     assert actual["dong_academy_meta"] == {"counted": 120, "no_dong": 2}
     assert csv_fingerprints(dataset) == before
     validate_rankings(actual)
@@ -316,3 +321,17 @@ def test_value_combo_uses_recent_six_month_84_average_and_subway_line_names(data
     lines = {r["name"]: r["line_names"] for r in actual["subway"]}
     assert lines["단지70"] == ["1호선", "2호선", "경의중앙선"]  # 숫자 노선 먼저, 그다음 이름순
     assert all(len(r["line_names"]) == r["lines"] for r in actual["subway"])
+
+
+def test_legal_dong_parsing_skips_building_names_and_uses_address_gu():
+    from services.address_dong import gu_from_address, legal_dong_from_address
+    cases = {
+        ", 5층 (대치동, 미도상가)": "대치동", " (미도상가)": "", "(대치동, 청실상가동)": "대치동",
+        "(1202동, 화곡동)": "화곡동", ", 2층 (연희동,(주)희훈)": "연희동", ", 405호 (장지동, 대진플라자(Ⅱ))": "장지동",
+        " 106호 (진관동102, 은평뉴타운)": "진관동", "(종로2가)": "종로2가", "(상도1동)": "상도1동",
+        ", 우성7차아파트상가동 203호 (일원동,운동시설(수영장))": "일원동", "주소에 법정동 없음": "",
+    }
+    for address, expected in cases.items():
+        assert legal_dong_from_address(address) == expected, address
+    assert gu_from_address("서울특별시 서초구 서초대로 1") == "서초구"
+    assert gu_from_address("주소 없음") == ""

@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
 
 from scripts import build_home_rankings as home
 from scripts import home_price_trend as price
+from services.address_dong import gu_from_address, legal_dong_from_address
 from scripts.build_academy_baseline import classify_academy
 from scripts.build_subway_baseline import canonical_line, station_key
 from services.home_billboard_service import DIRECTORY_EVENTS, QUESTIONS, TOPICS
@@ -259,12 +260,12 @@ def academy_address_snapshot(path, month):
         if subtype not in ("입시/보습", "수학", "영어"):
             continue
         address = row.get("도로명상세주소") or ""
-        match = re.search(r"\(([^,()]*?[0-9]*(?:동|가))[,)]", address)
-        gu = (row.get("행정구역명") or "").strip()
-        if not match or not gu:
+        # 홈 순위와 같은 판별(services.address_dong): 건물명 제외, 구는 도로명주소 우선.
+        dong = legal_dong_from_address(address)
+        gu = gu_from_address(row.get("도로명주소")) or (row.get("행정구역명") or "").strip()
+        if not dong or not gu:
             skipped += 1
             continue
-        dong = match.group(1).strip()
         source_id = row.get("학원지정번호") or ""
         identity = source_id or (gu, row.get("학원명"), address)
         if identity in seen:

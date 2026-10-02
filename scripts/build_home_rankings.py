@@ -24,6 +24,7 @@ if str(ROOT) not in sys.path:
 from scripts.build_academy_baseline import classify_academy
 from services.home_billboard_service import validate_rankings
 from scripts import home_price_trend
+from services.address_dong import gu_from_address, legal_dong_from_address
 
 csv.field_size_limit(2**31 - 1)
 LIMIT = 50
@@ -124,9 +125,8 @@ def definitions(out, sources, data_month):
     meta, dotted = out["price_meta"], home_price_trend.dotted
     trend = f"{dotted(meta['recent_start'])}~{dotted(meta['recent_end'])}"
     before = f"{dotted(meta['prev_start'])}~{dotted(meta['prev_end'])}"
-    no_dong = out["dong_academy_meta"]["no_dong"]
     dong = [["기준점", "학원 주소에 적힌 법정동"],
-            ["방식", f"개수 기준: 동 안의 입시/보습·수학·영어 학원·교습소 수의 합 (주소에서 동을 찾지 못한 {no_dong:,}곳 제외)"],
+            ["방식", f"개수 기준: 동 안의 입시/보습·수학·영어 학원·교습소 수의 합 (주소 정보가 불분명한 학원은 제외)"],
             ["출처", source("academy")]]
     return {
         "academy": [point, ["반경", "1,000m 이내 (직선거리)"],
@@ -167,9 +167,7 @@ def er_name_key(name):
 
 def er_place(address):
     """'서울특별시 강서구 양천로 600, … (등촌동)' -> ('강서구', '등촌동'). 못 찾으면 빈 문자열."""
-    gu = re.search(r"(\S+구)\s", address or "")
-    dong = re.findall(r"\(([^,()]*?[0-9]*(?:동|가))[,)]", address or "")
-    return (gu.group(1) if gu else ""), (dong[-1].strip() if dong else "")
+    return gu_from_address(address), legal_dong_from_address(address)
 
 
 def er_hospitals(medical):
@@ -331,12 +329,13 @@ def build_rankings(data_dir, *, data_month, source_dates=None, previous=None, pr
         subtype = classify_academy(r)
         if subtype not in ("입시/보습", "수학", "영어"):
             continue
-        m = re.search(r"\(([^,()]*?[0-9]*(?:동|가))[,)]", r.get("도로명상세주소") or "")
-        gu = (r.get("행정구역명") or "").strip()
-        if not m or not gu:
+        # 동은 '(법정동, 건물명)'에서 건물명을 걸러 읽고, 구는 실제 도로명주소를 우선한다(2026-10-02).
+        dong = legal_dong_from_address(r.get("도로명상세주소"))
+        gu = gu_from_address(r.get("도로명주소")) or (r.get("행정구역명") or "").strip()
+        if not dong or not gu:
             no_dong += 1
             continue
-        cnt[(gu, m.group(1).strip())][subtype] += 1
+        cnt[(gu, dong)][subtype] += 1
     rows = sorted(((g, d, sum(c.values()), c) for (g, d), c in cnt.items()), key=lambda x: -x[2])
     out["dong_academy"] = [{"gu": g, "dong": d, "total": n, "exam": c["입시/보습"], "math": c["수학"], "english": c["영어"]}
                            for g, d, n, c in rows[:LIMIT]]
