@@ -1941,7 +1941,7 @@ def _build_apartment_view(apt):
     }
 
 
-def get_apartment(name, gu=None, dong=None):
+def get_apartment(name, gu=None, dong=None, *, require_unique=False):
     """Resolve an apartment by identity.
 
     Apartment names are NOT unique in Seoul (e.g. 신동아아파트 x3), so a bare
@@ -1975,6 +1975,19 @@ def get_apartment(name, gu=None, dong=None):
 
     if not candidates:
         return None
+
+    # Addressed detail requests must not silently choose one of several
+    # complexes. A globally unique name can still repair a stale address.
+    if require_unique:
+        if len(candidates) > 1:
+            candidates = [
+                apt for apt in candidates
+                if (not gu_norm or clean_text(apt.get("gu", "")) == gu_norm)
+                and (not dong_norm or clean_text(apt.get("dong", "")) == dong_norm)
+            ]
+        if len(candidates) != 1:
+            return None
+        return _build_apartment_view(candidates[0])
 
     # Disambiguate collisions by gu, then dong (skip a filter if it empties).
     if gu_norm:
@@ -9086,6 +9099,23 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
 
 
 def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", src=None):
+    permanent_path = request.endpoint == "apartment_detail"
+    if permanent_path or "gu" in request.args or "dong" in request.args:
+        apartment = get_apartment(
+            apartment_name, apartment_gu, apartment_dong, require_unique=True,
+        )
+        if apartment is None:
+            return render_home_not_found()
+        name = clean_text(apartment["name"])
+        gu = clean_text(apartment["district"])
+        dong = clean_text(apartment["dong"])
+        wrong_address = (clean_text(apartment_gu), clean_text(apartment_dong)) != (gu, dong)
+        if wrong_address or (permanent_path and clean_text(apartment_name) != name):
+            target = apartment_detail_path(name, gu, dong)
+            if request.query_string:
+                target += "?" + request.query_string.decode("latin-1")
+            return redirect(target, code=301)
+
     context = build_result_context(
         apartment_name,
         apartment_gu,
