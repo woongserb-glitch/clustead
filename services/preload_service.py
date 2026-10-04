@@ -191,7 +191,8 @@ def read_csv_rows_raw(path, encodings=("utf-8-sig", "cp949")):
 # SQLite 백엔드 baseline (메모리 절감)
 # 인덱스 조회 전용 baseline(academy/medical 등 ~388MB)은 메모리에 상주시키지 않고
 # data/baseline.db 에서 조회한다. DB가 없으면 기존 CSV 인메모리 로딩으로 자동 폴백
-# (배포 안전성). 빌드: python scripts/build_baseline_sqlite.py
+# (로컬 개발 기본값). 운영에서는 REQUIRE_SQLITE_BASELINE=1 로 폴백을 금지한다.
+# 빌드: python scripts/build_baseline_sqlite.py
 # ───────────────────────────────────────────────────────────────────
 import sqlite3
 
@@ -201,7 +202,19 @@ SQLITE_BASELINES = (
     "academy", "medical", "ev_charger", "shopping", "culture",
     "bus", "commercial", "bike", "fire_station", "nightlife", "hangang",
 )
-_USE_SQLITE_BASELINE = os.path.exists(_BASELINE_DB_PATH)
+def select_baseline_backend():
+    """Fail before CSV allocation when the production SQLite guard is on."""
+    available = os.path.isfile(_BASELINE_DB_PATH)
+    if os.getenv("CLUSTEAD_REQUIRE_SQLITE_BASELINE", "0").strip() == "1" and not available:
+        raise RuntimeError(
+            "CLUSTEAD_REQUIRE_SQLITE_BASELINE=1: required SQLite baseline "
+            f"not found at {_BASELINE_DB_PATH}; CSV memory fallback is disabled. "
+            "Check the data volume and baseline.db before starting the app."
+        )
+    return available
+
+
+_USE_SQLITE_BASELINE = select_baseline_backend()
 
 _baseline_conn_obj = None
 _baseline_conn_pid = None
@@ -1579,3 +1592,116 @@ def load_medical_baseline_data():
     rebuild_baseline_index(medical_baseline_index, medical_baseline_data)
 
     print(f"[BASELINE] MEDICAL {len(medical_baseline_data)} rows loaded")
+
+
+# A startup snapshot, never a per-health-request file/DB scan. Names are the
+# preload attributes used by RANKING_SOURCES (mart's three metrics share one).
+DATA_LOAD_STATUS = {}
+REQUIRED_DATA = ("apartment_data",)
+DATA_LOAD_COMPLETE = False
+
+
+def record_data_load(name, error=None, columns=()):
+    """Record the result of a load/reload; SQLite counts happen only here."""
+    count = 0
+    try:
+        rows = globals().get(name)
+        if isinstance(rows, _SqliteBaseline):
+            count = _baseline_conn().execute(
+                f'SELECT COUNT(*) FROM "{rows.table}"'
+            ).fetchone()[0]
+            if columns:
+                # Qualified names avoid SQLite treating a missing quoted
+                # column as a string literal. No POI JSON is loaded here.
+                selected = ", ".join(f't."{column}"' for column in columns)
+                _baseline_conn().execute(f'SELECT {selected} FROM "{rows.table}" AS t LIMIT 0')
+        elif rows is not None:
+            count = len(rows)
+            if count and not set(columns).issubset(rows[0]):
+                raise ValueError(f"Missing ranking columns in {name}")
+    except Exception as exc:
+        error = exc
+    entry = {"loaded": error is None and count > 0, "rows": count}
+    if error is not None:
+        entry["error"] = str(error)
+    DATA_LOAD_STATUS[name] = entry
+
+
+def load_park_baseline_data():
+    """The park ranking source also needs a loader in local CSV mode."""
+    if _USE_SQLITE_BASELINE:
+        return
+    rows = read_csv_records("data/baseline/park_baseline.csv")
+    park_baseline_data.clear()
+    park_baseline_data.extend(rows)
+    rebuild_baseline_index(park_baseline_index, park_baseline_data)
+
+
+def initialize_data(ranking_sources):
+    """Load once and retain row counts, including swallowed/empty load failures."""
+    global DATA_LOAD_STATUS, REQUIRED_DATA, DATA_LOAD_COMPLETE
+    # Recheck after app environment setup as well as at module import.
+    select_baseline_backend()
+    DATA_LOAD_COMPLETE = False
+    DATA_LOAD_STATUS = {}
+    REQUIRED_DATA = tuple(dict.fromkeys(
+        ["apartment_data"] + [attr for _, attr in ranking_sources.values()]
+    ))
+    from scripts.baseline_metric_config import BASELINE_METRIC_CONFIG, score_column
+
+    columns_by_name = {}
+    for config_key, name in ranking_sources.values():
+        columns = columns_by_name.setdefault(name, {"name", "gu", "dong"})
+        config = BASELINE_METRIC_CONFIG.get(config_key)
+        if config:
+            columns.add(score_column(config["primary_metric"]))
+    names = (
+        "cctv_data", "park_data", "apartment_data", "subway_baseline_data",
+        "cctv_baseline_data", "convenience_baseline_data", "mart_baseline_data",
+        "cafe_baseline_data", "school_data", "school_zone_baseline_data",
+        "bus_stop_data", "bus_route_data", "bus_baseline_data",
+        "commercial_baseline_data", "nightlife_baseline_data", "bike_baseline_data",
+        "academy_baseline_data", "culture_baseline_data", "hangang_baseline_data",
+        "fire_station_baseline_data", "shopping_baseline_data",
+        "ev_charger_baseline_data", "medical_baseline_data", "park_baseline_data",
+    )
+    for name in names:
+        error = None
+        try:
+            globals()[f"load_{name}"]()
+        except Exception as exc:
+            error = exc
+            print(f"[PRELOAD ERROR] {name}: {exc}")
+        record_data_load(name, error, columns_by_name.get(name, ()))
+    # Future ranking additions must not silently escape the readiness check.
+    for name in REQUIRED_DATA:
+        if name not in DATA_LOAD_STATUS:
+            record_data_load(name, columns=columns_by_name.get(name, ()))
+
+
+def finish_data_loading():
+    global DATA_LOAD_COMPLETE
+    DATA_LOAD_COMPLETE = True
+
+
+def data_health():
+    """Read only the small startup registry; optional sources need not cover apartments."""
+    if not DATA_LOAD_COMPLETE:
+        return {"status": "loading"}, 503
+    apartments = DATA_LOAD_STATUS.get("apartment_data", {}).get("rows", 0)
+    minimum = max(1, math.ceil(apartments * 0.95))
+    missing = [
+        name for name in REQUIRED_DATA
+        if not DATA_LOAD_STATUS.get(name, {}).get("loaded")
+        or DATA_LOAD_STATUS[name]["rows"] < (1 if name == "apartment_data" else minimum)
+    ]
+    warnings = [
+        name for name, entry in DATA_LOAD_STATUS.items()
+        if name not in REQUIRED_DATA and not entry["loaded"]
+    ]
+    payload = {"status": "degraded" if missing else "ok"}
+    if missing:
+        payload["missing"] = missing
+    if warnings:
+        payload["warnings"] = warnings
+    return payload, 503 if missing else 200
