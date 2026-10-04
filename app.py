@@ -1979,12 +1979,11 @@ def get_apartment(name, gu=None, dong=None, *, require_unique=False):
     # Addressed detail requests must not silently choose one of several
     # complexes. A globally unique name can still repair a stale address.
     if require_unique:
-        if len(candidates) > 1:
-            candidates = [
-                apt for apt in candidates
-                if (not gu_norm or clean_text(apt.get("gu", "")) == gu_norm)
-                and (not dong_norm or clean_text(apt.get("dong", "")) == dong_norm)
-            ]
+        # 구로 먼저 좁히고, 그래도 여럿이면 동으로 좁힌다. 구만 맞고 동이 틀린
+        # 옛 주소도 구 안에서 하나로 정해지면 대표 주소로 고칠 수 있다.
+        for norm, field in ((gu_norm, "gu"), (dong_norm, "dong")):
+            if len(candidates) > 1 and norm:
+                candidates = [apt for apt in candidates if clean_text(apt.get(field, "")) == norm]
         if len(candidates) != 1:
             return None
         return _build_apartment_view(candidates[0])
@@ -9112,8 +9111,10 @@ def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", 
         wrong_address = (clean_text(apartment_gu), clean_text(apartment_dong)) != (gu, dong)
         if wrong_address or (permanent_path and clean_text(apartment_name) != name):
             target = apartment_detail_path(name, gu, dong)
-            if request.query_string:
-                target += "?" + request.query_string.decode("latin-1")
+            # 단지 식별 파라미터는 경로에 들어갔으니 빼고, 나머지(src·가중치 등)만 넘긴다.
+            extra = [(k, v) for k, v in request.args.items(multi=True) if k not in ("apartment", "gu", "dong")]
+            if extra:
+                target += "?" + urlencode(extra)
             return redirect(target, code=301)
 
     context = build_result_context(

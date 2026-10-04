@@ -4,7 +4,7 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, unquote, urlencode
 
 import pytest
 
@@ -53,7 +53,12 @@ def test_wrong_address_redirects_once_and_preserves_query(detail_app, route, gu,
     client = detail_app.app.test_client()
     response = client.get(url + "?" + query)
     assert response.status_code == 301
-    assert response.headers["Location"] == path(detail_app) + "?" + query
+    location = response.headers["Location"]
+    target, _, kept = location.partition("?")
+    assert target == path(detail_app)
+    # src·가중치 같은 나머지 파라미터는 값 그대로 넘기고, 단지 식별 파라미터는 뺀다.
+    expected = [(k, v) for k, v in parse_qsl(query, keep_blank_values=True) if k not in ("apartment", "gu", "dong")]
+    assert parse_qsl(kept, keep_blank_values=True) == expected
     follow = client.get(response.headers["Location"])
     assert follow.status_code == 200
     assert "Location" not in follow.headers
@@ -102,3 +107,12 @@ def test_unknown_name_is_404(detail_app, route):
     url = (path(detail_app, name="존재하지않는단지_000") if route == "detail" else
            "/result?" + urlencode({"apartment": "존재하지않는단지_000", "gu": "송파구", "dong": "가락동"}))
     assert detail_app.app.test_client().get(url).status_code == 404
+
+
+def test_duplicate_name_with_right_gu_and_wrong_dong_is_repaired(detail_app):
+    """같은 이름이 여러 구에 있어도 구가 맞으면 그 구 안에서 하나로 정해지므로 대표 주소로 고친다."""
+    client = detail_app.app.test_client()
+    response = client.get(path(detail_app, "신동아아파트", "은평구", "없는동"))
+    assert response.status_code == 301
+    assert unquote(response.headers["Location"]).startswith("/apartments/은평구/")
+    assert "?" not in response.headers["Location"]
