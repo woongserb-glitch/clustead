@@ -14,7 +14,10 @@ Usage:
 import hashlib
 import os
 import sys
+from datetime import date
+from functools import partial
 from pathlib import Path
+from unittest.mock import patch
 
 os.environ.setdefault("CLUSTEAD_KAKAO_RESULT_MODE", "off")
 os.environ.setdefault("CLUSTEAD_PRELOAD_VERBOSE", "0")
@@ -22,6 +25,9 @@ os.environ.setdefault("CLUSTEAD_PRELOAD_VERBOSE", "0")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
+# Existing golden files were captured on this date. Rolling transaction
+# windows must use the same clock in save/check, or tomorrow changes the HTML.
+SNAPSHOT_DATE = date(2026, 10, 3)
 
 # Fixed preference vector so the recommendation block is deterministic too.
 FIXED_PREFS = {
@@ -63,8 +69,12 @@ def slug(name, gu, dong):
 
 def render(client, name, gu, dong):
     from urllib.parse import urlencode
+    from services import transaction_service
+
     params = {"apartment": name, "gu": gu, "dong": dong, **FIXED_PREFS}
-    resp = client.get("/result?" + urlencode(params))
+    threshold = partial(transaction_service.transaction_period_threshold, today=SNAPSHOT_DATE)
+    with patch.object(transaction_service, "transaction_period_threshold", threshold):
+        resp = client.get("/result?" + urlencode(params))
     return resp.status_code, resp.data
 
 
