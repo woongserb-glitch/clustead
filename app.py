@@ -11,6 +11,7 @@ from services.ranking_service import (
     build_apartment_index,
     calculate_weighted_score,
     RANKING_METRIC_KEYS,
+    RANKING_SOURCES,
 )
 
 import bisect
@@ -176,32 +177,15 @@ KAKAO_RESULT_ALL_CATEGORIES = (
     "hospital",
     "pharmacy",
 )
-load_cctv_data()
-load_park_data()
-load_apartment_data()
-
-load_subway_baseline_data()
-load_cctv_baseline_data()
-load_convenience_baseline_data()
-load_mart_baseline_data()
-load_cafe_baseline_data()
-load_school_data()
-load_school_zone_baseline_data()
-
-load_bus_stop_data()
-load_bus_route_data()
-load_bus_baseline_data()
-load_commercial_baseline_data()
-load_nightlife_baseline_data()
-load_bike_baseline_data()
-load_academy_baseline_data()
-load_culture_baseline_data()
-load_hangang_baseline_data()
-load_fire_station_baseline_data()
-load_shopping_baseline_data()
-load_ev_charger_baseline_data()
-load_medical_baseline_data()
-build_apartment_index()
+_preload.initialize_data(RANKING_SOURCES)
+try:
+    build_apartment_index()
+except Exception as exc:
+    # A broken SQLite table must still allow /healthz to report degraded.
+    # Unexpected ranking errors must not turn into a falsely healthy startup.
+    if all(_preload.DATA_LOAD_STATUS.get(name, {}).get("loaded") for name in _preload.REQUIRED_DATA):
+        raise
+    print(f"[PRELOAD ERROR] ranking index: {exc}")
 
 
 KAKAO_JAVASCRIPT_KEY = os.getenv("KAKAO_JAVASCRIPT_KEY", "")
@@ -442,9 +426,8 @@ def add_cdn_cache_headers(resp):
 
 @app.route("/healthz")
 def healthz():
-    # 로드밸런서/Docker 헬스체크용. 데이터 적재 완료(부팅 워밍업 후)에만 200.
-    ready = bool(apartment_data)
-    return jsonify({"status": "ok" if ready else "loading"}), (200 if ready else 503)
+    payload, status = _preload.data_health()
+    return jsonify(payload), status
 
 
 @app.route("/manifest.webmanifest")
@@ -9600,6 +9583,7 @@ def _warm_grid_caches():
 
 _warm_explore_caches()
 _warm_grid_caches()
+_preload.finish_data_loading()
 
 
 if __name__ == "__main__":

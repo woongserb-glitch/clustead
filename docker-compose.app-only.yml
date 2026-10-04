@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      - CLUSTEAD_REQUIRE_SQLITE_BASELINE=1 # DB 누락 시 대용량 CSV 폴백 대신 기동 실패
       - WEB_CONCURRENCY=2          # 워커 2개: /result의 Kakao I/O 대기 중 동시 처리(preload COW로 RAM 거의 안 늘음)
       - CLUSTEAD_TRUST_PROXY=1     # host nginx 뒤 → ProxyFix on(실제 IP/HTTPS 인식)
       - GUNICORN_MAX_REQUESTS=3000 # 워커 재활용 재도입(2026-07-25): 재활용 OFF(0) 상태에서 워커 메모리가
