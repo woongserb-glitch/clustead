@@ -40,6 +40,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 MASTER = BASE_DIR / "data" / "apartment" / "seoul_apartments.csv"
 MASTER_ENCODING = "cp949"
 REJECTED = BASE_DIR / "scripts" / "manual_overrides" / "duplicate_apartments_rejected.csv"
+LIFECYCLE = BASE_DIR / "scripts" / "manual_overrides" / "complex_lifecycle_approved.csv"
 API_BASE = "http://openapi.seoul.go.kr:8088"
 SERVICE = "OpenAptInfo"
 PAGE_SIZE = 1000
@@ -170,10 +171,24 @@ def load_rejected():
     소스가 계속 내려보내므로 병합 때마다 걸러야 한다. 유지할 실체 행의 코드를
     함께 적어 두고, 그 행이 사라지면 제외를 멈춘다(둘 다 잃지 않도록).
     """
-    if not REJECTED.exists():
-        return {}
-    with REJECTED.open(encoding="utf-8-sig", newline="") as handle:
-        return {row["reject_code"].strip(): row for row in csv.DictReader(handle)}
+    rejected = {}
+    if REJECTED.exists():
+        with REJECTED.open(encoding="utf-8-sig", newline="") as handle:
+            rejected = {row["reject_code"].strip(): row for row in csv.DictReader(handle)}
+    # 재건축이 끝난 옛 단지도 같은 방식으로 거른다. 새 단지(keep)가 소스에 있을 때만
+    # 빠지므로, 새 단지가 아직 등록 전이면 옛 단지가 남는다(둘 다 잃지 않도록).
+    if LIFECYCLE.exists():
+        with LIFECYCLE.open(encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                if row.get("status") == "rebuilt" and row.get("code", "").strip():
+                    rejected.setdefault(row["code"].strip(), {
+                        "reject_code": row["code"].strip(),
+                        "reject_name": row.get("name", ""),
+                        "keep_code": row.get("successor_code", "").strip(),
+                        "keep_name": row.get("successor_name", ""),
+                        "reason": "재건축 전 옛 단지",
+                    })
+    return rejected
 
 
 def main():

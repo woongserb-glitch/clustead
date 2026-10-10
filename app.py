@@ -45,6 +45,8 @@ from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from services import request_tracker
+from services import complex_registry
+from services import dong_level_service
 from services import home_billboard_service as home_billboard
 
 from services.poi_service import (
@@ -4927,7 +4929,10 @@ def build_result_seo(apartment, complex_info, insight, category_summaries):
     district = clean_text(apartment.get("district", "") or apartment.get("gu", ""))
     dong = clean_text(apartment.get("dong", ""))
     location = " ".join(part for part in [district, dong] if part)
-    title = f"{name} 생활환경 분석 | Clustead" if name else "아파트 생활환경 분석 | Clustead"
+    # 마스터 이름과 현장에서 부르는 이름이 다른 단지는 둘 다 검색되도록 제목에 함께 쓴다.
+    common = complex_registry.common_name(name, district, dong)
+    display_name = f"{name}({common})" if common else name
+    title = f"{display_name} 생활환경 분석 | Clustead" if name else "아파트 생활환경 분석 | Clustead"
 
     highlights = []
     if complex_info.get("nearest_subway"):
@@ -4948,7 +4953,7 @@ def build_result_seo(apartment, complex_info, insight, category_summaries):
         highlights.append("강점 " + ", ".join(strong_categories))
 
     description_base = (
-        f"{name} {location}의 교통, 교육, 의료, 편의, 안전 생활 인프라를 "
+        f"{display_name} {location}의 교통, 교육, 의료, 편의, 안전 생활 인프라를 "
         "서울시 상대평가로 확인하세요."
     ).strip()
     if highlights:
@@ -6889,7 +6894,9 @@ def api_search_apartments():
         name = clean_text(apartment.get("name", ""))
         gu = clean_text(apartment.get("gu") or apartment.get("district", ""))
         dong = clean_text(apartment.get("dong", ""))
-        haystack = normalize_search_text(f"{name} {gu} {dong}")
+        # 현장 통용명(예: 압구정한양3단지 → 한양5차)으로 쳐도 찾히게 한다.
+        common = complex_registry.common_name(name, gu, dong)
+        haystack = normalize_search_text(f"{name} {common} {gu} {dong}")
         name_key = normalize_search_text(name)
 
         if not haystack or query not in haystack:
@@ -6897,13 +6904,13 @@ def api_search_apartments():
 
         item = {
             "value": name,
-            "label": name,
+            "label": f"{name} ({common})" if common else name,
             "meta": f"{gu} {dong}".strip(),
             "gu": gu,
             "dong": dong,
         }
 
-        if name_key.startswith(query):
+        if name_key.startswith(query) or (common and normalize_search_text(common).startswith(query)):
             starts.append(item)
         else:
             contains.append(item)
@@ -9082,6 +9089,14 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
 
 def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", src=None):
     permanent_path = request.endpoint == "apartment_detail"
+    # 재건축이 끝난 옛 단지(마스터에서 빠짐)는 그 자리에 선 새 단지로 보낸다.
+    successor = complex_registry.rebuilt_successor(apartment_name, apartment_gu, apartment_dong)
+    if successor:
+        target = apartment_detail_path(*successor)
+        extra = [(k, v) for k, v in request.args.items(multi=True) if k not in ("apartment", "gu", "dong")]
+        if extra:
+            target += "?" + urlencode(extra)
+        return redirect(target, code=301)
     if permanent_path or "gu" in request.args or "dong" in request.args:
         apartment = get_apartment(
             apartment_name, apartment_gu, apartment_dong, require_unique=True,
@@ -9108,6 +9123,15 @@ def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", 
     )
     if context is None:
         return render_home_not_found()
+    resolved = context["apartment"]
+    resolved_key = (
+        resolved.get("name", ""),
+        resolved.get("district", "") or resolved.get("gu", ""),
+        resolved.get("dong", ""),
+    )
+    context["rebuilding_notice"] = complex_registry.rebuilding_notice(*resolved_key)
+    context["common_name"] = complex_registry.common_name(*resolved_key)
+    context["dong_level"] = dong_level_service.get(*resolved_key)
     combo_key, combo = analytics_service.build_weight_combo(get_preferences())
     analytics_service.track(
         "result_view",

@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=4">
     <script src="{{ url_for('static', filename='theme.js') }}?v=2" defer></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261002c">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261010a">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -75,6 +75,9 @@
             </nav>
             {% endif %}
             <h1>{{ apartment.name }}</h1>
+            {% if common_name %}
+            <p class="result-common-name">현장에서는 <strong>{{ common_name }}</strong>(으)로 불립니다</p>
+            {% endif %}
             {# 구·동은 바로 위 이동경로(홈 > 구 > 동)에 이미 있어 빼고, 도로명주소도
                같은 이유로 "서울특별시 OO구" 를 떼어 낸다. 남는 두 줄은 성격이 달라
                한 줄씩 나눈다. 이동경로가 없을 때만 구·동을 붙인다. #}
@@ -87,6 +90,17 @@
                 {% endif %}
                 <span>위도 {{ apartment.lat }} · 경도 {{ apartment.lng }}</span>
             </p>
+            {% if rebuilding_notice %}
+            <div class="result-rebuilding" role="note">
+                <strong>재건축 진행 중인 단지입니다.</strong>
+                {% if rebuilding_notice.planned_name %}
+                이 자리에 <b>{{ rebuilding_notice.planned_name }}</b>이(가) 지어지고 있습니다.
+                {% else %}
+                기존 건물은 철거되었거나 공사 중입니다.
+                {% endif %}
+                아래 생활 인프라는 위치 기준이라 그대로 참고할 수 있지만, 단지 정보·실거래는 공사 전 기준입니다.
+            </div>
+            {% endif %}
         </header>
 
         {% if complex_info %}
@@ -144,9 +158,70 @@
             </div>
             {% endif %}
 
+            {% if dong_level %}
+            <div class="dong-level" aria-label="동별 정보">
+                <div class="dong-level-head">
+                    <strong>동마다 다른 정보</strong>
+                    <span>동 {{ dong_level.n }}개 건물 위치 기준</span>
+                </div>
+                <dl class="dong-level-list">
+                    {% if dong_level.schools %}
+                    <div>
+                        <dt>🏫 배정초</dt>
+                        <dd>
+                            {% if dong_level.split_school %}
+                            {% for s in dong_level.schools %}
+                            <span class="dong-level-row"><b>{{ s.name }}</b> {{ s.count }}개 동 <small>{{ s.dongs }}</small></span>
+                            {% endfor %}
+                            {% else %}
+                            전 동 <b>{{ dong_level.schools[0].name }}</b>
+                            {% endif %}
+                            {% if dong_level.straddle %}
+                            <span class="dong-level-row dong-level-warn">경계에 걸친 동: {% for d in dong_level.straddle %}{{ d.dong }}동({{ d.schools | join('·') }}){% if not loop.last %}, {% endif %}{% endfor %}</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <dt>🚇 가장 가까운 역</dt>
+                        <dd>
+                            {% if dong_level.station_max - dong_level.station_min >= 100 %}
+                            동마다 <b>{{ dong_level.station_min }}m ~ {{ dong_level.station_max }}m</b> · 500m 안 {{ dong_level.within_500 }}개 동
+                            {% else %}
+                            전 동 약 <b>{{ dong_level.station_min }}m</b>
+                            {% endif %}
+                            <small>({% for s in dong_level.stations[:3] %}{{ s.name }}역 {{ s.count }}개 동{% if not loop.last %}, {% endif %}{% endfor %})</small>
+                        </dd>
+                    </div>
+                    {% if dong_level.hangang_min is not none and dong_level.hangang_min <= 1500 %}
+                    <div>
+                        <dt>🌊 한강 나들목</dt>
+                        <dd>
+                            {% if dong_level.hangang_max - dong_level.hangang_min >= 100 %}
+                            동마다 <b>{{ dong_level.hangang_min }}m ~ {{ dong_level.hangang_max }}m</b>
+                            {% else %}
+                            전 동 약 <b>{{ dong_level.hangang_min }}m</b>
+                            {% endif %}
+                            <small>({% for g in dong_level.hangang_gates[:2] %}{{ g.name }} {{ g.count }}개 동{% if not loop.last %}, {% endif %}{% endfor %})</small>
+                        </dd>
+                    </div>
+                    {% endif %}
+                    {% if dong_level.middle or dong_level.high %}
+                    <div>
+                        <dt>🎓 학교군</dt>
+                        <dd>{% if dong_level.middle %}중학교 {{ dong_level.middle | join('·') }}{% endif %}{% if dong_level.middle and dong_level.high %} · {% endif %}{% if dong_level.high %}고등학교 {{ dong_level.high | join('·') }}{% endif %}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+            <div class="complex-info-note">
+                ※ 위 등급·배정초는 단지 대표 좌표 기준이고, 동별 정보는 각 동 건물 위치로 따로 계산했습니다. 실제 배정은 교육청에서 주소로 확인하세요.
+            </div>
+            {% else %}
             <div class="complex-info-note">
                 ※ 배정초는 대표 좌표 기준 통학구역이며, 대단지는 동별 배정학교가 달라질 수 있습니다.
             </div>
+            {% endif %}
         </section>
         {% endif %}
 

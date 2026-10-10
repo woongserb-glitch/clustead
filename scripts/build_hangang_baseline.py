@@ -9,6 +9,47 @@ APARTMENT_PATH = BASE_DIR / "data" / "apartment" / "seoul_apartments.csv"
 FACILITY_PATH = BASE_DIR / "data" / "hangang" / "hangang_facilities.csv"
 MASTER_PATH = BASE_DIR / "data" / "hangang" / "hangang_park_master.csv"
 OUTPUT_PATH = BASE_DIR / "data" / "baseline" / "hangang_baseline.csv"
+# 카카오 '한강공원 OO나들목 진출입로' 출입구 좌표(오프라인 수집). 있으면 공원 대표점이 아니라
+# 실제로 걸어 들어가는 출입구까지 거리를 잰다. 없으면 예전처럼 공원 대표점 거리.
+ACCESS_PATH = BASE_DIR / "data" / "derived" / "hangang_access_points.json"
+
+# 강 건너 출입구·공원을 '가장 가깝다'고 잡지 않도록(서울숲푸르지오 → 강 건너 잠원 2.8km)
+# 같은 쪽 강변만 본다. 서울 자치구는 모두 한강 한쪽에만 있으므로 구로 가른다.
+SOUTH_BANK_GU = {
+    "강서구", "양천구", "영등포구", "구로구", "금천구", "동작구", "관악구",
+    "서초구", "강남구", "송파구", "강동구",
+}
+PARK_GU = {
+    "광나루": "강동구", "잠실": "송파구", "뚝섬": "광진구", "잠원": "서초구", "반포": "서초구",
+    "이촌": "용산구", "여의도": "영등포구", "양화": "영등포구", "망원": "마포구", "난지": "마포구",
+    "강서": "강서구",
+}
+
+
+def bank_of_gu(gu):
+    return "S" if clean_text(gu) in SOUTH_BANK_GU else "N"
+
+
+def bank_of_address(address):
+    parts = clean_text(address).split()
+    gu = next((p for p in parts if p.endswith("구")), "")
+    return bank_of_gu(gu) if gu else ""
+
+
+def load_access_points(hangang_parks):
+    """출입구마다 강변 쪽과, 같은 쪽에서 가장 가까운 공원을 붙인다."""
+    if not ACCESS_PATH.exists():
+        return []
+    points = json.loads(ACCESS_PATH.read_text(encoding="utf-8"))
+    out = []
+    for p in points:
+        bank = bank_of_address(p.get("address", ""))
+        same = [park for park in hangang_parks if bank_of_gu(PARK_GU.get(park["park_key"], "")) == bank]
+        if not bank or not same:
+            continue
+        park = min(same, key=lambda k: get_distance_m(p["lat"], p["lng"], k["lat"], k["lng"]))
+        out.append({**p, "bank": bank, "park_key": park["park_key"]})
+    return out
 
 RADIUS_M = 3000
 MAX_ITEMS = 12
@@ -234,6 +275,11 @@ def build_baseline():
     facility_map = build_facility_map()
     hangang_parks = build_hangang_park_master(facility_map)
     log_master_match_status(facility_map, hangang_parks)
+    access_points = load_access_points(hangang_parks)
+    access_by_park = {}
+    for point in access_points:
+        access_by_park.setdefault(point["park_key"], []).append(point)
+    print(f"[HANGANG] access points={len(access_points)} (parks with access={len(access_by_park)})")
 
     rows = []
 
@@ -246,23 +292,40 @@ def build_baseline():
         except Exception:
             continue
 
+        apt_bank = bank_of_gu(apt.get("주소(시군구)"))
         items = []
         for park in hangang_parks:
-            distance = get_distance_m(apt_lat, apt_lng, park["lat"], park["lng"])
+            entrance = None
+            if access_points:
+                # 출입구 자료가 있으면 같은 쪽 강변 공원만, 그 공원의 가장 가까운 출입구까지 잰다.
+                if bank_of_gu(PARK_GU.get(park["park_key"], "")) != apt_bank:
+                    continue
+                gates = access_by_park.get(park["park_key"], [])
+                if gates:
+                    entrance = min(gates, key=lambda g: get_distance_m(apt_lat, apt_lng, g["lat"], g["lng"]))
+            if entrance:
+                distance = get_distance_m(apt_lat, apt_lng, entrance["lat"], entrance["lng"])
+                point_lat, point_lng = entrance["lat"], entrance["lng"]
+            else:
+                distance = get_distance_m(apt_lat, apt_lng, park["lat"], park["lng"])
+                point_lat, point_lng = park["lat"], park["lng"]
             if distance > RADIUS_M:
                 continue
 
             tags = clean_text(park.get("facility_tags"))
             label = park["park_name"]
+            if entrance:
+                label = f"{label}({entrance['group']})"
             if tags:
                 label = f"{label} · {tags}"
 
             items.append({
                 "label": label,
                 "park_name": park["park_name"],
+                "access_name": entrance["group"] if entrance else "",
                 "distance": distance,
-                "lat": park["lat"],
-                "lng": park["lng"],
+                "lat": point_lat,
+                "lng": point_lng,
                 "subtype": park.get("primary_group", "기타"),
                 "facility_tags": tags,
                 "facility_count": park.get("total_facility_count", 0),
@@ -283,7 +346,11 @@ def build_baseline():
             "lat": apt_lat,
             "lng": apt_lng,
             "hangang_count_3km": len(items),
-            "nearest_hangang_park": nearest.get("park_name", ""),
+            # 칸 구성을 바꾸지 않으려고 출입구는 공원명 뒤에 붙인다: "반포한강공원(반포안내센터나들목)"
+            "nearest_hangang_park": (
+                f"{nearest['park_name']}({nearest['access_name']})"
+                if nearest.get("access_name") else nearest.get("park_name", "")
+            ),
             "nearest_hangang_distance": nearest.get("distance", ""),
             "nearest_hangang_facility_tags": nearest.get("facility_tags", ""),
             "bike_count": subtype_counts.get("자전거", 0),

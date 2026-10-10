@@ -2590,6 +2590,45 @@ body:not(.home-page) #resultLoadingOverlay {
 .result-address span { display: block; }
 .result-address span + span { margin-top: 2px; }
 
+/* 마스터 이름과 현장 통용명이 다른 단지(예: 압구정한양3단지 → 한양5차) */
+.result-common-name { margin: 4px 0 0; color: var(--c-muted); font-size: 0.95rem; }
+.result-common-name strong { color: var(--c-fg); font-weight: 700; }
+
+/* 재건축 진행 중 안내 */
+.result-rebuilding {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border: 1px solid light-dark(#f2c58b, #7a5a2e);
+    border-radius: 10px;
+    background: light-dark(#fff6e8, #2a2216);
+    color: var(--c-fg);
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
+.result-rebuilding strong { display: block; margin-bottom: 2px; color: light-dark(#b45309, #eeb68b); }
+
+/* 동별 정보(대단지에서 동마다 갈리는 배정초·역 거리) */
+.dong-level {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--c-line-soft);
+    border-radius: 10px;
+    background: var(--c-surface-2);
+}
+.dong-level-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 8px; }
+.dong-level-head strong { color: var(--c-fg); font-size: 0.98rem; }
+.dong-level-head span { color: var(--c-faint); font-size: 0.82rem; }
+.dong-level-list { margin: 0; display: grid; gap: 8px; }
+.dong-level-list > div { display: grid; grid-template-columns: 7.5em 1fr; gap: 8px; align-items: start; }
+.dong-level-list dt { color: var(--c-muted); font-size: 0.88rem; }
+.dong-level-list dd { margin: 0; color: var(--c-fg); font-size: 0.92rem; line-height: 1.55; min-width: 0; overflow-wrap: anywhere; }
+.dong-level-list small { color: var(--c-faint); font-size: 0.82rem; }
+.dong-level-row { display: block; }
+.dong-level-warn { color: light-dark(#b45309, #eeb68b); font-size: 0.85rem; }
+@media (max-width: 760px) {
+    .dong-level-list > div { grid-template-columns: 1fr; gap: 2px; }
+}
+
 /* 폰에서는 추천 단지 카드가 화면을 통째로 먹는다. 12 개를 다 펼치면 670px 로,
    812px 짜리 화면의 82% 다. 데스크톱은 사이드바 높이에 맞춰 이미 스크롤되지만
    폰은 세로로 쌓이면서 높이 제한이 사라져 그냥 길어졌다. 5 개쯤 보이는 높이로

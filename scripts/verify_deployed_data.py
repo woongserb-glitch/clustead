@@ -63,6 +63,7 @@ REQUIRED_FILES = [
     ("data/transactions/transaction_master.csv", "실거래 원장"),
     ("data/transactions/apartment_transaction_mapping.csv", "단지↔실거래 매핑(load_batch_mapping)"),
     ("data/grid.db", "격자 지도"),
+    ("data/derived/vworld/dong_level.json", "단지 페이지의 동별 정보(배정초·역 거리·학교군). 없으면 옛 안내 문구로 대체"),
 ]
 
 REQUIRED_DIRS = [
