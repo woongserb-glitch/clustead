@@ -51,8 +51,9 @@ def card_notes(dl):
     # 카드마다 {"main": '최근접' 줄과 같은 한 줄 요약, "details": 그 아래 작은 주석 줄들}
     notes = {}
     notes["subway"] = {
-        "main": f"500m 안 역 {dl['within_500']}/{dl['n']}개 동 · 동마다 {dl['station_min']:,}~{dl['station_max']:,}m",
-        "details": [" · ".join(f"{s['name']}역 {s['count']}개 동" for s in dl["stations"][:3])],
+        "main": f"{dl['n']}개 동 중 {dl['within_500']}개 동은 역까지 500m 이내 "
+                f"(가까운 동 {dl['station_min']:,}m · 먼 동 {dl['station_max']:,}m)",
+        "details": ["동마다 가장 가까운 역: " + ", ".join(f"{s['name']}역 {s['count']}개 동" for s in dl["stations"][:3])],
     }
     if dl["schools"]:
         if dl["split_school"]:
@@ -67,8 +68,8 @@ def card_notes(dl):
         notes["school-environment"] = {"main": main, "details": details}
     if dl.get("hangang_min") is not None and dl["hangang_min"] <= 3000:
         notes["hangang"] = {
-            "main": f"나들목까지 동마다 {dl['hangang_min']:,}~{dl['hangang_max']:,}m",
-            "details": [" · ".join(f"{g['name']} {g['count']}개 동" for g in dl["hangang_gates"][:2])],
+            "main": f"나들목까지 가까운 동 {dl['hangang_min']:,}m · 먼 동 {dl['hangang_max']:,}m",
+            "details": ["동마다 가장 가까운 나들목: " + ", ".join(f"{g['name']} {g['count']}개 동" for g in dl["hangang_gates"][:2])],
         }
     return notes
 
