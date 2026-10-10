@@ -148,7 +148,7 @@
                 {% if dong_level and dong_level.station_max - dong_level.station_min >= 100 %}
                 <div class="complex-info-item complex-info-subway">
                     <strong class="subway-text">
-                        🚇 {{ dong_level.stations[0].name }}역{% if dong_level.stations | length > 1 %} 등{% endif %} · {{ dong_level.station_min }}~{{ dong_level.station_max }}m<sup>{{ 2 if dong_level.split_school else 1 }}</sup>
+                        🚇 {{ dong_level.stations[0].name }}역 {{ dong_level.stations[0].min }}~{{ dong_level.stations[0].max }}m{% if dong_level.stations | length > 1 %} 외{% endif %}<sup>{{ 2 if dong_level.split_school else 1 }}</sup>
                     </strong>
                 </div>
                 {% elif complex_info.nearest_subway %}
@@ -179,7 +179,7 @@
                 {% endif %}
                 {% if dong_level and dong_level.station_max - dong_level.station_min >= 100 %}
                 <p class="dong-footnote"><sup>{{ 2 if dong_level.split_school else 1 }}</sup> 동마다 가장 가까운 역:
-                    {% for s in dong_level.stations[:3] %}{{ s.name }}역 {{ s.count }}개 동{% if not loop.last %}, {% endif %}{% endfor %} ({{ dong_level.n }}개 동 중 {{ dong_level.within_500 }}개 동은 500m 이내)
+                    {% for s in dong_level.stations[:3] %}{{ s.name }}역 {{ s.count }}개 동({% if s.min == s.max %}{{ s.min }}m{% else %}{{ s.min }}~{{ s.max }}m{% endif %}){% if not loop.last %}, {% endif %}{% endfor %} · {{ dong_level.n }}개 동 중 {{ dong_level.within_500 }}개 동은 500m 이내
                 </p>
                 {% endif %}
                 {% if dong_level %}

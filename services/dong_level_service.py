@@ -44,6 +44,12 @@ def _dong_ranges(labels):
     return "·".join(parts + other) + "동" if parts or other else ""
 
 
+def station_text(s):
+    """'송파역 78개 동(137~931m)' — 거리는 그 역이 가장 가까운 동들 기준."""
+    span = f"{s['min']:,}m" if s["min"] == s["max"] else f"{s['min']:,}~{s['max']:,}m"
+    return f"{s['name']}역 {s['count']}개 동({span})"
+
+
 def card_notes(dl):
     """상세 카드(지하철·교육환경·한강)에 붙일 '동별로 보면' 줄. {summary key: [(본문, 작은 글씨)]}"""
     if not dl:
@@ -51,9 +57,8 @@ def card_notes(dl):
     # 카드마다 {"main": '최근접' 줄과 같은 한 줄 요약, "details": 그 아래 작은 주석 줄들}
     notes = {}
     notes["subway"] = {
-        "main": f"{dl['n']}개 동 중 {dl['within_500']}개 동은 역까지 500m 이내 "
-                f"(가까운 동 {dl['station_min']:,}m · 먼 동 {dl['station_max']:,}m)",
-        "details": ["동마다 가장 가까운 역: " + ", ".join(f"{s['name']}역 {s['count']}개 동" for s in dl["stations"][:3])],
+        "main": f"{dl['n']}개 동 중 {dl['within_500']}개 동은 역까지 500m 이내",
+        "details": ["동마다 가장 가까운 역: " + ", ".join(station_text(s) for s in dl["stations"][:3])],
     }
     if dl["schools"]:
         if dl["split_school"]:
@@ -87,7 +92,11 @@ def get(name, gu, dong):
     for school, count in summary["schools"].items():
         labels = [d["dong"] for d in dongs if d["school"] == school]
         schools.append({"name": school, "count": count, "dongs": _dong_ranges(labels)})
-    stations = [{"name": s, "count": c} for s, c in summary["nearest_stations"].items()]
+    # 역마다 그 역이 가장 가까운 동들의 거리 범위(어느 역 기준 거리인지 분명하게)
+    stations = []
+    for s, c in summary["nearest_stations"].items():
+        ds = [d["station_m"] for d in dongs if d["station"] == s]
+        stations.append({"name": s, "count": c, "min": min(ds), "max": max(ds)})
     straddle = [d for d in dongs if d.get("straddle")]
     return {
         "n": summary["n"],
