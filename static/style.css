@@ -2617,6 +2617,7 @@ body:not(.home-page) #resultLoadingOverlay {
 
 /* 상세 카드의 '동별:' — 바로 위 '최근접:' 줄과 같은 크기·톤, 세부는 작은 주석 글씨 */
 .dong-note { margin: -1px 0 6px; }
+.subway-dong-meta { margin-left: 6px; font-size: 10.5px; color: var(--c-muted); white-space: nowrap; }
 .dong-note-main { font-size: 11px; line-height: 1.35; color: var(--c-muted); }
 .dong-note-main strong { color: var(--c-fg); font-weight: 600; }
 .dong-note-detail { font-size: 10.5px; line-height: 1.4; color: var(--c-faint); overflow-wrap: anywhere; padding-left: 1em; text-indent: -1em; }

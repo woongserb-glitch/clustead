@@ -13,6 +13,8 @@ from services.preload_service import apartment_data, load_apartment_data
 
 
 RAW_PATH = BASE_DIR / "data" / "subway" / "subway_station_master.csv"
+# 동별 건물 윤곽(브이월드 매칭 v5). 있으면 단지 대표 좌표 한 점이 아니라 각 동 건물 위치로 계산한다.
+BUILDINGS_PATH = BASE_DIR / "data" / "derived" / "vworld" / "complex_buildings_v5.jsonl"
 OUTPUT_PATH = BASE_DIR / "data" / "baseline" / "subway_baseline.csv"
 
 MAX_ITEMS = 20
@@ -241,7 +243,103 @@ def nearest_name_distance(items):
     return nearest.get("name", ""), nearest.get("distance", "")
 
 
-def build_row(apartment, stations):
+def load_dong_points():
+    """{(이름, 구, 동): [(lat, lng), …]} — 단지의 각 동 건물 중심. 파일이 없으면 빈 dict."""
+    if not BUILDINGS_PATH.exists():
+        return {}
+    from shapely.geometry import shape
+
+    points = {}
+    with BUILDINGS_PATH.open(encoding="utf-8") as handle:
+        for line in handle:
+            row = json.loads(line)
+            pts = []
+            for building in row.get("buildings", []):
+                try:
+                    c = shape(building["geom"]).centroid
+                    pts.append((c.y, c.x))
+                except Exception:
+                    continue
+            if pts:
+                points[tuple(clean(v) for v in row["key"])] = pts
+    return points
+
+
+def median_low(values):
+    ordered = sorted(values)
+    return ordered[(len(ordered) - 1) // 2] if ordered else ""
+
+
+def build_dong_row(apartment, stations, dong_points):
+    """동마다 대표 좌표처럼 계산한 뒤, 등급 지표는 중간 동(중앙값) 값으로 쓴다.
+
+    대단지 끝 동 하나가 역에 붙었다고 단지 전체가 역세권이 되지 않고, 대표 좌표가 어디 찍혔는지에
+    휘둘리지도 않는다. 역별로는 '그 역이 가장 가까운 동 수·거리 범위' 를 남겨 카드 목록에 쓴다.
+    """
+    per_dong = []
+    for lat, lng in dong_points:
+        items = nearby_items({"lat": lat, "lng": lng}, stations, ITEM_RADIUS_M)
+        within = [i for i in items if i["distance"] <= 500]
+        per_dong.append({
+            "items": items,
+            "nearest": items[0] if items else None,
+            "line_500": len({line for i in within for line in i.get("lines", [])}),
+            "station_500": len(within),
+            "station_800": sum(1 for i in items if i["distance"] <= 800),
+            "station_1km": sum(1 for i in items if i["distance"] <= 1000),
+            "transfer_500": sum(1 for i in within if i.get("is_transfer")),
+        })
+    by_station = {}
+    for dong in per_dong:
+        for item in dong["items"]:
+            entry = by_station.setdefault(item["label"], {**item, "nearest_dong_count": 0, "nearest_min": None,
+                                                           "nearest_max": None, "dong_within_500": 0,
+                                                           "distance": item["distance"]})
+            entry["distance"] = min(entry["distance"], item["distance"])
+            if item["distance"] <= 500:
+                entry["dong_within_500"] += 1
+        nearest = dong["nearest"]
+        if nearest:
+            entry = by_station[nearest["label"]]
+            entry["nearest_dong_count"] += 1
+            d = nearest["distance"]
+            entry["nearest_min"] = d if entry["nearest_min"] is None else min(entry["nearest_min"], d)
+            entry["nearest_max"] = d if entry["nearest_max"] is None else max(entry["nearest_max"], d)
+    # 카드 목록: 어떤 동에게든 가장 가까운 역 → 어느 동이든 500m 안인 역 순
+    listed = sorted(
+        [e for e in by_station.values() if e["nearest_dong_count"] or e["dong_within_500"]],
+        key=lambda e: (-e["nearest_dong_count"], -e["dong_within_500"], e["distance"]),
+    )
+    nearest_dists = [d["nearest"]["distance"] for d in per_dong if d["nearest"]]
+    main = listed[0] if listed else {}
+    return {
+        "subway_basis": "dong",
+        "subway_dong_count": len(per_dong),
+        "subway_dong_within_500": sum(1 for d in nearest_dists if d <= 500),
+        "subway_line_count_500m": median_low([d["line_500"] for d in per_dong]),
+        "subway_station_count_500m": median_low([d["station_500"] for d in per_dong]),
+        "subway_station_count_800m": median_low([d["station_800"] for d in per_dong]),
+        "subway_station_count_1km": median_low([d["station_1km"] for d in per_dong]),
+        "transfer_station_count_500m": median_low([d["transfer_500"] for d in per_dong]),
+        "nearest_subway_distance": median_low(nearest_dists),
+        "subway_distance": median_low(nearest_dists),
+        "nearest_subway": main.get("label", ""),
+        "nearest_subway_name": main.get("name", ""),
+        "nearest_subway_lines": main.get("line_label", ""),
+        "subway_dong_stations_json": json.dumps(listed[:MAX_ITEMS], ensure_ascii=False),
+        # 탐색의 '역 500m' 필터용: 어느 동이든 500m 안인 역(거리는 가장 가까운 동 기준)
+        "subway_items_500m_json": json.dumps([e for e in listed if e["dong_within_500"]][:MAX_ITEMS], ensure_ascii=False),
+    }
+
+
+def build_row(apartment, stations, dong_points=None):
+    row = build_center_row(apartment, stations)
+    if dong_points and len(dong_points) >= 2:
+        row.update(build_dong_row(apartment, stations, dong_points))
+    return row
+
+
+def build_center_row(apartment, stations):
     items_1500m = nearby_items(apartment, stations, ITEM_RADIUS_M)
     items_500m = [item for item in items_1500m if item["distance"] <= 500]
     items_1km = [item for item in items_1500m if item["distance"] <= 1000]
@@ -284,6 +382,10 @@ def build_row(apartment, stations):
         "nearest_transfer_distance": nearest_transfer_distance,
         "subway_items_500m_json": json.dumps(items_500m[:MAX_ITEMS], ensure_ascii=False),
         "subway_items_json": json.dumps(items_1500m[:MAX_ITEMS], ensure_ascii=False),
+        "subway_basis": "center",
+        "subway_dong_count": 1,
+        "subway_dong_within_500": 1 if nearest.get("distance", 9999) <= 500 else 0,
+        "subway_dong_stations_json": "[]",
     }
 
 
@@ -293,6 +395,8 @@ def main():
 
     print("[SUBWAY] load station master")
     stations, raw_rows = prepare_station_entities()
+    dong_points = load_dong_points()
+    print(f"[SUBWAY] 동별 건물 위치가 있는 단지 {len(dong_points)}")
     print(f"[SUBWAY] raw rows={len(raw_rows)} station entities={len(stations)}")
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -319,6 +423,10 @@ def main():
         "nearest_transfer_distance",
         "subway_items_500m_json",
         "subway_items_json",
+        "subway_basis",
+        "subway_dong_count",
+        "subway_dong_within_500",
+        "subway_dong_stations_json",
     ]
 
     with OUTPUT_PATH.open("w", encoding="utf-8-sig", newline="") as file:
@@ -337,7 +445,8 @@ def main():
 
         total = len(valid_apartments)
         for index, apartment in enumerate(valid_apartments, start=1):
-            row = build_row(apartment, stations)
+            key = (clean(apartment.get("name")), clean(apartment.get("gu")), clean(apartment.get("dong")))
+            row = build_row(apartment, stations, dong_points.get(key))
             writer.writerow(row)
 
             if index == 1 or index % 500 == 0 or index == total:

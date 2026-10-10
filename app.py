@@ -1254,6 +1254,17 @@ def _build_category_evidence_raw(summary):
     radius = format_distance_m(summary.get("radius"))
     count = to_int(summary.get("count"), 0)
 
+    if key == "subway" and summary.get("dong_basis"):
+        n = to_int(summary.get("dong_count"), 0)
+        within = to_int(summary.get("dong_within_500"), 0)
+        stations = [poi for poi in summary.get("pois") or [] if to_int(poi.get("nearest_dong_count"), 0) > 0]
+        first = f"{n:,}개 동 중 {within:,}개 동은 역까지 500m 이내입니다." if within else f"{n:,}개 동 모두 역까지 500m가 넘습니다."
+        if len(stations) > 1:
+            return f"{first} 동마다 가장 가까운 역이 다르며 아래에 역별로 정리했습니다."
+        if stations:
+            return f"{first} 모든 동에서 {stations[0].get('name')}역이 가장 가깝습니다."
+        return first
+
     if key == "subway":
         line_count = to_int(summary.get("line_count_500m"), 0)
         line_names = unique_nonempty([
@@ -2265,6 +2276,11 @@ def build_subway_info(apartment_name, gu=None, dong=None):
         "gu_percentile": None,
         "items": items,
         "items_500m": items_500m,
+        # 동별 계산(브이월드 동 건물 위치). basis == "dong" 이면 등급 지표가 중간 동 기준이다.
+        "basis": clean_text(row.get("subway_basis", "")) or "center",
+        "dong_count": to_int(row.get("subway_dong_count"), 1),
+        "dong_within_500": to_int(row.get("subway_dong_within_500"), 0),
+        "dong_stations": parse_baseline_items(row, "subway_dong_stations_json", float_distance=True),
     }
 
 
@@ -2304,6 +2320,11 @@ def build_subway_category_summary(subway_info):
 
     items = subway_info.get("items_500m") or []
     count_500m = to_int(subway_info.get("station_count_500m"), 0)
+    dong_basis = subway_info.get("basis") == "dong" and subway_info.get("dong_stations")
+    if dong_basis:
+        # 카드 목록은 역마다 '가장 가까운 동 수 · 거리 범위'(어느 동이든 500m 안인 역 포함)
+        items = subway_info["dong_stations"]
+        count_500m = sum(1 for item in items if to_int(item.get("dong_within_500"), 0) > 0)
     line_count_500m = to_int(subway_info.get("line_count_500m"), 0)
     seoul_percentile = subway_info.get("seoul_percentile")
     nearest_name = subway_info.get("nearest_name", "")
@@ -2315,10 +2336,15 @@ def build_subway_category_summary(subway_info):
     elif subway_info.get("nearest_label"):
         nearest_label = subway_info.get("nearest_label")
 
-    subtype_chips = get_subtype_chips_from_items(items, "subway-chip")
+    # 노선 칩은 500m 도보권 역만(동 기준이면 어느 동이든 500m 안인 역)
+    chip_items = [i for i in items if to_int(i.get("dong_within_500"), 0) > 0] if dong_basis else items
+    subtype_chips = get_subtype_chips_from_items(chip_items, "subway-chip")
 
-    transfer_count = to_int(subway_info.get("transfer_station_count_500m"), 0)
-    if transfer_count > 0:
+    transfer_count = (
+        sum(1 for i in chip_items if i.get("is_transfer")) if dong_basis
+        else to_int(subway_info.get("transfer_station_count_500m"), 0)
+    )
+    if transfer_count > 0 and not any(chip.get("name") == "환승역" for chip in subtype_chips):
         subtype_chips.append({
             "name": "환승역",
             "display": "환승역",
@@ -2344,11 +2370,14 @@ def build_subway_category_summary(subway_info):
         "nearest_poi": {
             "label": f"🚇 {nearest_label}",
             "distance": subway_info.get("nearest_distance"),
-        } if nearest_label else None,
+        } if nearest_label and not dong_basis else None,
         "subtype_chips": subtype_chips,
         "pois": items,
         "empty": "주변 지하철역 공공데이터가 없습니다.",
         "is_subway_master_summary": True,
+        "dong_basis": bool(dong_basis),
+        "dong_count": subway_info.get("dong_count"),
+        "dong_within_500": subway_info.get("dong_within_500"),
     }
 
 
@@ -9174,10 +9203,11 @@ def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", 
     # 지하철·교육환경·한강 카드에 '동별로 보면' 줄을 붙인다.
     notes = dong_level_service.card_notes(context["dong_level"])
     for summary in context.get("category_summaries") or []:
-        if summary.get("key") in notes:
+        if summary.get("key") in notes and not (summary["key"] == "subway" and summary.get("dong_basis")):
+            # 지하철이 동 기준이면 카드 목록이 역별 동 수·거리를 이미 보여 주므로 '동별:' 줄은 생략
             summary["dong_note"] = notes[summary["key"]]
             # 본문은 대표 좌표 한 점 기준이라 바로 아래 동별 줄과 어긋나 보일 수 있다 — 기준을 밝힌다.
-            if summary["key"] == "subway" and summary.get("description") and "대표 좌표" not in summary["description"]:
+            if summary["key"] == "subway" and not summary.get("dong_basis") and summary.get("description") and "대표 좌표" not in summary["description"]:
                 summary["description"] = "단지 대표 좌표 기준으로 " + summary["description"]
     combo_key, combo = analytics_service.build_weight_combo(get_preferences())
     analytics_service.track(
