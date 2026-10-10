@@ -49,6 +49,10 @@ def get(name, gu, dong):
     if not entry:
         return None
     summary, dongs = entry["summary"], entry["dongs"]
+    # 작은 단지는 동마다 값이 거의 같아 카드가 길이만 늘린다. 동이 4개 이상이거나
+    # 실제로 갈리는(배정초 2곳 이상·역 거리 100m 이상 차이) 단지만 보인다.
+    if summary["n"] < 4 and len(summary["schools"]) < 2 and summary["station_max"] - summary["station_min"] < 100:
+        return None
     schools = []
     for school, count in summary["schools"].items():
         labels = [d["dong"] for d in dongs if d["school"] == school]
