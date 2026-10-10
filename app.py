@@ -2911,6 +2911,42 @@ def apply_bus_baseline_to_ui(category_summaries, preference_tags, domain_summari
 
 
 
+def baked_park_pois(apartment):
+    """park_baseline 의 park_items_json(조성 공원 윤곽까지 거리, 1.5km)을 카드·지도 POI 로.
+
+    공원 점수(park_distance)와 같은 원천이라 카드 목록·거리와 점수가 어긋나지 않는다.
+    칸이 없으면(옛 baseline) None — 호출부가 예전 park_data 반경 검색으로 대체한다.
+    """
+    from services.preload_service import park_baseline_index
+    row = get_indexed_baseline_row(
+        park_baseline_index, apartment.get("name"), apartment.get("district"), apartment.get("dong"),
+    )
+    if not row or "park_items_json" not in row:
+        return None
+    try:
+        items = json.loads(row.get("park_items_json") or "[]")
+    except ValueError:
+        return None
+    pois = []
+    for item in items:
+        area = int(item.get("area_m2") or 0)
+        pois.append({
+            "lat": item.get("lat"),
+            "lng": item.get("lng"),
+            "category": "park",
+            "name": item.get("name", "공원"),
+            "label": f"🌳 {item.get('name', '공원')}",
+            # 칩(대형/중형/소형공원)은 면적 기준. 공원 종류(근린·어린이…)는 kind 로 따로 둔다.
+            "subtype": "대형공원" if area >= 100000 else "중형공원" if area >= 10000 else "소형공원",
+            "kind": item.get("subtype", "공원"),
+            "area": area,
+            "area_text": f"{area:,}㎡" if area else "",
+            "distance": item.get("distance"),
+            "source": "국토교통부 도시계획시설(브이월드)",
+        })
+    return pois
+
+
 def build_hangang_info(apartment_name, gu=None, dong=None):
     row = get_indexed_baseline_row(hangang_baseline_index, apartment_name, gu, dong)
 
@@ -8745,12 +8781,14 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
 
     pois = pois + nearby_cctvs
 
-    nearby_parks = filter_pois_by_radius(
-        park_data,
-        apartment["lat"],
-        apartment["lng"],
-        1500
-    )
+    nearby_parks = baked_park_pois(apartment)
+    if nearby_parks is None:
+        nearby_parks = filter_pois_by_radius(
+            park_data,
+            apartment["lat"],
+            apartment["lng"],
+            1500
+        )
 
     pois = pois + nearby_parks
 

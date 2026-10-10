@@ -135,9 +135,9 @@ CATEGORY_META = {
     },
     "park": {
         "label": "🌳 공원",
-        "description": "서울시 주요 공원 및 대형 녹지 접근성을 반영합니다",
+        "description": "1만㎡ 이상 공원까지 거리를 기준으로, 1km 안 동네 공원까지 보여줍니다",
         "empty": "반경 내 확인된 공원 데이터가 아직 없습니다.",
-        "radius": 1500,
+        "radius": 1000,
         "percentile": 31,
         "frequency_weight": 0.7,
     },
@@ -1005,7 +1005,7 @@ def get_category_summaries(apartment, preference_keys):
             "source": (
                 "공공데이터포털"
                 if key == "cctv"
-                else "서울시 공공데이터"
+                else "국토교통부 도시계획시설(브이월드)"
                 if key == "park"
                 else "Kakao Local API"
             ),

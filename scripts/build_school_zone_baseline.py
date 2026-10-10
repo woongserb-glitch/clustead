@@ -13,7 +13,24 @@ from services.geo_service import get_distance_m
 
 
 SHP_PATH = "data/school/zone/초등학교통학구역.shp"
+# 브이월드 LT_C_DESCH(scripts/fetch_school_zones_vworld.py). SHP 와 같은 데이터라 있으면 이것을 쓴다.
+VWORLD_PATH = "data/school/zone/vworld_desch.geojson"
 OUTPUT_PATH = "data/baseline/school_zone_baseline.csv"
+
+
+def read_zones():
+    import os
+    if os.path.exists(VWORLD_PATH):
+        zones = gpd.read_file(VWORLD_PATH)
+        # 브이월드 속성은 소문자(hakgudo_nm …) — SHP 열 이름(HAKGUDO_NM …)에 맞춘다.
+        zones = zones.rename(columns={c: c.upper() for c in zones.columns if c != "geometry"})
+        # geopandas 가 base_dt 를 날짜로 읽어 '2026-03-20 00:00:00' 이 된다 — SHP 와 같은 'YYYY-MM-DD' 로.
+        if "BASE_DT" in zones.columns:
+            zones["BASE_DT"] = zones["BASE_DT"].astype(str).str[:10]
+        print(f"[LOAD] school zone vworld ({VWORLD_PATH})")
+        return zones
+    print(f"[LOAD] school zone shp ({SHP_PATH})")
+    return gpd.read_file(SHP_PATH)
 
 
 def clean_school_zone_name(value):
@@ -76,8 +93,7 @@ def main():
     load_apartment_data()
     load_school_data()
 
-    print("[LOAD] school zone shp")
-    zones = gpd.read_file(SHP_PATH)
+    zones = read_zones()
 
     seoul_zones = zones[
         zones["EDU_UP_NM"] == "서울특별시교육청"

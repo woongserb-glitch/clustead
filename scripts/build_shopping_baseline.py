@@ -1,5 +1,6 @@
 import json
 import math
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -153,6 +154,47 @@ def prepare_shopping_facilities():
     return facilities
 
 
+TRADSIJANG_PATH = BASE_DIR / "data" / "derived" / "vworld" / "LT_P_TRADSIJANG.geojson"
+
+
+def add_traditional_markets(facilities):
+    """브이월드 전통시장(LT_P_TRADSIJANG) 서울분을 '시장'으로 더한다.
+
+    쇼핑 원천(대규모점포 인허가)에는 등록된 시장만 있어 남대문·고척근린시장 같은 전통시장이
+    빠졌다(서울 전통시장 188곳 중 이름이 겹치는 건 52곳). 이미 있는 시장과 이름이 같거나
+    200m 안이면 같은 시장으로 보고 더하지 않는다.
+    """
+    if not TRADSIJANG_PATH.exists():
+        return facilities
+    norm = lambda s: re.sub(r"\s|전통|시장|상점가|골목형|\(.*?\)", "", s or "")
+    existing = [f for f in facilities if f["subtype"] == "시장"]
+    names = {norm(f["label"]) for f in existing}
+    added = 0
+    for feat in json.loads(TRADSIJANG_PATH.read_text(encoding="utf-8"))["features"]:
+        p = feat["properties"]
+        if not str(p.get("adr_jibun", "")).startswith("서울"):
+            continue
+        lng, lat = feat["geometry"]["coordinates"][:2]
+        name = clean_text(p.get("name"))
+        if not name or norm(name) in names:
+            continue
+        if any(haversine_m(lat, lng, f["lat"], f["lng"]) <= 200 for f in existing):
+            continue
+        facilities.append({
+            "label": name if name.endswith(("시장", "상점가")) else f"{name}시장",
+            "subtype": "시장",
+            "raw_type": "전통시장",
+            "store_type": clean_text(p.get("category")),
+            "address": clean_text(p.get("adr_road")) or clean_text(p.get("adr_jibun")),
+            "lat": round(float(lat), 7),
+            "lng": round(float(lng), 7),
+        })
+        names.add(norm(name))
+        added += 1
+    print(f"[SHOPPING] 브이월드 전통시장 {added}곳 추가")
+    return facilities
+
+
 def prepare_apartments():
     df = read_csv_with_fallback(APARTMENT_PATH)
     apartments = []
@@ -221,7 +263,7 @@ def build_baseline_row(apartment, facilities):
 
 def main():
     apartments = prepare_apartments()
-    facilities = prepare_shopping_facilities()
+    facilities = add_traditional_markets(prepare_shopping_facilities())
 
     rows = []
     for idx, apartment in enumerate(apartments, start=1):
