@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=4">
     <script src="{{ url_for('static', filename='theme.js') }}?v=2" defer></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261010c">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261010e">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -110,7 +110,7 @@
                 {% if dong_level and dong_level.split_school %}
                 <div class="complex-info-item">
                     <span>🏫 배정초</span>
-                    <strong>{% for s in dong_level.schools %}{{ s.name }} {{ s.count }}동{% if not loop.last %} · {% endif %}{% endfor %}<sup>1</sup></strong>
+                    <strong title="{% for s in dong_level.schools %}{{ s.name }} {{ s.count }}개 동{% if not loop.last %} · {% endif %}{% endfor %}">{% for s in dong_level.schools %}{{ s.name | replace('서울', '', 1) }} {{ s.count }}동{% if not loop.last %} · {% endif %}{% endfor %}<sup>1</sup></strong>
                 </div>
                 {% elif complex_info.school %}
                 <div class="complex-info-item">
@@ -1103,6 +1103,26 @@
     <script src="{{ url_for('static', filename='script.js') }}?v=20260618d"></script>
 
     {% include "_page_actions.html" %}
+<script>
+// 정보 칩 줄: 넘칠 때만 오른쪽 흐림(.has-more), PC 마우스 휠은 가로 이동으로.
+(function () {
+    var grid = document.querySelector(".complex-info-grid");
+    if (!grid) return;
+    function update() {
+        grid.classList.toggle("has-more", grid.scrollLeft + grid.clientWidth < grid.scrollWidth - 2);
+    }
+    grid.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    grid.addEventListener("wheel", function (e) {
+        if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || grid.scrollWidth <= grid.clientWidth) return;
+        var atStart = grid.scrollLeft <= 0, atEnd = grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 1;
+        if ((e.deltaY < 0 && atStart) || (e.deltaY > 0 && atEnd)) return;  // 끝에 닿으면 페이지 스크롤로 넘긴다
+        grid.scrollLeft += e.deltaY;
+        e.preventDefault();
+    }, { passive: false });
+    update();
+})();
+</script>
 </body>
 
 </html>

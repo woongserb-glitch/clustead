@@ -2933,7 +2933,7 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .complex-info-subway {
-    flex: 0 1 auto;
+    flex: 0 0 auto; /* 줄어들어 잘리지 않고 다음 줄로 넘어간다 */
     max-width: 100%;
 }
 
@@ -3026,21 +3026,37 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .complex-info-item.complex-info-subway {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     max-width: 100%;
 }
 
-@media (min-width: 901px) {
-    .complex-info-grid {
-        display: grid;
-        grid-template-columns: repeat(5, max-content) minmax(0, max-content);
-        align-items: center;
-        gap: 6px;
-    }
-
-    .complex-info-item.complex-info-subway {
-        min-width: 0;
-    }
+/* 정보 칩은 PC·폰 모두 한 줄 가로 스크롤(2026-10-10 사용자 결정). 한 칩만 다음 줄로 내려오거나
+   마지막 칩이 '송…' 처럼 잘리는 대신, 칩은 온전히 두고 넘치면 옆으로 넘겨 본다.
+   넘칠 때만 오른쪽 끝을 흐리게(.has-more, result.html 스크립트가 토글). */
+.complex-info-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    padding-bottom: 4px;
+}
+.complex-info-grid.has-more {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+}
+.complex-info-grid > .complex-info-item,
+.complex-info-item.complex-info-subway {
+    flex: 0 0 auto;
+    max-width: none;
+}
+.complex-info-grid .complex-info-item strong,
+.complex-info-grid .subway-text {
+    overflow: visible;
+    text-overflow: clip;
+    width: auto;
 }
 
 .complex-area-summary {
