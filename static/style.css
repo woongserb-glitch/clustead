@@ -2610,11 +2610,9 @@ body:not(.home-page) #resultLoadingOverlay {
 /* 동별 정보: 위쪽 칸은 요약 + 주석 번호, 동 목록은 칸 아래 주석으로 */
 .complex-info-item sup, .dong-footnote sup { font-size: 0.7em; color: var(--c-faint); margin-left: 1px; }
 .complex-info-note p { margin: 2px 0; }
-.dong-footnote {
-    color: var(--c-muted); font-size: 0.82rem; line-height: 1.55; overflow-wrap: anywhere;
-    /* 줄이 넘어가면 둘째 줄부터 주석 번호 너비만큼 들여 쓴다 */
-    padding-left: 0.8em; text-indent: -0.8em;
-}
+.dong-footnote { color: var(--c-muted); font-size: 0.82rem; line-height: 1.55; margin: 2px 0; }
+/* 제목 줄 아래로 항목을 한 줄씩, 주석 번호 다음 글자 위치에 맞춰 들여 쓴다(항목이 넘어가도 같은 들여쓰기) */
+.dong-footnote-item { padding-left: 0.8em; overflow-wrap: anywhere; }
 .dong-footnote b { color: var(--c-fg); font-weight: 600; }
 
 /* 상세 카드의 '동별:' — 바로 위 '최근접:' 줄과 같은 크기·톤, 세부는 작은 주석 글씨 */
