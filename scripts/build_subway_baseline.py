@@ -10,11 +10,10 @@ sys.path.insert(0, str(BASE_DIR))
 
 from services.geo_service import get_distance_m
 from services.preload_service import apartment_data, load_apartment_data
+from scripts.dong_points import load_dong_points, median_low
 
 
 RAW_PATH = BASE_DIR / "data" / "subway" / "subway_station_master.csv"
-# 동별 건물 윤곽(브이월드 매칭 v5). 있으면 단지 대표 좌표 한 점이 아니라 각 동 건물 위치로 계산한다.
-BUILDINGS_PATH = BASE_DIR / "data" / "derived" / "vworld" / "complex_buildings_v5.jsonl"
 OUTPUT_PATH = BASE_DIR / "data" / "baseline" / "subway_baseline.csv"
 
 MAX_ITEMS = 20
@@ -241,33 +240,6 @@ def nearest_name_distance(items):
         return "", ""
     nearest = items[0]
     return nearest.get("name", ""), nearest.get("distance", "")
-
-
-def load_dong_points():
-    """{(이름, 구, 동): [(lat, lng), …]} — 단지의 각 동 건물 중심. 파일이 없으면 빈 dict."""
-    if not BUILDINGS_PATH.exists():
-        return {}
-    from shapely.geometry import shape
-
-    points = {}
-    with BUILDINGS_PATH.open(encoding="utf-8") as handle:
-        for line in handle:
-            row = json.loads(line)
-            pts = []
-            for building in row.get("buildings", []):
-                try:
-                    c = shape(building["geom"]).centroid
-                    pts.append((c.y, c.x))
-                except Exception:
-                    continue
-            if pts:
-                points[tuple(clean(v) for v in row["key"])] = pts
-    return points
-
-
-def median_low(values):
-    ordered = sorted(values)
-    return ordered[(len(ordered) - 1) // 2] if ordered else ""
 
 
 def build_dong_row(apartment, stations, dong_points):

@@ -1,3 +1,4 @@
+import json
 import csv
 
 import geopandas as gpd
@@ -10,6 +11,7 @@ from services.preload_service import (
     school_data,
 )
 from services.geo_service import get_distance_m
+from scripts.dong_points import load_dong_points, points_for, median_low
 
 
 SHP_PATH = "data/school/zone/초등학교통학구역.shp"
@@ -101,6 +103,22 @@ def main():
 
     print(f"[SCHOOL ZONE] 서울 통학구역 {len(seoul_zones)}개 로드")
 
+    from shapely.strtree import STRtree
+    normal_wgs = seoul_zones[seoul_zones["HAKGUDO_GB"].astype(str) == "0"].to_crs("EPSG:4326")
+    zone_geoms = list(normal_wgs.geometry)
+    zone_rows = [row for _, row in normal_wgs.iterrows()]
+    zone_tree = STRtree(zone_geoms)
+
+    def zone_at(lat, lng):
+        pt = Point(lng, lat)
+        for i in zone_tree.query(pt):
+            if zone_geoms[int(i)].contains(pt):
+                return zone_rows[int(i)]
+        return None
+
+    dong_points = load_dong_points()
+    print(f"[SCHOOL ZONE] 동별 건물 위치가 있는 단지 {len(dong_points)}")
+
     apt_points = []
 
     for apt in apartment_data:
@@ -180,12 +198,48 @@ def main():
                 row.get("HAKGUDO_NM", "")
             )
 
+        # 동별(scripts/dong_points 원칙): 동마다 통학구역 → 배정초 → 그 학교까지 거리. 대표 배정초는
+        # 동 수가 가장 많은 학교, 등급 거리는 중간 동의 '자기 배정초까지' 거리.
+        points, basis = points_for(dong_points, apt.get("name"), apt.get("gu"), apt.get("dong"), apt.get("lat"), apt.get("lng"))
+        school_dongs = []
+        if basis == "dong":
+            per_dong = []
+            for lat, lng in points:
+                zone = zone_at(lat, lng)
+                if zone is None:
+                    continue
+                name = clean_school_zone_name(zone["HAKGUDO_NM"])
+                school = find_elementary_school(name)
+                dist = round(get_distance_m(lat, lng, school["lat"], school["lng"])) if school else None
+                per_dong.append((name, dist, zone))
+            if per_dong:
+                counts = {}
+                for name, dist, zone in per_dong:
+                    entry = counts.setdefault(name, {"school": name, "count": 0, "min": None, "max": None, "zone": zone})
+                    entry["count"] += 1
+                    if dist is not None:
+                        entry["min"] = dist if entry["min"] is None else min(entry["min"], dist)
+                        entry["max"] = dist if entry["max"] is None else max(entry["max"], dist)
+                school_dongs = sorted(counts.values(), key=lambda e: (-e["count"], e["min"] or 0))
+                top = school_dongs[0]
+                assigned_elementary_school = top["school"]
+                primary_zone_id = top["zone"].get("HAKGUDO_ID", "")
+                primary_zone_name = top["zone"].get("HAKGUDO_NM", "")
+                primary_education_office = top["zone"].get("EDU_NM", "")
+                assigned_elementary_distance_m = median_low([d for _, d, _ in per_dong if d is not None])
+                elementary_score = elementary_access_score(assigned_elementary_distance_m)
+            else:
+                basis = "center"
+
         rows.append({
             "name": apt.get("name"),
             "gu": apt.get("gu"),
             "dong": apt.get("dong"),
             "lat": apt.get("lat"),
             "lng": apt.get("lng"),
+            "school_basis": basis,
+            "school_dong_count": len(points) if basis == "dong" else 1,
+            "school_dong_json": json.dumps([{k: v for k, v in e.items() if k != "zone"} for e in school_dongs], ensure_ascii=False),
             "primary_school_zone_id": primary_zone_id,
             "primary_school_zone_name": primary_zone_name,
             "primary_education_office": primary_education_office,
@@ -225,6 +279,9 @@ def main():
             "match_count",
             "normal_zone_count",
             "shared_zone_count",
+            "school_basis",
+            "school_dong_count",
+            "school_dong_json",
         ]
 
         writer = csv.DictWriter(

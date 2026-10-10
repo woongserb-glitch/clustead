@@ -1283,6 +1283,15 @@ def _build_category_evidence_raw(summary):
             return f"반경 500m 내 {line_count:,}개 노선을 이용할 수 있습니다. {compact_example_text(line_names)} 접근이 가능합니다."
         return f"반경 500m 내 {line_count:,}개 지하철 노선을 이용할 수 있습니다."
 
+    if key == "bus-baseline" and summary.get("dong_basis"):
+        stops = len({str(x.get("label", "")).split(" · ")[0] for x in summary.get("pois") or []})
+        median_routes = to_int(summary.get("route_count"), 0)
+        union_routes = to_int(summary.get("route_count_union"), 0)
+        return (
+            f"중간 동 기준 500m 안 버스 노선은 {median_routes:,}개입니다. "
+            f"단지 전체로는 정류장 {stops:,}곳에서 {union_routes:,}개 노선을 이용할 수 있습니다."
+        )
+
     if key == "bus-baseline":
         route_text = subtype_sentence(summary, unit="개", limit=2)
         if route_text:
@@ -1355,6 +1364,21 @@ def _build_category_evidence_raw(summary):
             or summary.get("assigned_distance")
             or (summary.get("nearest_poi") or {}).get("distance")
         )
+        school_dongs = summary.get("school_dongs") or []
+        if len(school_dongs) > 1:
+            top = school_dongs[0]
+            spans = [x for x in school_dongs if x.get("min") is not None]
+            tail = ""
+            if spans:
+                low, high = min(x["min"] for x in spans), max(x["max"] for x in spans)
+                tail = f" 동마다 자기 배정초까지 {low:,}~{high:,}m입니다."
+            return f"배정초가 동마다 다르며 {top['school']}에 가장 많은 {top['count']:,}개 동이 배정됩니다.{tail}"
+        if len(school_dongs) == 1:
+            top = school_dongs[0]
+            span = ""
+            if top.get("min") is not None:
+                span = f"{top['min']:,}m" if top["min"] == top["max"] else f"{top['min']:,}~{top['max']:,}m"
+            return f"모든 동이 {top['school']}에 배정됩니다." + (f" 동마다 약 {span} 거리입니다." if span else "")
         if name and distance:
             return f"대표 배정 초등학교는 {name}입니다. 대표 좌표 기준 약 {distance} 거리에 위치합니다."
         if name:
@@ -1388,6 +1412,12 @@ def _build_category_evidence_raw(summary):
 
     if key == "hangang":
         nearest_name, _ = nearest_name_and_distance(summary)
+        spans = [x for x in summary.get("pois") or [] if x.get("nearest_min") is not None]
+        if summary.get("dong_basis") and spans and nearest_name:
+            low = min(x["nearest_min"] for x in spans)
+            high = max(x["nearest_max"] for x in spans)
+            span = f"{low:,}m" if low == high else f"{low:,}~{high:,}m"
+            return f"가장 가까운 한강공원은 {hangang_park_name(nearest_name)}입니다. 동마다 나들목까지 {span}입니다."
         if nearest_name:
             return f"가장 가까운 한강공원은 {hangang_park_name(nearest_name)}입니다."
         return f"반경 {radius} 안에 한강공원이 없습니다."
@@ -2324,7 +2354,7 @@ def build_subway_category_summary(subway_info):
     if dong_basis:
         # 카드 목록은 역마다 '가장 가까운 동 수 · 거리 범위'(어느 동이든 500m 안인 역 포함)
         items = subway_info["dong_stations"]
-        count_500m = sum(1 for item in items if to_int(item.get("dong_within_500"), 0) > 0)
+        count_500m = len(items)
     line_count_500m = to_int(subway_info.get("line_count_500m"), 0)
     seoul_percentile = subway_info.get("seoul_percentile")
     nearest_name = subway_info.get("nearest_name", "")
@@ -2377,6 +2407,7 @@ def build_subway_category_summary(subway_info):
         "empty": "주변 지하철역 공공데이터가 없습니다.",
         "is_subway_master_summary": True,
         "dong_basis": bool(dong_basis),
+        "meta_basis_label": "동마다 가장 가까운 역" if dong_basis else "",
         "dong_count": subway_info.get("dong_count"),
         "dong_within_500": subway_info.get("dong_within_500"),
     }
@@ -2484,6 +2515,9 @@ def build_bus_info(apartment_name, gu=None, dong=None):
     type_chips = build_count_chips(chip_sources)
 
     return {
+        "basis": clean_text(row.get("bus_basis", "")) or "center",
+        "dong_count": to_int(row.get("bus_dong_count"), 1),
+        "route_count_union": to_int(row.get("bus_route_count_union"), 0),
         "stop_count_500m":
             row.get(
                 "bus_stop_count_500m",
@@ -2741,11 +2775,14 @@ def build_bus_category_summary(bus_info):
         "score_class": percentile_score_class(seoul_percentile),
         "description": "반경 500m 기준 버스 정류장 및 이용 가능 노선 정보입니다.",
         "radius": 500,
-        "count": bus_info.get("stop_count_500m", 0),
+        "count": (
+            len({str(x.get("label", "")).split(" · ")[0] for x in bus_info.get("items", [])})
+            if bus_info.get("basis") == "dong" else bus_info.get("stop_count_500m", 0)
+        ),
         "seoul_percentile": seoul_percentile,
         "gu_percentile": None,
         "source": "서울시 버스 데이터",
-        "nearest_poi": {
+        "nearest_poi": None if bus_info.get("basis") == "dong" else {
             "label": f"🚌 {bus_info.get('nearest_stop', '')}",
             "distance": bus_info.get("nearest_distance", ""),
         },
@@ -2761,6 +2798,11 @@ def build_bus_category_summary(bus_info):
         "pois": bus_info.get("items", []),
         "empty": "반경 내 확인된 버스 노선 정보가 없습니다.",
         "is_bus_summary": True,
+        "dong_basis": bus_info.get("basis") == "dong",
+        "dong_count": bus_info.get("dong_count"),
+        "route_count": to_int(bus_info.get("route_count"), 0),
+        "route_count_union": bus_info.get("route_count_union"),
+        "meta_basis_label": "어느 동이든 500m 안 정류장" if bus_info.get("basis") == "dong" else "",
     }
 
 
@@ -3002,6 +3044,8 @@ def build_hangang_info(apartment_name, gu=None, dong=None):
     type_chips = build_count_chips(chip_sources)
 
     return {
+        "basis": clean_text(row.get("hangang_basis", "")) or "center",
+        "dong_count": to_int(row.get("hangang_dong_count"), 1),
         "hangang_count_3km": row.get("hangang_count_3km", 0),
         "nearest_name": clean_text(row.get("nearest_hangang_park", "")),
         "nearest_distance": clean_text(row.get("nearest_hangang_distance", "")),
@@ -3045,11 +3089,13 @@ def build_hangang_category_summary(hangang_info):
         "nearest_poi": {
             "label": nearest_name,
             "distance": hangang_info.get("nearest_distance", ""),
-        } if nearest_name else None,
+        } if nearest_name and hangang_info.get("basis") != "dong" else None,
         "subtype_chips": [],
         "pois": hangang_info.get("items", []),
         "empty": "반경 내 확인된 한강공원 정보가 없습니다.",
         "is_hangang_summary": True,
+        "dong_basis": hangang_info.get("basis") == "dong",
+        "meta_basis_label": "동마다 가장 가까운 한강공원" if hangang_info.get("basis") == "dong" else "",
     }
 
 
@@ -4292,6 +4338,17 @@ def build_school_environment_info(apartment, school_zone):
         except Exception:
             assigned_distance = None
 
+    school_dongs = []
+    if school_zone and clean_text(school_zone.get("school_basis")) == "dong":
+        # 동별(scripts/dong_points): 대표 배정초는 동 수가 가장 많은 학교, 거리는 중간 동의 자기 배정초까지
+        median_distance = to_int(school_zone.get("assigned_elementary_distance_m"), 0)
+        if median_distance:
+            assigned_distance = median_distance
+        try:
+            school_dongs = json.loads(school_zone.get("school_dong_json") or "[]")
+        except ValueError:
+            school_dongs = []
+
     middle_schools = []
     high_schools = []
 
@@ -4368,6 +4425,7 @@ def build_school_environment_info(apartment, school_zone):
         "assigned_school_name": assigned_school_name,
         "assigned_education_office": assigned_education_office,
         "assigned_distance": assigned_distance,
+        "school_dongs": school_dongs,
         "middle_count": len(middle_schools),
         "high_count": len(high_schools),
         "middle_items": middle_schools,
@@ -4422,7 +4480,10 @@ def build_school_environment_category_summary(school_environment_info):
 
     if assigned_school_name and assigned_distance is not None:
         nearest_poi = {
-            "label": f"🏫 대표 배정초 {assigned_school_name}",
+            "label": (
+                f"🏫 배정초 {assigned_school_name}(중간 동 기준)"
+                if school_environment_info.get("school_dongs") else f"🏫 대표 배정초 {assigned_school_name}"
+            ),
             "distance": assigned_distance,
         }
     elif school_environment_info.get("nearest_school"):
@@ -4475,6 +4536,7 @@ def build_school_environment_category_summary(school_environment_info):
         "assigned_school_name": assigned_school_name,
         "assigned_elementary_distance_m": assigned_distance,
         "assigned_distance": assigned_distance,
+        "school_dongs": school_environment_info.get("school_dongs") or [],
         "seoul_percentile": None,
         "gu_percentile": None,
         "display_percentile": False,
@@ -9204,7 +9266,7 @@ def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", 
     # 지하철·교육환경·한강 카드에 '동별로 보면' 줄을 붙인다.
     notes = dong_level_service.card_notes(context["dong_level"])
     for summary in context.get("category_summaries") or []:
-        if summary.get("key") in notes and not (summary["key"] == "subway" and summary.get("dong_basis")):
+        if summary.get("key") in notes and not (summary["key"] in ("subway", "hangang") and summary.get("dong_basis")):
             # 지하철이 동 기준이면 카드 목록이 역별 동 수·거리를 이미 보여 주므로 '동별:' 줄은 생략
             summary["dong_note"] = notes[summary["key"]]
             # 본문은 대표 좌표 한 점 기준이라 바로 아래 동별 줄과 어긋나 보일 수 있다 — 기준을 밝힌다.

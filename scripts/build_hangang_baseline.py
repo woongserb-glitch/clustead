@@ -4,6 +4,10 @@ from pathlib import Path
 
 import pandas as pd
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts.dong_points import load_dong_points, points_for  # noqa: E402
+
 BASE_DIR = Path(__file__).resolve().parents[1]
 APARTMENT_PATH = BASE_DIR / "data" / "apartment" / "seoul_apartments.csv"
 FACILITY_PATH = BASE_DIR / "data" / "hangang" / "hangang_facilities.csv"
@@ -276,6 +280,8 @@ def build_baseline():
     hangang_parks = build_hangang_park_master(facility_map)
     log_master_match_status(facility_map, hangang_parks)
     access_points = load_access_points(hangang_parks)
+    dong_points = load_dong_points()
+    print(f"[HANGANG] 동별 건물 위치가 있는 단지 {len(dong_points)}")
     access_by_park = {}
     for point in access_points:
         access_by_park.setdefault(point["park_key"], []).append(point)
@@ -293,45 +299,71 @@ def build_baseline():
             continue
 
         apt_bank = bank_of_gu(apt.get("주소(시군구)"))
-        items = []
-        for park in hangang_parks:
-            entrance = None
-            if access_points:
-                # 출입구 자료가 있으면 같은 쪽 강변 공원만, 그 공원의 가장 가까운 출입구까지 잰다.
-                if bank_of_gu(PARK_GU.get(park["park_key"], "")) != apt_bank:
+
+        def items_at(lat, lng):
+            items = []
+            for park in hangang_parks:
+                entrance = None
+                if access_points:
+                    # 출입구 자료가 있으면 같은 쪽 강변 공원만, 그 공원의 가장 가까운 출입구까지 잰다.
+                    if bank_of_gu(PARK_GU.get(park["park_key"], "")) != apt_bank:
+                        continue
+                    gates = access_by_park.get(park["park_key"], [])
+                    if gates:
+                        entrance = min(gates, key=lambda g: get_distance_m(lat, lng, g["lat"], g["lng"]))
+                if entrance:
+                    distance = get_distance_m(lat, lng, entrance["lat"], entrance["lng"])
+                    point_lat, point_lng = entrance["lat"], entrance["lng"]
+                else:
+                    distance = get_distance_m(lat, lng, park["lat"], park["lng"])
+                    point_lat, point_lng = park["lat"], park["lng"]
+                if distance > RADIUS_M:
                     continue
-                gates = access_by_park.get(park["park_key"], [])
-                if gates:
-                    entrance = min(gates, key=lambda g: get_distance_m(apt_lat, apt_lng, g["lat"], g["lng"]))
-            if entrance:
-                distance = get_distance_m(apt_lat, apt_lng, entrance["lat"], entrance["lng"])
-                point_lat, point_lng = entrance["lat"], entrance["lng"]
-            else:
-                distance = get_distance_m(apt_lat, apt_lng, park["lat"], park["lng"])
-                point_lat, point_lng = park["lat"], park["lng"]
-            if distance > RADIUS_M:
-                continue
 
-            tags = clean_text(park.get("facility_tags"))
-            label = park["park_name"]
-            if entrance:
-                label = f"{label}({entrance['group']})"
-            if tags:
-                label = f"{label} · {tags}"
+                tags = clean_text(park.get("facility_tags"))
+                label = park["park_name"]
+                if entrance:
+                    label = f"{label}({entrance['group']})"
+                if tags:
+                    label = f"{label} · {tags}"
 
-            items.append({
-                "label": label,
-                "park_name": park["park_name"],
-                "access_name": entrance["group"] if entrance else "",
-                "distance": distance,
-                "lat": point_lat,
-                "lng": point_lng,
-                "subtype": park.get("primary_group", "기타"),
-                "facility_tags": tags,
-                "facility_count": park.get("total_facility_count", 0),
-            })
+                items.append({
+                    "label": label,
+                    "park_name": park["park_name"],
+                    "access_name": entrance["group"] if entrance else "",
+                    "distance": distance,
+                    "lat": point_lat,
+                    "lng": point_lng,
+                    "subtype": park.get("primary_group", "기타"),
+                    "facility_tags": tags,
+                    "facility_count": park.get("total_facility_count", 0),
+                })
+            return sorted(items, key=lambda item: item.get("distance", 999999))
 
-        items = sorted(items, key=lambda item: item.get("distance", 999999))
+        # 동별(scripts/dong_points 원칙): 등급 거리는 중간 동, 목록은 동 전체를 합쳐 공원마다
+        # '가장 가까운 동 수 · 거리 범위'.
+        points, basis = points_for(
+            dong_points, apt.get("k-아파트명"), apt.get("주소(시군구)"), apt.get("주소(읍면동)"), apt_lat, apt_lng,
+        )
+        per_dong = [items_at(lat, lng) for lat, lng in points]
+        merged = {}
+        for dong_items in per_dong:
+            for rank, item in enumerate(dong_items):
+                key = item["park_name"]
+                entry = merged.get(key)
+                if entry is None or item["distance"] < entry["distance"]:
+                    keep = {k: entry[k] for k in ("dong_count", "nearest_min", "nearest_max")} if entry else {}
+                    entry = merged[key] = {**item, "dong_count": 0, "nearest_min": None, "nearest_max": None, **keep}
+                if rank == 0:
+                    d = item["distance"]
+                    entry["dong_count"] += 1
+                    entry["nearest_min"] = d if entry["nearest_min"] is None else min(entry["nearest_min"], d)
+                    entry["nearest_max"] = d if entry["nearest_max"] is None else max(entry["nearest_max"], d)
+        items = sorted(merged.values(), key=lambda e: (-e["dong_count"], e["distance"]))
+        dong_nearest = [d[0]["distance"] if d else None for d in per_dong]
+        within = sorted(d for d in dong_nearest if d is not None)
+        # 절반 넘는 동이 3km 밖이면 '근처 한강 없음'(빈 값)으로 둔다.
+        median_distance = within[(len(dong_nearest) - 1) // 2] if len(within) * 2 > len(dong_nearest) else ""
         nearest = items[0] if items else {}
 
         subtype_counts = {key: 0 for key in FACILITY_PRIORITY + ["기타"]}
@@ -351,7 +383,7 @@ def build_baseline():
                 f"{nearest['park_name']}({nearest['access_name']})"
                 if nearest.get("access_name") else nearest.get("park_name", "")
             ),
-            "nearest_hangang_distance": nearest.get("distance", ""),
+            "nearest_hangang_distance": median_distance,
             "nearest_hangang_facility_tags": nearest.get("facility_tags", ""),
             "bike_count": subtype_counts.get("자전거", 0),
             "sports_count": subtype_counts.get("운동시설", 0),
@@ -361,6 +393,8 @@ def build_baseline():
             "convenience_count": subtype_counts.get("편의시설", 0),
             "access_count": subtype_counts.get("접근시설", 0),
             "hangang_items_json": json.dumps(items[:MAX_ITEMS], ensure_ascii=False),
+            "hangang_basis": basis,
+            "hangang_dong_count": len(points),
         })
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
