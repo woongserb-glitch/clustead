@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=4">
     <script src="{{ url_for('static', filename='theme.js') }}?v=2" defer></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261010a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261010b">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -107,7 +107,12 @@
         <section class="complex-info-strip">
             <div class="complex-info-grid">
 
-                {% if complex_info.school %}
+                {% if dong_level and dong_level.split_school %}
+                <div class="complex-info-item">
+                    <span>🏫 배정초</span>
+                    <strong>{% for s in dong_level.schools %}{{ s.name }} {{ s.count }}동{% if not loop.last %} · {% endif %}{% endfor %}<sup>1</sup></strong>
+                </div>
+                {% elif complex_info.school %}
                 <div class="complex-info-item">
                     <span>🏫 배정초</span>
                     <strong>{{ complex_info.school }}</strong>
@@ -140,7 +145,13 @@
                 </div>
                 {% endif %}
 
-                {% if complex_info.nearest_subway %}
+                {% if dong_level and dong_level.station_max - dong_level.station_min >= 100 %}
+                <div class="complex-info-item complex-info-subway">
+                    <strong class="subway-text">
+                        🚇 {{ dong_level.stations[0].name }}역{% if dong_level.stations | length > 1 %} 외{% endif %} · 동마다 {{ dong_level.station_min }}~{{ dong_level.station_max }}m<sup>{{ 2 if dong_level.split_school else 1 }}</sup>
+                    </strong>
+                </div>
+                {% elif complex_info.nearest_subway %}
                 <div class="complex-info-item complex-info-subway">
 
                     <strong class="subway-text" title="{{ complex_info.nearest_subway }}">
@@ -158,70 +169,25 @@
             </div>
             {% endif %}
 
-            {% if dong_level %}
-            <div class="dong-level" aria-label="동별 정보">
-                <div class="dong-level-head">
-                    <strong>동마다 다른 정보</strong>
-                    <span>동 {{ dong_level.n }}개 건물 위치 기준</span>
-                </div>
-                <dl class="dong-level-list">
-                    {% if dong_level.schools %}
-                    <div>
-                        <dt>🏫 배정초</dt>
-                        <dd>
-                            {% if dong_level.split_school %}
-                            {% for s in dong_level.schools %}
-                            <span class="dong-level-row"><b>{{ s.name }}</b> {{ s.count }}개 동 <small>{{ s.dongs }}</small></span>
-                            {% endfor %}
-                            {% else %}
-                            전 동 <b>{{ dong_level.schools[0].name }}</b>
-                            {% endif %}
-                            {% if dong_level.straddle %}
-                            <span class="dong-level-row dong-level-warn">경계에 걸친 동: {% for d in dong_level.straddle %}{{ d.dong }}동({{ d.schools | join('·') }}){% if not loop.last %}, {% endif %}{% endfor %}</span>
-                            {% endif %}
-                        </dd>
-                    </div>
-                    {% endif %}
-                    <div>
-                        <dt>🚇 가장 가까운 역</dt>
-                        <dd>
-                            {% if dong_level.station_max - dong_level.station_min >= 100 %}
-                            동마다 <b>{{ dong_level.station_min }}m ~ {{ dong_level.station_max }}m</b> · 500m 안 {{ dong_level.within_500 }}개 동
-                            {% else %}
-                            전 동 약 <b>{{ dong_level.station_min }}m</b>
-                            {% endif %}
-                            <small>({% for s in dong_level.stations[:3] %}{{ s.name }}역 {{ s.count }}개 동{% if not loop.last %}, {% endif %}{% endfor %})</small>
-                        </dd>
-                    </div>
-                    {% if dong_level.hangang_min is not none and dong_level.hangang_min <= 1500 %}
-                    <div>
-                        <dt>🌊 한강 나들목</dt>
-                        <dd>
-                            {% if dong_level.hangang_max - dong_level.hangang_min >= 100 %}
-                            동마다 <b>{{ dong_level.hangang_min }}m ~ {{ dong_level.hangang_max }}m</b>
-                            {% else %}
-                            전 동 약 <b>{{ dong_level.hangang_min }}m</b>
-                            {% endif %}
-                            <small>({% for g in dong_level.hangang_gates[:2] %}{{ g.name }} {{ g.count }}개 동{% if not loop.last %}, {% endif %}{% endfor %})</small>
-                        </dd>
-                    </div>
-                    {% endif %}
-                    {% if dong_level.middle or dong_level.high %}
-                    <div>
-                        <dt>🎓 학교군</dt>
-                        <dd>{% if dong_level.middle %}중학교 {{ dong_level.middle | join('·') }}{% endif %}{% if dong_level.middle and dong_level.high %} · {% endif %}{% if dong_level.high %}고등학교 {{ dong_level.high | join('·') }}{% endif %}</dd>
-                    </div>
-                    {% endif %}
-                </dl>
-            </div>
+            {# 대단지는 동마다 배정초·역이 갈린다. 칸에는 요약과 주석 번호만, 동 목록은 아래 주석으로. #}
             <div class="complex-info-note">
-                ※ 위 등급·배정초는 단지 대표 좌표 기준이고, 동별 정보는 각 동 건물 위치로 따로 계산했습니다. 실제 배정은 교육청에서 주소로 확인하세요.
+                {% if dong_level and dong_level.split_school %}
+                <p class="dong-footnote"><sup>1</sup> 배정초(각 동 건물 위치 기준):
+                    {% for s in dong_level.schools %}<b>{{ s.name }}</b> {{ s.dongs }}{% if not loop.last %} / {% endif %}{% endfor %}
+                    {% if dong_level.straddle %} · 경계에 걸친 동 {% for d in dong_level.straddle %}{{ d.dong }}동({{ d.schools | join('·') }}){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+                </p>
+                {% endif %}
+                {% if dong_level and dong_level.station_max - dong_level.station_min >= 100 %}
+                <p class="dong-footnote"><sup>{{ 2 if dong_level.split_school else 1 }}</sup> 동별 가장 가까운 역:
+                    {% for s in dong_level.stations[:3] %}{{ s.name }}역 {{ s.count }}개 동{% if not loop.last %} · {% endif %}{% endfor %} · 500m 안 {{ dong_level.within_500 }}개 동
+                </p>
+                {% endif %}
+                {% if dong_level %}
+                <p>※ 등급은 단지 대표 좌표 기준이고, 배정초·역 거리는 동별 건물 위치로 따로 계산했습니다. 실제 배정은 교육청에서 주소로 확인하세요.</p>
+                {% else %}
+                <p>※ 배정초는 대표 좌표 기준 통학구역이며, 대단지는 동별 배정학교가 달라질 수 있습니다.</p>
+                {% endif %}
             </div>
-            {% else %}
-            <div class="complex-info-note">
-                ※ 배정초는 대표 좌표 기준 통학구역이며, 대단지는 동별 배정학교가 달라질 수 있습니다.
-            </div>
-            {% endif %}
         </section>
         {% endif %}
 

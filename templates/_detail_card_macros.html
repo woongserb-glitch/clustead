@@ -39,6 +39,16 @@
 </div>
 {% endif %}
 
+{# 대단지: 대표 좌표 한 점으로 쓴 문장을 동별 계산으로 보충(지하철·교육환경·한강) #}
+{% if summary.dong_note %}
+<div class="dong-note">
+    <span class="dong-note-title">동별로 보면</span>
+    {% for text, small in summary.dong_note %}
+    <span class="dong-note-row">{{ text }}{% if small %} <small>{{ small }}</small>{% endif %}</span>
+    {% endfor %}
+</div>
+{% endif %}
+
 {% if summary.subtype_chips %}
 <div class="subtype-chips">
     {% for chip in summary.subtype_chips %}

@@ -9170,6 +9170,15 @@ def _render_result_response(apartment_name, apartment_gu="", apartment_dong="", 
     context["rebuilding_notice"] = complex_registry.rebuilding_notice(*resolved_key)
     context["common_name"] = complex_registry.common_name(*resolved_key)
     context["dong_level"] = dong_level_service.get(*resolved_key)
+    # 대단지는 대표 좌표 한 점으로 쓴 카드 문장(예: '500m 안 역 없음')이 동 대부분과 다를 수 있어,
+    # 지하철·교육환경·한강 카드에 '동별로 보면' 줄을 붙인다.
+    notes = dong_level_service.card_notes(context["dong_level"])
+    for summary in context.get("category_summaries") or []:
+        if summary.get("key") in notes:
+            summary["dong_note"] = notes[summary["key"]]
+            # 본문은 대표 좌표 한 점 기준이라 바로 아래 동별 줄과 어긋나 보일 수 있다 — 기준을 밝힌다.
+            if summary["key"] == "subway" and summary.get("description") and "대표 좌표" not in summary["description"]:
+                summary["description"] = "단지 대표 좌표 기준으로 " + summary["description"]
     combo_key, combo = analytics_service.build_weight_combo(get_preferences())
     analytics_service.track(
         "result_view",

@@ -2607,27 +2607,26 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 .result-rebuilding strong { display: block; margin-bottom: 2px; color: light-dark(#b45309, #eeb68b); }
 
-/* 동별 정보(대단지에서 동마다 갈리는 배정초·역 거리) */
-.dong-level {
-    margin-top: 12px;
-    padding: 12px 14px;
-    border: 1px solid var(--c-line-soft);
-    border-radius: 10px;
+/* 동별 정보: 위쪽 칸은 요약 + 주석 번호, 동 목록은 칸 아래 주석으로 */
+.complex-info-item sup, .dong-footnote sup { font-size: 0.7em; color: var(--c-faint); margin-left: 1px; }
+.complex-info-note p { margin: 2px 0; }
+.dong-footnote { color: var(--c-muted); font-size: 0.82rem; line-height: 1.55; overflow-wrap: anywhere; }
+.dong-footnote b { color: var(--c-fg); font-weight: 600; }
+
+/* 상세 카드의 '동별로 보면' */
+.dong-note {
+    margin: 8px 0 4px;
+    padding: 8px 10px;
+    border-left: 3px solid var(--c-line);
     background: var(--c-surface-2);
+    border-radius: 0 8px 8px 0;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: var(--c-fg);
 }
-.dong-level-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 8px; }
-.dong-level-head strong { color: var(--c-fg); font-size: 0.98rem; }
-.dong-level-head span { color: var(--c-faint); font-size: 0.82rem; }
-.dong-level-list { margin: 0; display: grid; gap: 8px; }
-.dong-level-list > div { display: grid; grid-template-columns: 7.5em 1fr; gap: 8px; align-items: start; }
-.dong-level-list dt { color: var(--c-muted); font-size: 0.88rem; }
-.dong-level-list dd { margin: 0; color: var(--c-fg); font-size: 0.92rem; line-height: 1.55; min-width: 0; overflow-wrap: anywhere; }
-.dong-level-list small { color: var(--c-faint); font-size: 0.82rem; }
-.dong-level-row { display: block; }
-.dong-level-warn { color: light-dark(#b45309, #eeb68b); font-size: 0.85rem; }
-@media (max-width: 760px) {
-    .dong-level-list > div { grid-template-columns: 1fr; gap: 2px; }
-}
+.dong-note-title { display: block; color: var(--c-muted); font-size: 0.78rem; font-weight: 700; margin-bottom: 2px; }
+.dong-note-row { display: block; overflow-wrap: anywhere; }
+.dong-note-row small { color: var(--c-faint); font-size: 0.8rem; }
 
 /* 폰에서는 추천 단지 카드가 화면을 통째로 먹는다. 12 개를 다 펼치면 670px 로,
    812px 짜리 화면의 82% 다. 데스크톱은 사이드바 높이에 맞춰 이미 스크롤되지만
