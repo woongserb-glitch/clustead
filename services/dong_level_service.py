@@ -69,9 +69,7 @@ def card_notes(dl):
         else:
             main, details = f"전 동 {dl['schools'][0]['name']}", []
         details += [f"{d['dong']}동은 통학구역 경계({' · '.join(d['schools'])})" for d in dl["straddle"]]
-        groups = ([f"중학교 {'·'.join(dl['middle'])}"] if dl["middle"] else []) +                  ([f"고등학교 {'·'.join(dl['high'])}"] if dl["high"] else [])
-        if groups:
-            details.append("학교군 " + " / ".join(groups))
+        # 중·고 학교군은 표시하지 않는다(2026-10-10 사용자 결정 — 학교군 이름만으로는 정보가 되지 않음)
         notes["school-environment"] = {"main": main, "details": details}
     if dl.get("hangang_min") is not None and dl["hangang_min"] <= 3000:
         notes["hangang"] = {
