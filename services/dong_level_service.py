@@ -48,32 +48,28 @@ def card_notes(dl):
     """상세 카드(지하철·교육환경·한강)에 붙일 '동별로 보면' 줄. {summary key: [(본문, 작은 글씨)]}"""
     if not dl:
         return {}
+    # 카드마다 {"main": '최근접' 줄과 같은 한 줄 요약, "details": 그 아래 작은 주석 줄들}
     notes = {}
-    stations = " · ".join(f"{s['name']}역 {s['count']}개 동" for s in dl["stations"][:3])
-    notes["subway"] = [
-        (f"500m 안에 역이 있는 동 {dl['within_500']}개 / {dl['n']}개", ""),
-        (f"가장 가까운 역까지 동마다 {dl['station_min']:,}m ~ {dl['station_max']:,}m", stations),
-    ]
-    school = []
+    notes["subway"] = {
+        "main": f"500m 안 역 {dl['within_500']}/{dl['n']}개 동 · 동마다 {dl['station_min']:,}~{dl['station_max']:,}m",
+        "details": [" · ".join(f"{s['name']}역 {s['count']}개 동" for s in dl["stations"][:3])],
+    }
     if dl["schools"]:
         if dl["split_school"]:
-            school += [(f"{s['name']} {s['count']}개 동", s["dongs"]) for s in dl["schools"]]
+            main = " · ".join(f"{s['name']} {s['count']}개 동" for s in dl["schools"])
+            details = [f"{s['name']} {s['dongs']}" for s in dl["schools"]]
         else:
-            school.append((f"전 동 {dl['schools'][0]['name']}", ""))
-    for d in dl["straddle"]:
-        school.append((f"{d['dong']}동은 통학구역 경계에 걸쳐 있습니다", " · ".join(d["schools"])))
-    groups = []
-    if dl["middle"]:
-        groups.append("중학교 " + "·".join(dl["middle"]))
-    if dl["high"]:
-        groups.append("고등학교 " + "·".join(dl["high"]))
-    if groups:
-        school.append((" / ".join(groups), ""))
-    if school:
-        notes["school-environment"] = school
+            main, details = f"전 동 {dl['schools'][0]['name']}", []
+        details += [f"{d['dong']}동은 통학구역 경계({' · '.join(d['schools'])})" for d in dl["straddle"]]
+        groups = ([f"중학교 {'·'.join(dl['middle'])}"] if dl["middle"] else []) +                  ([f"고등학교 {'·'.join(dl['high'])}"] if dl["high"] else [])
+        if groups:
+            details.append("학교군 " + " / ".join(groups))
+        notes["school-environment"] = {"main": main, "details": details}
     if dl.get("hangang_min") is not None and dl["hangang_min"] <= 3000:
-        gates = " · ".join(f"{g['name']} {g['count']}개 동" for g in dl["hangang_gates"][:2])
-        notes["hangang"] = [(f"한강 나들목까지 동마다 {dl['hangang_min']:,}m ~ {dl['hangang_max']:,}m", gates)]
+        notes["hangang"] = {
+            "main": f"나들목까지 동마다 {dl['hangang_min']:,}~{dl['hangang_max']:,}m",
+            "details": [" · ".join(f"{g['name']} {g['count']}개 동" for g in dl["hangang_gates"][:2])],
+        }
     return notes
 
 
