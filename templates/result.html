@@ -312,11 +312,21 @@
                     {% endif %}
 
                     {% for item in recommendations %}
-                    <a class="top-list-link" href="{{ item.url }}">
+                    <a class="top-list-link" href="{{ item.url }}"{% if item.track_src %} data-track-src="{{ item.track_src }}"{% endif %}>
                         <strong>{{ loop.index }}. {{ item.name }}{% if item.name_suffix %} {{ item.name_suffix }}{% endif %}</strong>
                         <span>{{ item.district }} {{ item.dong }}{% if item.meta %} · {{ item.meta }}{% endif %}</span>
                     </a>
                     {% endfor %}
+
+                    <script>
+                    // 인근 단지 링크: 검색 로봇에는 대표 주소를 보이고, 사람이 누를 때만 진입경로(?src=)를 붙인다.
+                    document.addEventListener("click", function (event) {
+                        var link = event.target.closest && event.target.closest("a[data-track-src]");
+                        if (!link || link.dataset.tracked) return;
+                        link.dataset.tracked = "1";
+                        link.href += (link.href.indexOf("?") < 0 ? "?" : "&") + "src=" + encodeURIComponent(link.dataset.trackSrc);
+                    }, true);
+                    </script>
 
                     {% for i in range(5 - recommendations|length) %}
                     <div class="top-list-link top-list-empty">

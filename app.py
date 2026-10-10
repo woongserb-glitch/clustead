@@ -6331,7 +6331,10 @@ def get_nearby_apartments(apartment, limit=12):
             "dong": ap.get("dong"),
             "name_suffix": f"({format_distance_m(dist)})",
             "meta": _rep_area_meta(key),
-            "url": make_result_url(ap.get("name"), {}, ap.get("gu"), ap.get("dong"), src="explore"),
+            # href 는 꼬리표 없는 대표 주소 — robots 가 '/apartments/*?' 를 막아서 ?src= 가 붙으면
+            # 검색 로봇이 단지끼리의 링크를 못 따라간다. 진입경로는 클릭할 때 JS 가 붙인다(track_src).
+            "url": make_result_url(ap.get("name"), {}, ap.get("gu"), ap.get("dong"), src=""),
+            "track_src": "nearby",
         })
     return results
 
