@@ -86,11 +86,6 @@
             {% if poi.is_transfer %}
             <span class="subway-transfer-meta">환승역</span>
             {% endif %}
-            {% if poi.nearest_dong_count %}
-            <span class="subway-dong-meta">{{ poi.nearest_dong_count }}개 동 가장 가까움</span>
-            {% elif poi.dong_within_500 %}
-            <span class="subway-dong-meta">{{ poi.dong_within_500 }}개 동 500m 이내</span>
-            {% endif %}
 
             {% elif summary.key == "bus-baseline" and poi.subtype %}
             <span class="bus-route-badge bus-chip-{{ poi.subtype }}">
@@ -205,10 +200,11 @@
             {% endif %}
         </span>
 
-        {% if summary.key == "subway" and poi.nearest_dong_count and poi.nearest_max and poi.nearest_max != poi.nearest_min %}
-        <small class="poi-list-distance">{{ poi.nearest_min|distance_m }}~{{ poi.nearest_max|distance_m }}</small>
-        {% elif summary.key == "subway" and poi.nearest_dong_count %}
-        <small class="poi-list-distance">{{ poi.nearest_min|distance_m }}</small>
+        {% if summary.key == "subway" and poi.nearest_dong_count %}
+        {# 동별: 이 역이 가장 가까운 동 수 · 그 동들의 거리 범위 #}
+        <small class="poi-list-distance subway-dong-range">{{ poi.nearest_dong_count }}개 동 · {% if poi.nearest_max and poi.nearest_max != poi.nearest_min %}{{ poi.nearest_min|int }}~{{ poi.nearest_max|int }}m{% else %}{{ poi.nearest_min|int }}m{% endif %}</small>
+        {% elif summary.key == "subway" and poi.dong_within_500 %}
+        <small class="poi-list-distance subway-dong-range">{{ poi.dong_within_500 }}개 동 500m 이내</small>
         {% elif poi.distance %}
         <small class="poi-list-distance">{{ poi.distance|distance_m }}</small>
         {% endif %}

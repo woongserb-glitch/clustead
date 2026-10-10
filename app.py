@@ -2336,8 +2336,9 @@ def build_subway_category_summary(subway_info):
     elif subway_info.get("nearest_label"):
         nearest_label = subway_info.get("nearest_label")
 
-    # 노선 칩은 500m 도보권 역만(동 기준이면 어느 동이든 500m 안인 역)
-    chip_items = [i for i in items if to_int(i.get("dong_within_500"), 0) > 0] if dong_basis else items
+    # 칩은 목록을 거르는 버튼이라 목록과 같은 역으로 센다(동 기준이면 '어느 동에게든 가장 가깝거나
+    # 500m 안인 역' 목록 전체).
+    chip_items = items
     subtype_chips = get_subtype_chips_from_items(chip_items, "subway-chip")
 
     transfer_count = (
