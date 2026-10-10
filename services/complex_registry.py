@@ -7,6 +7,8 @@
     rebuilt    : 재건축이 끝나 새 단지로 바뀐 옛 단지. 옛 주소로 들어오면 새 단지로 301.
                  마스터에서도 빠진다(refresh_apartment_master / apply_complex_lifecycle).
     rebuilding : 철거·공사 중인 단지. 페이지는 두고 안내를 띄운다.
+    merged     : K-apt 에 같은 단지가 다른 코드·이름으로 한 번 더 올라온 중복 행(예: 북한산래미안임대 =
+                 북한산래미안아파트(임대)). rebuilt 와 똑같이 남길 행으로 301 하고 마스터에서 뺀다.
 - complex_common_names_approved.csv
     마스터 이름과 현장에서 부르는 이름이 다른 단지(예: 압구정한양3단지 → 한양5차).
 """
@@ -19,6 +21,8 @@ from pathlib import Path
 _DIR = Path(__file__).resolve().parents[1] / "scripts" / "manual_overrides"
 LIFECYCLE_CSV = _DIR / "complex_lifecycle_approved.csv"
 COMMON_NAMES_CSV = _DIR / "complex_common_names_approved.csv"
+# 마스터에서 빼고 successor 로 301 하는 상태
+REDIRECT_STATUSES = ("rebuilt", "merged")
 
 
 def _key_text(value):
@@ -66,9 +70,9 @@ def lifecycle_entry(name, gu="", dong=""):
 
 
 def rebuilt_successor(name, gu="", dong=""):
-    """재건축이 끝난 옛 단지면 새 단지의 (이름, 구, 동), 아니면 None."""
+    """재건축이 끝난 옛 단지(또는 중복 행)면 넘겨 줄 단지의 (이름, 구, 동), 아니면 None."""
     row = lifecycle_entry(name, gu, dong)
-    if not row or row.get("status") != "rebuilt":
+    if not row or row.get("status") not in REDIRECT_STATUSES:
         return None
     return _key(row.get("successor_name"), row.get("successor_gu"), row.get("successor_dong"))
 

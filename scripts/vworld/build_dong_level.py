@@ -101,12 +101,16 @@ def group_of(layer_, pt):
     return next((n for g, n in layer_ if g.contains(pt)), "")
 
 
+sys.path.insert(0, R)
+from scripts.dong_points import rejected_keys  # noqa: E402
+rejected = rejected_keys()
+
 out = {}
 n_cx = 0
 for line in open(f"{V}/complex_buildings_v5.jsonl", encoding="utf-8"):
     r = json.loads(line)
     k = tuple(r["key"])
-    if k not in master:
+    if k not in master or k in rejected:
         continue
     dongs = [b for b in r["buildings"] if b.get("label")]
     if len(dongs) < 2:

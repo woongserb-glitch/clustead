@@ -13,6 +13,8 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 BUILDINGS_PATH = BASE_DIR / "data" / "derived" / "vworld" / "complex_buildings_v5.jsonl"
+# v5 가 남의 건물을 잡은 단지 — 동별 계산에서 빼고 대표 좌표를 쓴다.
+REJECTED_PATH = BASE_DIR / "scripts" / "manual_overrides" / "dong_buildings_rejected.csv"
 
 
 def _clean(value):
@@ -24,12 +26,23 @@ def complex_key(name, gu, dong):
     return (_clean(name), _clean(gu), _clean(dong))
 
 
+def rejected_keys(path=REJECTED_PATH):
+    import csv
+    path = Path(path)
+    if not path.exists():
+        return set()
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        return {complex_key(r.get("name"), r.get("gu"), r.get("dong")) for r in csv.DictReader(handle)}
+
+
 def load_dong_points(path=BUILDINGS_PATH):
     """{(이름, 구, 동): [(lat, lng), …]} — 단지의 각 동 건물 중심. 파일이 없으면 빈 dict."""
     path = Path(path)
     if not path.exists():
         return {}
     from shapely.geometry import shape
+
+    rejected = rejected_keys()
 
     points = {}
     with path.open(encoding="utf-8") as handle:
@@ -42,8 +55,9 @@ def load_dong_points(path=BUILDINGS_PATH):
                     pts.append((c.y, c.x))
                 except Exception:
                     continue
-            if pts:
-                points[complex_key(*row["key"])] = pts
+            key = complex_key(*row["key"])
+            if pts and key not in rejected:
+                points[key] = pts
     return points
 
 

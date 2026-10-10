@@ -32,7 +32,7 @@ def app_module(monkeypatch):
 
 def test_rebuilt_successors_exist_and_old_complexes_left_master(app_module):
     live = {(a["name"], a["gu"], a["dong"]) for a in app_module.apartment_data}
-    rebuilt = _lifecycle("rebuilt")
+    rebuilt = _lifecycle("rebuilt") + _lifecycle("merged")
     assert rebuilt
     for row in rebuilt:
         assert (row["successor_name"], row["successor_gu"], row["successor_dong"]) in live, row["successor_name"]
@@ -41,7 +41,7 @@ def test_rebuilt_successors_exist_and_old_complexes_left_master(app_module):
 
 def test_rebuilt_old_address_redirects_to_successor(app_module):
     client = app_module.app.test_client()
-    for row in _lifecycle("rebuilt"):
+    for row in _lifecycle("rebuilt") + _lifecycle("merged"):
         old = app_module.apartment_detail_path(row["name"], row["gu"], row["dong"])
         response = client.get(old + "?src=explore", follow_redirects=False)
         assert response.status_code == 301, old

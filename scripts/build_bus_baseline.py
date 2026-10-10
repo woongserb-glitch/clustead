@@ -196,8 +196,13 @@ for idx, apt in enumerate(apartment_data):
         if basis != "dong":
             item.pop("dong_within_500", None)
 
+    # 가장 많은 동의 최근접 정류장. 동 수가 같으면 더 가까운 쪽 → 이름 순(set 순서에 맡기면 빌드마다 바뀐다).
     nearest_names = [p["nearest_stop"] for p in per_point if p["nearest_stop"]]
-    nearest_stop = max(set(nearest_names), key=nearest_names.count) if nearest_names else ""
+    closest = {}
+    for p in per_point:
+        if p["nearest_stop"]:
+            closest[p["nearest_stop"]] = min(closest.get(p["nearest_stop"], 999999), p["nearest_distance"])
+    nearest_stop = min(closest, key=lambda n: (-nearest_names.count(n), closest[n], n)) if closest else ""
     counts = type_counts(union_routes)
     route_list = sorted(union_routes)
 

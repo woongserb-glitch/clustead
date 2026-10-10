@@ -180,13 +180,13 @@ def load_rejected():
     if LIFECYCLE.exists():
         with LIFECYCLE.open(encoding="utf-8-sig", newline="") as handle:
             for row in csv.DictReader(handle):
-                if row.get("status") == "rebuilt" and row.get("code", "").strip():
+                if row.get("status") in ("rebuilt", "merged") and row.get("code", "").strip():
                     rejected.setdefault(row["code"].strip(), {
                         "reject_code": row["code"].strip(),
                         "reject_name": row.get("name", ""),
                         "keep_code": row.get("successor_code", "").strip(),
                         "keep_name": row.get("successor_name", ""),
-                        "reason": "재건축 전 옛 단지",
+                        "reason": "재건축 전 옛 단지" if row.get("status") == "rebuilt" else "같은 단지 중복 행",
                     })
     return rejected
 

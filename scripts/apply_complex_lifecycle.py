@@ -25,7 +25,8 @@ CODE_COL, NAME_COL = "k-아파트코드", "k-아파트명"
 def main():
     apply = "--apply" in sys.argv[1:]
     with LIFECYCLE.open(encoding="utf-8-sig", newline="") as handle:
-        rebuilt = [r for r in csv.DictReader(handle) if r.get("status") == "rebuilt"]
+        # merged(같은 단지 중복 행)도 같은 규칙: 남길 행이 마스터에 있을 때만 뺀다.
+        rebuilt = [r for r in csv.DictReader(handle) if r.get("status") in ("rebuilt", "merged")]
 
     with MASTER.open(encoding=MASTER_ENCODING, newline="") as handle:
         reader = csv.DictReader(handle)
@@ -44,7 +45,7 @@ def main():
             drop.add(old)
             print(f"  제거: {entry['gu']} {entry['name']} -> {entry.get('successor_name', '')}")
 
-    print(f"재건축 옛 단지 {len(rebuilt)}건: 제거 {len(drop)} / 이미 없음 {len(absent)} / 보류 {len(skipped)}")
+    print(f"재건축 옛 단지·중복 행 {len(rebuilt)}건: 제거 {len(drop)} / 이미 없음 {len(absent)} / 보류 {len(skipped)}")
     for name, succ in skipped:
         print(f"  [보류] {name}: 새 단지 {succ} 가 마스터에 없음")
 
