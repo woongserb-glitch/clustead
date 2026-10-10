@@ -41,7 +41,9 @@ def _dong_ranges(labels):
             start = prev = n
     if start is not None:
         parts.append(f"{start}~{prev}" if prev > start else f"{start}")
-    return "·".join(parts + other) + "동" if parts or other else ""
+    # '·' 뒤에 보이지 않는 줄바꿈 지점(U+200B)을 둔다. 없으면 목록 전체가 한 단어라 통째로
+    # 다음 줄로 넘어가 앞줄 오른쪽이 비었다.
+    return "·​".join(parts + other) + "동" if parts or other else ""
 
 
 def station_text(s):

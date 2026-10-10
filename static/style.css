@@ -2610,14 +2610,18 @@ body:not(.home-page) #resultLoadingOverlay {
 /* 동별 정보: 위쪽 칸은 요약 + 주석 번호, 동 목록은 칸 아래 주석으로 */
 .complex-info-item sup, .dong-footnote sup { font-size: 0.7em; color: var(--c-faint); margin-left: 1px; }
 .complex-info-note p { margin: 2px 0; }
-.dong-footnote { color: var(--c-muted); font-size: 0.82rem; line-height: 1.55; overflow-wrap: anywhere; }
+.dong-footnote {
+    color: var(--c-muted); font-size: 0.82rem; line-height: 1.55; overflow-wrap: anywhere;
+    /* 줄이 넘어가면 둘째 줄부터 주석 번호 너비만큼 들여 쓴다 */
+    padding-left: 0.8em; text-indent: -0.8em;
+}
 .dong-footnote b { color: var(--c-fg); font-weight: 600; }
 
 /* 상세 카드의 '동별:' — 바로 위 '최근접:' 줄과 같은 크기·톤, 세부는 작은 주석 글씨 */
 .dong-note { margin: -1px 0 6px; }
 .dong-note-main { font-size: 11px; line-height: 1.35; color: var(--c-muted); }
 .dong-note-main strong { color: var(--c-fg); font-weight: 600; }
-.dong-note-detail { font-size: 10.5px; line-height: 1.4; color: var(--c-faint); overflow-wrap: anywhere; }
+.dong-note-detail { font-size: 10.5px; line-height: 1.4; color: var(--c-faint); overflow-wrap: anywhere; padding-left: 1em; text-indent: -1em; }
 
 /* 폰에서는 추천 단지 카드가 화면을 통째로 먹는다. 12 개를 다 펼치면 670px 로,
    812px 짜리 화면의 82% 다. 데스크톱은 사이드바 높이에 맞춰 이미 스크롤되지만
