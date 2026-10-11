@@ -1333,8 +1333,11 @@ def _build_category_evidence_raw(summary):
             return f"반경 {radius} 내 119안전센터 및 구조대가 {format_count_phrase(count)} 있습니다. 가장 가까운 안전센터는 {nearest_distance} 거리입니다."
         return f"반경 {radius} 내 119안전센터 및 구조대가 {format_count_phrase(count)} 있습니다."
 
-    if key in ("hospital", "pharmacy", "academy") and summary.get("dong_basis"):
-        noun, area = {"hospital": ("병원", "500m"), "pharmacy": ("약국", "500m"), "academy": ("학원", "1km")}[key]
+    if key in ("hospital", "pharmacy", "academy", "convenience", "cafe", "super_mart") and summary.get("dong_basis"):
+        noun, area = {
+            "hospital": ("병원", "500m"), "pharmacy": ("약국", "500m"), "academy": ("학원", "1km"),
+            "convenience": ("편의점", "500m"), "cafe": ("주요 카페 프랜차이즈 매장", "500m"), "super_mart": ("슈퍼마켓", "500m"),
+        }[key]
         median = to_int(summary.get("median_count"), 0)
         head = f"중간 동 기준 {area} 안 {noun}은 {median:,}곳입니다. 단지 전체로는 {count:,}곳을 이용할 수 있습니다."
         if key == "pharmacy":
@@ -1342,7 +1345,7 @@ def _build_category_evidence_raw(summary):
             return head + (f" {'·'.join(labels)} 운영 약국이 확인됩니다." if labels else "")
         subtype_text = subtype_sentence(summary, unit="곳", limit=2)
         if subtype_text:
-            tail = " 등 다양한 진료과가 있습니다." if key == "hospital" else " 비중이 높습니다."
+            tail = {"hospital": " 등 다양한 진료과가 있습니다.", "academy": " 비중이 높습니다."}.get(key, " 등이 있습니다.")
             return head + f" {subtype_text}{tail}"
         return head
 

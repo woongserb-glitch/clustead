@@ -841,6 +841,8 @@ def get_category_summaries(apartment, preference_keys):
         # request-time percentile of the raw (45-capped) cafe count. The card's
         # count and POI list stay as the nearby cafes; only score/percentile
         # come from the baked franchise baseline.
+        # 카카오 3종 동별(scripts/kakao_dong): 개수 칸은 중간 동, 목록은 동 전체 합침.
+        kakao_dong_median = None
         if key == "cafe":
             cafe_row = get_indexed_baseline_row(
                 cafe_baseline_index,
@@ -862,6 +864,8 @@ def get_category_summaries(apartment, preference_keys):
                 baked_count = _to_num(cafe_row.get("franchise_total_500m"))
                 if baked_count is not None:
                     count = int(baked_count)
+                if str(cafe_row.get("cafe_basis") or "").strip() == "dong":
+                    kakao_dong_median, count, nearest_poi = count, len(related_pois), None
 
                 seoul_percentile = _to_num(cafe_row.get("cafe_access_score_raw_seoul_percentile"))
                 gu_percentile = None
@@ -892,6 +896,8 @@ def get_category_summaries(apartment, preference_keys):
                 )
                 if baked_count is not None:
                     count = int(baked_count)
+                if str(convenience_row.get("convenience_basis") or "").strip() == "dong":
+                    kakao_dong_median, count, nearest_poi = count, len(related_pois), None
 
                 seoul_percentile = _to_num(
                     convenience_row.get(
@@ -958,6 +964,8 @@ def get_category_summaries(apartment, preference_keys):
                 baked_count = _to_num(mart_row.get(count_col))
                 if baked_count is not None:
                     count = int(baked_count)
+                if key == "super_mart" and str(mart_row.get("super_mart_basis") or "").strip() == "dong":
+                    kakao_dong_median, count, nearest_poi = count, len(related_pois), None
 
                 seoul_percentile = _to_num(mart_row.get(f"{count_col}_seoul_percentile"))
                 gu_percentile = None
@@ -1023,6 +1031,8 @@ def get_category_summaries(apartment, preference_keys):
             "gu_percentile": gu_percentile,
             **({"dong_basis": True, "park_dong": park_dong,
                 "meta_basis_label": "어느 동이든 1km 안 공원"} if park_dong else {}),
+            **({"dong_basis": True, "median_count": kakao_dong_median,
+                "meta_basis_label": "어느 동이든 500m 안"} if kakao_dong_median is not None else {}),
         })
 
 

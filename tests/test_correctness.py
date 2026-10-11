@@ -103,7 +103,7 @@ def _kakao_cache_body(K, tempfile, Path):
 
     calls = {"n": 0}
 
-    def ok_fetch(cat, lat, lng):
+    def ok_fetch(cat, lat, lng, radius=None):
         calls["n"] += 1
         return True, [{"category": cat, "distance": 1}]
 
@@ -119,7 +119,7 @@ def _kakao_cache_body(K, tempfile, Path):
     K.search_category("cafe", 37.6, 127.1)  # distinct key
     assert calls["n"] == 2, calls
 
-    def fail_fetch(cat, lat, lng):
+    def fail_fetch(cat, lat, lng, radius=None):
         calls["n"] += 1
         return False, []
 

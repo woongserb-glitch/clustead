@@ -25,6 +25,11 @@ def safe_print(message):
 
 _CACHE_DIR = Path(__file__).resolve().parents[1] / "data" / "cache" / "kakao"
 _MEMORY_CACHE = {}
+# 이번 프로세스에서 실제로 카카오 API 를 부른 횟수(빌더가 하루 한도 소모를 보고할 때 쓴다).
+API_CALLS = {"n": 0}
+# API 실패(키 없음·한도 초과·네트워크) 횟수. 빌더는 이 값이 0 이 아니면 멈춘다 — 실패한 조회는 빈 목록이라
+# 그대로 쓰면 '0곳' 으로 조용히 기록된다(clustead-baseline-rebuild-trap).
+API_FAILS = {"n": 0}
 
 
 def clustead_env(key, default=""):
@@ -134,11 +139,12 @@ CATEGORY_CONFIG = {
 }
 
 
-def _fetch_category(category, lat, lng):
+def _fetch_category(category, lat, lng, radius=None):
     """Hit the Kakao API. Returns (ok, pois); ok=False on missing key or a
     network/parse error so the caller can avoid caching a failure."""
     rest_key = os.getenv("KAKAO_REST_API_KEY", "")
     if not rest_key:
+        API_FAILS["n"] += 1
         return False, []
 
     config = CATEGORY_CONFIG[category]
@@ -152,14 +158,14 @@ def _fetch_category(category, lat, lng):
             "category_group_code": config["code"],
             "x": lng,
             "y": lat,
-            "radius": config["radius"],
+            "radius": radius or config["radius"],
             "sort": "distance",
             "size": 15,
             "page": page,
         }
 
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=5)
+            response = _get_with_retry(url, headers, params, timeout=5)
             data = _kakao_json(response)
             documents = data.get("documents", [])
 
@@ -181,6 +187,7 @@ def _fetch_category(category, lat, lng):
 
         except Exception as e:
             print("Kakao API Error:", category, e)
+            API_FAILS["n"] += 1
             return False, []
 
     safe_print(f"[KAKAO] {category}: {len(all_pois)}개 조회")
@@ -188,6 +195,19 @@ def _fetch_category(category, lat, lng):
         safe_print(f" - {poi['label']} / {poi['distance']}m")
 
     return True, all_pois
+
+
+def _get_with_retry(url, headers, params, timeout=5, attempts=3):
+    """네트워크 일시 오류(시간 초과·연결 끊김)만 잠깐 쉬고 다시 부른다. HTTP 응답(429 한도 등)은 그대로
+    돌려줘 _kakao_json 이 실패로 처리하게 한다 — 한도는 재시도해도 소용없고 빌더가 멈춰야 한다."""
+    for attempt in range(attempts):
+        API_CALLS["n"] += 1
+        try:
+            return requests.get(url, headers=headers, params=params, timeout=timeout)
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            if attempt == attempts - 1:
+                raise
+            time.sleep(2 * (attempt + 1))
 
 
 def _kakao_json(response):
@@ -204,16 +224,21 @@ def _kakao_json(response):
     return data
 
 
-def search_category(category, lat, lng):
+def search_category(category, lat, lng, radius=None):
+    """radius 를 주면(기본 반경과 다를 때) 캐시 키를 따로 둔다 — 동별 묶음 조회처럼 반경을 넓혀 받을 때."""
     if category not in CATEGORY_CONFIG:
         return []
 
-    key = _cache_key(category, lat, lng)
+    if radius and radius != CATEGORY_CONFIG[category]["radius"]:
+        key = _cache_key(f"{category}_r{int(radius)}", lat, lng)
+    else:
+        key = _cache_key(category, lat, lng)
+        radius = None
     cached = _cache_get(key)
     if cached is not None:
         return cached
 
-    ok, pois = _fetch_category(category, lat, lng)
+    ok, pois = _fetch_category(category, lat, lng, radius)
     if ok:
         _cache_set(key, pois)
 
@@ -270,6 +295,7 @@ def _fetch_keyword(query, lat, lng, radius, category_group_code=None, label_cate
     넓은 반경에서 정확히 수집(카테고리 검색의 45-cap 회피)."""
     rest_key = os.getenv("KAKAO_REST_API_KEY", "")
     if not rest_key:
+        API_FAILS["n"] += 1
         return False, []
 
     url = "https://dapi.kakao.com/v2/local/search/keyword.json"
@@ -290,7 +316,7 @@ def _fetch_keyword(query, lat, lng, radius, category_group_code=None, label_cate
             params["category_group_code"] = category_group_code
 
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=5)
+            response = _get_with_retry(url, headers, params, timeout=5)
             data = _kakao_json(response)
             documents = data.get("documents", [])
             if not documents:
@@ -308,6 +334,7 @@ def _fetch_keyword(query, lat, lng, radius, category_group_code=None, label_cate
                 break
         except Exception as e:
             print("Kakao Keyword API Error:", query, e)
+            API_FAILS["n"] += 1
             return False, []
 
     return True, all_pois
@@ -369,6 +396,7 @@ def get_subway_pois_for_baseline(lat, lng):
     }
 
     try:
+        API_CALLS["n"] += 1
         response = requests.get(url, headers=headers, params=params, timeout=5)
         data = _kakao_json(response)
 
@@ -413,6 +441,7 @@ def count_category_exact(category, lat, lng, radius, max_depth=4):
         docs, total = [], 0
         for page in range(1, 4):
             params = {"category_group_code": code, "rect": f"{x1},{y1},{x2},{y2}", "size": 15, "page": page}
+            API_CALLS["n"] += 1
             data = _kakao_json(requests.get(url, headers=headers, params=params, timeout=8))
             total = data.get("meta", {}).get("total_count", 0)
             docs.extend(data.get("documents", []))

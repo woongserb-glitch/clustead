@@ -23,6 +23,11 @@ from services.baseline_builder_service import (
 from services.geo_service import get_distance_m
 
 from services.poi_service import MART_CATEGORY_GROUPS
+from services import kakao_local_service
+from scripts.dong_points import median_low
+from scripts.kakao_dong import load_dong_points, query_groups, union_items, with_distance
+
+DONG_POINTS = load_dong_points()
 
 
 print("[BUILD] apartment preload")
@@ -114,6 +119,35 @@ def compute_group(group, places, lat, lng):
     return group_count, diversity, group_nearest, brand_stats, items
 
 
+def super_dong(groups):
+    """슈퍼(500m)만 동별: 묶음 지점마다 MT1(1.5km) 한 번, 동마다 거리를 다시 재서 센다.
+    개수·다양성·그룹 최근접은 중간 동, 브랜드 최근접은 가장 가까운 동, 목록은 동 전체 합침.
+    대형·창고형(3·5km)은 동 사이 거리가 반경에 묻혀 대표 좌표 그대로."""
+    group = MART_CATEGORY_GROUPS["super_mart"]
+    per_dong = []
+    for (qlat, qlng), _slack, members in groups:
+        pool = search_category("mart", qlat, qlng)
+        if kakao_local_service.API_FAILS["n"]:
+            raise SystemExit(f"[ABORT] 카카오 API 실패 {kakao_local_service.API_FAILS['n']}회 — 한도·키 확인 후 다시 실행")
+        for lat, lng in members:
+            per_dong.append(compute_group(group, with_distance(pool, lat, lng), lat, lng))
+    brand_stats = {}
+    for brand in group["brands"]:
+        nearest = [d[3][brand]["nearest_distance"] for d in per_dong if d[3][brand]["nearest_distance"] != ""]
+        brand_stats[brand] = {
+            "count": median_low([d[3][brand]["count"] for d in per_dong]) or 0,
+            "nearest_distance": min(nearest) if nearest else "",
+        }
+    nearest_all = [d[2] for d in per_dong if d[2] != ""]
+    return (
+        median_low([d[0] for d in per_dong]) or 0,
+        median_low([d[1] for d in per_dong]) or 0,
+        median_low(nearest_all) if nearest_all else "",
+        brand_stats,
+        union_items([d[4] for d in per_dong]),
+    )
+
+
 def build_header():
     header = ["name", "gu", "dong", "lat", "lng"]
     for gkey, group in MART_CATEGORY_GROUPS.items():
@@ -125,6 +159,7 @@ def build_header():
             header.append(f"{brand}_count_{radius}m")
             header.append(f"nearest_{brand}_distance")
         header.append(f"{gkey}_items_json")
+    header += ["super_mart_basis", "super_mart_dong_count"]
     return header
 
 
@@ -153,11 +188,15 @@ with open(output_path, "w", newline="", encoding="utf-8-sig") as file:
 
             row = [apartment["name"], apartment["gu"], apartment["dong"], lat, lng]
             log_counts = {}
+            basis, groups = query_groups(DONG_POINTS, apartment)
 
             for gkey, group in MART_CATEGORY_GROUPS.items():
-                count, diversity, group_nearest, brand_stats, items = compute_group(
-                    group, group_places[gkey], lat, lng
-                )
+                if gkey == "super_mart" and basis == "dong":
+                    count, diversity, group_nearest, brand_stats, items = super_dong(groups)
+                else:
+                    count, diversity, group_nearest, brand_stats, items = compute_group(
+                        group, group_places[gkey], lat, lng
+                    )
                 row.append(count)
                 row.append(diversity)
                 row.append(group_nearest)
@@ -167,6 +206,7 @@ with open(output_path, "w", newline="", encoding="utf-8-sig") as file:
                 row.append(json.dumps(items, ensure_ascii=False))
                 log_counts[group["label"]] = count
 
+            row += [basis, sum(len(m) for _, _, m in groups) if basis == "dong" else 1]
             writer.writerow(row)
 
             if (index + 1) % 500 == 0:
@@ -178,4 +218,4 @@ with open(output_path, "w", newline="", encoding="utf-8-sig") as file:
         except Exception as e:
             print(f"[ERROR] {apartment.get('name')} : {e}")
 
-print(f"[DONE] {output_path} 생성 완료")
+print(f"[DONE] {output_path} 생성 완료 (카카오 API {kakao_local_service.API_CALLS['n']}회)")
