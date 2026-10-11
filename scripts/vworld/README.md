@@ -1,10 +1,13 @@
 # scripts/vworld — 브이월드·카카오 기반 월간 갱신 보조 스크립트
 
+전체 월간 절차는 `docs/MONTHLY_UPDATE.md`.
+
 | 스크립트 | 산출물 | 언제 |
 |---|---|---|
 | `coord_audit.py` | `data/derived/vworld/coord_audit.json` | 마스터 갱신 후. 대표좌표가 단지 건물에서 벗어난 곳을 찾는다(교정은 `scripts/manual_overrides/wrong_apartment_geocodes_approved.csv`) |
 | `collect_hangang_access.py` | `data/derived/hangang_access_points.json` | 분기 1회 정도. 한강 나들목·경사로·계단 출입구(카카오) |
 | `build_dong_level.py` | `data/derived/vworld/dong_level.json` | `complex_buildings_v5.jsonl`·통학구역·역 갱신 후. 결과 페이지 동별 주석·카드 |
+| `collect_layers.py` | `data/derived/vworld/<레이어>.geojson` | 매월. 공원(LT_C_UPISUQ153)·전통시장·중/고 학교군(기본), 참고 레이어는 이름 지정/`--missing-only` |
 | `../fetch_school_zones_vworld.py` | `data/school/zone/vworld_desch.geojson` | 매월(통학구역 원천) |
 | `../build_park_source_vworld.py` | `data/park/vworld_parks.geojson` | 매월(공원 원천, LT_C_UPISUQ153 재수집 후) |
 

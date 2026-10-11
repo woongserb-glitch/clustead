@@ -16,7 +16,19 @@ start_time = time.time()
 success_count = 0
 fail_count = 0
 
+# 월간 갱신에서 카카오 3종(cafe·convenience·mart)은 호출이 많아 하루 한도 안에서 따로 돌린다
+# (docs/MONTHLY_UPDATE.md). 쉼표로 키를 준다: CLUSTEAD_BASELINE_SKIP=cafe,convenience,mart
+#                                           CLUSTEAD_BASELINE_ONLY=cafe
+import os  # noqa: E402
+
+_SKIP = {k.strip() for k in os.environ.get("CLUSTEAD_BASELINE_SKIP", "").split(",") if k.strip()}
+_ONLY = {k.strip() for k in os.environ.get("CLUSTEAD_BASELINE_ONLY", "").split(",") if k.strip()}
+
 for key, job in BASELINE_JOBS.items():
+
+    if key in _SKIP or (_ONLY and key not in _ONLY):
+        print(f"[SKIP] {key}")
+        continue
 
     print("\n")
     print("-" * 60)
