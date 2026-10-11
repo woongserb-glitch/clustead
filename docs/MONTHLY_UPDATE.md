@@ -113,8 +113,7 @@ python scripts/build_park_source_vworld.py         # 조성 공원 → data/park
 `data/derived/vworld/complex_buildings_v5.jsonl` 은 단지마다 동 건물 윤곽이다. 동별 등급(지하철·버스·교육환경·한강·공원·병원·약국·학원·편의점·카페·슈퍼)이 모두 이걸 쓴다.
 - **신규 단지는 v5에 없으면 자동으로 대표좌표 기준**이 된다. 그러니 매달 다시 만들 필요는 없다.
 - 신규·재건축 단지가 많이 쌓였거나(대략 20곳 이상) 대단지가 새로 들어오면 파이프라인을 다시 돌린다:
-  `C:/Users/hyr19/clustead-backups/vworld_pipeline_scripts/README.md` 순서(SPBD → 카카오 동번호 → BLDGINFO → match_v5 → 원장).
-  *아직 저장소 밖에 있다. 옮기는 것이 남은 일이다.*
+  `scripts/vworld/pipeline/README.md` 순서(SPBD → 카카오 동번호 → 통용명 → BLDGINFO → match_v5 → 유령·지점 보완 → 동번호 판정 → 원장).
 
 | 주기 | 작업 |
 |---|---|
