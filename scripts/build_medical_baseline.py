@@ -11,6 +11,11 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE_DIR))
 
 from services.preload_service import apartment_data, load_apartment_data
+from scripts.dong_points import GridIndex, load_dong_points, median_low, points_for
+
+# 동별(scripts/dong_points 원칙, 2026-10-11): 도보권(500m·1km) 개수는 동 건물마다 세어 중간 동 값으로
+# 등급을 매기고, 목록은 어느 동에서든 반경 안인 곳을 합친다(거리는 가장 가까운 동 기준).
+# 응급실(3km)·종합병원(5km)은 동 사이 거리가 반경에 묻혀 대표 좌표 그대로 둔다.
 
 APARTMENT_PATH = BASE_DIR / "data" / "apartment" / "seoul_apartments.csv"
 HOSPITAL_RAW_PATH = BASE_DIR / "data" / "medical" / "hospital_seoul.csv"
@@ -312,6 +317,36 @@ def collect_within(apartment, places, radius, type_filter=None):
     return result
 
 
+def union_within(points, index, radius, type_filter=None):
+    """동 건물 점들 기준: (점마다 반경 안 목록, 동 전체 합친 목록[거리=가장 가까운 동]).
+
+    합친 목록의 각 항목에는 반경 안에 둔 동 수(dong_count)를 남긴다."""
+    per_point, merged = [], {}
+    for lat, lng in points:
+        found = []
+        seen = set()
+        for place in index.near(lat, lng, radius):
+            if type_filter and place.get("type") != type_filter:
+                continue
+            key = id(place)
+            if key in seen:
+                continue
+            seen.add(key)
+            distance = haversine_m(lat, lng, place["lat"], place["lng"])
+            if distance <= radius:
+                found.append({**place, "distance": round(distance)})
+                m = merged.get(key)
+                if m is None:
+                    merged[key] = {**place, "distance": round(distance), "dong_count": 1}
+                else:
+                    m["distance"] = min(m["distance"], round(distance))
+                    m["dong_count"] += 1
+        found.sort(key=lambda item: item["distance"])
+        per_point.append(found)
+    union = sorted(merged.values(), key=lambda item: item["distance"])
+    return per_point, union
+
+
 def nearest_name_distance(items):
     if not items:
         return "", ""
@@ -335,6 +370,7 @@ def output_item(item, type_override=None, subtype_override=None, subtypes_overri
         "type": type_override or item.get("type", ""),
         "address": item.get("address", ""),
         "medical_class": item.get("medical_class", ""),
+        **({"dong_count": item["dong_count"]} if "dong_count" in item else {}),
     }
 
 
@@ -387,16 +423,26 @@ def main():
             "superior_hospital_items_json",
             "pharmacy_items_json",
             "medical_items_json",
+            "medical_basis",
+            "medical_dong_count",
         ])
         writer.writeheader()
 
+        dong_points = load_dong_points()
+        hospital_index = GridIndex(hospitals)
+        pharmacy_index = GridIndex(pharmacies)
+        medical_index = GridIndex(medical_places)
+
         total = len(apartments)
         for index, apartment in enumerate(apartments, start=1):
-            medical_500m = collect_within(apartment, medical_places, 500)
-            medical_1km = collect_within(apartment, medical_places, 1000)
-            hospitals_500m = collect_within(apartment, hospitals, 500, "hospital")
-            hospitals_1km = collect_within(apartment, hospitals, 1000, "hospital")
-            emergency_1km = collect_within(apartment, hospitals, 1000, "emergency")
+            points, basis = points_for(
+                dong_points, apartment["name"], apartment["gu"], apartment["dong"], apartment["lat"], apartment["lng"],
+            )
+            med500_pp, medical_500m = union_within(points, medical_index, 500)
+            med1k_pp, medical_1km = union_within(points, medical_index, 1000)
+            hosp500_pp, hospitals_500m = union_within(points, hospital_index, 500, "hospital")
+            hosp1k_pp, hospitals_1km = union_within(points, hospital_index, 1000, "hospital")
+            em1k_pp, emergency_1km = union_within(points, hospital_index, 1000, "emergency")
             emergency_3km = collect_within(apartment, hospitals, 3000, "emergency")
             superior_5km = collect_within(apartment, superior_hospitals, SUPERIOR_HOSPITAL_RADIUS_M)
             # 카드/Explore 표시는 3km 기준. 런타임에서 items_json 을 파싱해 세던 것을
@@ -408,16 +454,22 @@ def main():
                 item for item in superior_5km
                 if item["distance"] <= SUPERIOR_HOSPITAL_DISPLAY_RADIUS_M
             ]
-            pharmacies_500m = collect_within(apartment, pharmacies, 500, "pharmacy")
-            pharmacies_1km = collect_within(apartment, pharmacies, 1000, "pharmacy")
+            ph500_pp, pharmacies_500m = union_within(points, pharmacy_index, 500, "pharmacy")
+            ph1k_pp, pharmacies_1km = union_within(points, pharmacy_index, 1000, "pharmacy")
+
+            def mid(per_point):
+                return median_low([len(found) for found in per_point]) or 0
 
             # 진료과별 도보권(500m) 카운트 — 의원/치과/한의원은 걸어가는 시설.
-            specialty_counts = {subtype: 0 for subtype in HOSPITAL_SPECIALTY_SUBTYPES}
+            # 개수는 중간 동 기준, 최근접 거리는 동 전체 목록(가장 가까운 동) 기준.
+            specialty_counts = {
+                subtype: median_low([sum(1 for h in found if h.get("subtype") == subtype) for found in hosp500_pp]) or 0
+                for subtype in HOSPITAL_SPECIALTY_SUBTYPES
+            }
             specialty_nearest = {subtype: "" for subtype in HOSPITAL_SPECIALTY_SUBTYPES}
             for hospital in hospitals_500m:
                 subtype = hospital.get("subtype")
                 if subtype in specialty_counts:
-                    specialty_counts[subtype] += 1
                     distance = hospital.get("distance")
                     if distance is not None and (
                         specialty_nearest[subtype] == ""
@@ -440,16 +492,16 @@ def main():
                 "dong": apartment["dong"],
                 "lat": apartment["lat"],
                 "lng": apartment["lng"],
-                "medical_count_500m": len(medical_500m),
-                "medical_count_1km": len(medical_1km),
-                "hospital_count_500m": len(hospitals_500m),
-                "hospital_count_1km": len(hospitals_1km),
-                "emergency_count_1km": len(emergency_1km),
+                "medical_count_500m": mid(med500_pp),
+                "medical_count_1km": mid(med1k_pp),
+                "hospital_count_500m": mid(hosp500_pp),
+                "hospital_count_1km": mid(hosp1k_pp),
+                "emergency_count_1km": mid(em1k_pp),
                 "emergency_count_3km": len(emergency_3km),
                 "superior_hospital_count_5km": len(superior_5km),
                 "superior_hospital_count_3km": len(superior_3km),
-                "pharmacy_count_500m": len(pharmacies_500m),
-                "pharmacy_count_1km": len(pharmacies_1km),
+                "pharmacy_count_500m": mid(ph500_pp),
+                "pharmacy_count_1km": mid(ph1k_pp),
                 **{specialty_count_column(subtype): specialty_counts[subtype]
                    for subtype in HOSPITAL_SPECIALTY_SUBTYPES},
                 **{specialty_nearest_column(subtype): specialty_nearest[subtype]
@@ -490,6 +542,8 @@ def main():
                     [output_item(item) for item in display_items],
                     ensure_ascii=False,
                 ),
+                "medical_basis": basis,
+                "medical_dong_count": len(points) if basis == "dong" else 1,
             })
 
             if index == 1 or index % 500 == 0 or index == total:

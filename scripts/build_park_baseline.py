@@ -7,6 +7,11 @@
 
 칸: name,gu,dong,lat,lng,nearest_park,park_distance (기존과 같음)
   + park_kind, park_area_m2, park_count_1km, child_park_count_500m, park_items_json(1km 안 공원)
+  + park_basis, park_dong_count
+
+동별(scripts/dong_points 원칙, 2026-10-11): 동 건물마다 '1만㎡ 이상 공원까지 거리' 를 재고 등급 지표
+park_distance 는 중간 동 값. 대표 공원은 가장 많은 동이 가장 가깝다고 꼽은 공원. 목록은 어느 동에서든
+1km 안인 공원을 합치고, 거리는 가장 가까운 동 기준 + 그 공원까지 동마다 거리 범위(nearest_min/max).
 """
 
 import csv
@@ -23,6 +28,7 @@ from services.preload_service import (  # noqa: E402
     park_data,
 )
 from services.baseline_builder_service import find_nearest_place  # noqa: E402
+from scripts.dong_points import load_dong_points, median_low, points_for  # noqa: E402
 
 SOURCE = "data/park/vworld_parks.geojson"
 OUTPUT = "data/baseline/park_baseline.csv"
@@ -48,9 +54,11 @@ def build_from_vworld():
         a, b = nearest_points(g, pt)
         return ((a.y - b.y) * 111000) ** 2 + ((a.x - b.x) * 88400) ** 2, a
 
-    rows = []
-    for apt in apartment_data:
-        pt = Point(float(apt["lng"]), float(apt["lat"]))
+    big_idx = [i for i, p in enumerate(props) if p["area_m2"] >= BIG_M2]
+
+    def compute_at(lat, lng):
+        """한 점에서: 1km 안 공원 [(d, i, edge)], 가장 가까운 1만㎡ 이상 공원 (d, i)."""
+        pt = Point(float(lng), float(lat))
         near = []
         for i in tree.query(pt.buffer(LIST_RADIUS_M * DEG * 1.3)):
             i = int(i)
@@ -62,13 +70,50 @@ def build_from_vworld():
         big = next(((d, i) for d, i, _ in near if props[i]["area_m2"] >= BIG_M2), None)
         if big is None:  # 목록 반경 안에 큰 공원이 없으면 서울 전체에서 찾는다
             best = None
-            for i, p in enumerate(props):
-                if p["area_m2"] < BIG_M2:
-                    continue
+            for i in big_idx:
                 d2, _ = dist_m(geoms[i], pt)
                 if best is None or d2 < best[0]:
                     best = (d2, i)
             big = (round(best[0] ** 0.5), best[1]) if best else None
+        return near, big
+
+    def merge_fragments(near):
+        """같은 이름·거리 150m 안 조각을 한 공원으로 — [(d, i)] (목록 합치기와 같은 규칙)."""
+        kept = []
+        for d, i, _ in near:
+            if not any(props[j]["name"] == props[i]["name"] and d - e < 150 for e, j in kept):
+                kept.append((d, i))
+        return kept
+
+    dong_points = load_dong_points()
+    rows = []
+    for apt in apartment_data:
+        points, basis = points_for(dong_points, apt["name"], apt["gu"], apt["dong"], apt["lat"], apt["lng"])
+        per_point = [compute_at(lat, lng) for lat, lng in points]
+
+        # 공원별로 동 전체를 합친다: 가장 가까운 동의 거리·윤곽점, 그 공원까지 동마다 거리 범위.
+        merged = {}
+        for near, _ in per_point:
+            for d, i, edge in near:
+                m = merged.get(i)
+                if m is None:
+                    merged[i] = {"d": d, "edge": edge, "min": d, "max": d, "n": 1}
+                else:
+                    if d < m["d"]:
+                        m["d"], m["edge"] = d, edge
+                    m["min"], m["max"], m["n"] = min(m["min"], d), max(m["max"], d), m["n"] + 1
+        near = sorted(((m["d"], i, m["edge"]) for i, m in merged.items()), key=lambda x: (x[0], x[1]))
+
+        bigs = [b for _, b in per_point if b]
+        if bigs and basis == "dong":
+            votes = {}
+            for d, i in bigs:
+                votes.setdefault(i, []).append(d)
+            top = min(votes, key=lambda i: (-len(votes[i]), min(votes[i]), i))
+            big = (median_low([d for d, _ in bigs]), top)
+        else:
+            big = bigs[0] if bigs else None
+
         # 한 공원이 도면에서 여러 조각으로 나뉜 경우(같은 이름·거리 150m 안)는 하나로 합친다.
         items = []
         for d, i, edge in near:
@@ -77,12 +122,19 @@ def build_from_vworld():
             if same:
                 same["area_m2"] += props[i]["area_m2"]
                 continue
-            items.append({
+            item = {
                 "name": name, "subtype": props[i]["kind"], "distance": d,
                 "area_m2": props[i]["area_m2"], "lat": round(edge.y, 7), "lng": round(edge.x, 7),
-            })
-        park_count = sum(1 for it in items if it["distance"] <= 1000)
-        child_count = sum(1 for it in items if it["distance"] <= 500 and "어린이" in it["subtype"])
+            }
+            if basis == "dong":
+                m = merged[i]
+                item.update({"dong_count": m["n"], "nearest_min": m["min"], "nearest_max": m["max"]})
+            items.append(item)
+        # 개수 지표는 중간 동 기준(등급과 같은 원칙), 목록은 동 전체.
+        park_count = median_low([len(merge_fragments(nr)) for nr, _ in per_point])
+        child_count = median_low([
+            sum(1 for d, i in merge_fragments(nr) if d <= 500 and "어린이" in props[i]["kind"]) for nr, _ in per_point
+        ])
         items = items[:MAX_ITEMS]
         rows.append([
             apt["name"], apt["gu"], apt["dong"], apt["lat"], apt["lng"],
@@ -91,6 +143,8 @@ def build_from_vworld():
             park_count,
             child_count,
             json.dumps(items, ensure_ascii=False),
+            basis,
+            len(points) if basis == "dong" else 1,
         ])
     return rows
 
@@ -103,7 +157,7 @@ def build_from_major_parks():
         if nearest is None:
             continue
         rows.append([apt["name"], apt["gu"], apt["dong"], apt["lat"], apt["lng"],
-                     nearest["name"], distance, "", "", "", "", "[]"])
+                     nearest["name"], distance, "", "", "", "", "[]", "center", 1])
     return rows
 
 
@@ -114,7 +168,8 @@ def main():
     with open(OUTPUT, "w", newline="", encoding="utf-8-sig") as handle:
         writer = csv.writer(handle)
         writer.writerow(["name", "gu", "dong", "lat", "lng", "nearest_park", "park_distance",
-                         "park_kind", "park_area_m2", "park_count_1km", "child_park_count_500m", "park_items_json"])
+                         "park_kind", "park_area_m2", "park_count_1km", "child_park_count_500m", "park_items_json",
+                         "park_basis", "park_dong_count"])
         writer.writerows(rows)
     print(f"[DONE] {OUTPUT} 생성 완료 ({len(rows)}행)")
 

@@ -215,6 +215,9 @@
         <small class="poi-list-distance subway-dong-range">{{ poi.dong_within_500 }}개 동 500m 이내</small>
         {% elif poi.distance %}
         <small class="poi-list-distance">{{ poi.distance|distance_m }}</small>
+        {% elif summary.dong_basis and poi.distance is not none and poi.distance|string in ("0", "0.0") %}
+        {# 동별 목록: 거리 0 = 어느 동 건물 바로 그 자리(단지 상가 등) #}
+        <small class="poi-list-distance">단지 안</small>
         {% endif %}
     </div>
 </li>

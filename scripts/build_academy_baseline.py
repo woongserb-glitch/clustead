@@ -3,9 +3,18 @@ import math
 import re
 from pathlib import Path
 
+import sys
+
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BASE_DIR))
+
+from scripts.dong_points import GridIndex, load_dong_points, median_low, points_for  # noqa: E402
+
+# 동별(scripts/dong_points 원칙, 2026-10-11): 동 건물마다 1km·500m 안 학원을 세어 개수 칸(전체·유형별)은
+# 중간 동 값 — 등급·탐색 필터·순위가 대표 좌표 하나에 휘둘리지 않게. 목록(academy_items_json)은
+# 어느 동에서든 1km 안인 곳을 합치고(거리=가장 가까운 동), 합친 개수는 academy_count_1000m_union.
 APARTMENT_PATH = BASE_DIR / "data" / "apartment" / "seoul_apartments.csv"
 ACADEMY_GEOCODED_PATH = BASE_DIR / "data" / "academy" / "academy_geocoded.csv"
 OUTPUT_PATH = BASE_DIR / "data" / "baseline" / "academy_baseline.csv"
@@ -199,43 +208,64 @@ def prepare_academies():
     return academies
 
 
-def build_baseline_row(apartment, academies):
-    items_1000m = []
+def count_at(lat, lng, index):
+    """한 점에서 1km 안 학원 {id(academy): 거리}, 500m 안 개수, 유형별 개수."""
+    found = {}
     count_500m = 0
     subtype_counts = {column: 0 for column in SUBTYPE_COLUMNS.values()}
-
-    for academy in academies:
-        distance = round(
-            haversine_m(
-                apartment["lat"],
-                apartment["lng"],
-                academy["lat"],
-                academy["lng"],
-            )
-        )
-
+    for academy in index.near(lat, lng, ACADEMY_RADIUS_M):
+        key = id(academy)
+        if key in found:
+            continue
+        distance = round(haversine_m(lat, lng, academy["lat"], academy["lng"]))
         if distance > ACADEMY_RADIUS_M:
             continue
-
+        found[key] = (distance, academy)
         if distance <= ACADEMY_NEAR_RADIUS_M:
             count_500m += 1
+        subtype_counts[SUBTYPE_COLUMNS.get(academy.get("subtype", "기타"), "etc_count")] += 1
+    return found, count_500m, subtype_counts
 
-        subtype = academy.get("subtype", "기타")
-        count_col = SUBTYPE_COLUMNS.get(subtype, "etc_count")
-        subtype_counts[count_col] += 1
 
-        items_1000m.append({
+def build_baseline_row(apartment, index, dong_points):
+    points, basis = points_for(
+        dong_points, apartment["name"], apartment["gu"], apartment["dong"], apartment["lat"], apartment["lng"],
+    )
+    per_point = [count_at(lat, lng, index) for lat, lng in points]
+
+    merged = {}
+    for found, _, _ in per_point:
+        for key, (distance, academy) in found.items():
+            m = merged.get(key)
+            if m is None:
+                merged[key] = [distance, academy, 1]
+            else:
+                m[0] = min(m[0], distance)
+                m[2] += 1
+
+    items_1000m = []
+    for distance, academy, dongs in merged.values():
+        item = {
             "label": academy["name"],
             "distance": int(distance),
-            "subtype": subtype,
+            "subtype": academy.get("subtype", "기타"),
             "lat": round(academy["lat"], 7),
             "lng": round(academy["lng"], 7),
             "address": academy.get("road_address", ""),
             "course": academy.get("course", ""),
-        })
-
-    items_1000m.sort(key=lambda item: item.get("distance", 999999))
+        }
+        if basis == "dong":
+            item["dong_count"] = dongs
+        items_1000m.append(item)
+    items_1000m.sort(key=lambda item: (item.get("distance", 999999), item["label"]))
     nearest = items_1000m[0] if items_1000m else {}
+
+    count_1000m = median_low([len(found) for found, _, _ in per_point]) or 0
+    count_500m = median_low([c500 for _, c500, _ in per_point]) or 0
+    subtype_counts = {
+        column: median_low([counts[column] for _, _, counts in per_point]) or 0
+        for column in SUBTYPE_COLUMNS.values()
+    }
 
     return {
         "name": apartment["name"],
@@ -244,12 +274,15 @@ def build_baseline_row(apartment, academies):
         "lat": apartment["lat"],
         "lng": apartment["lng"],
         "academy_count_500m": count_500m,
-        "academy_count_1000m": len(items_1000m),
+        "academy_count_1000m": count_1000m,
         "nearest_academy_name": nearest.get("label", ""),
         "nearest_academy_subtype": nearest.get("subtype", ""),
         "nearest_academy_distance": nearest.get("distance", ""),
         **subtype_counts,
         "academy_items_json": json.dumps(items_1000m, ensure_ascii=False),
+        "academy_count_1000m_union": len(items_1000m),
+        "academy_basis": basis,
+        "academy_dong_count": len(points) if basis == "dong" else 1,
     }
 
 
@@ -258,9 +291,11 @@ def main():
     academies = prepare_academies()
 
     rows = []
+    index = GridIndex(academies)
+    dong_points = load_dong_points()
 
     for idx, apartment in enumerate(apartments, start=1):
-        rows.append(build_baseline_row(apartment, academies))
+        rows.append(build_baseline_row(apartment, index, dong_points))
 
         if idx % 200 == 0:
             print(f"[ACADEMY] {idx}/{len(apartments)} 처리")

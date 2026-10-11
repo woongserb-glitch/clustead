@@ -1333,6 +1333,19 @@ def _build_category_evidence_raw(summary):
             return f"반경 {radius} 내 119안전센터 및 구조대가 {format_count_phrase(count)} 있습니다. 가장 가까운 안전센터는 {nearest_distance} 거리입니다."
         return f"반경 {radius} 내 119안전센터 및 구조대가 {format_count_phrase(count)} 있습니다."
 
+    if key in ("hospital", "pharmacy", "academy") and summary.get("dong_basis"):
+        noun, area = {"hospital": ("병원", "500m"), "pharmacy": ("약국", "500m"), "academy": ("학원", "1km")}[key]
+        median = to_int(summary.get("median_count"), 0)
+        head = f"중간 동 기준 {area} 안 {noun}은 {median:,}곳입니다. 단지 전체로는 {count:,}곳을 이용할 수 있습니다."
+        if key == "pharmacy":
+            labels = pharmacy_operating_labels(summary)
+            return head + (f" {'·'.join(labels)} 운영 약국이 확인됩니다." if labels else "")
+        subtype_text = subtype_sentence(summary, unit="곳", limit=2)
+        if subtype_text:
+            tail = " 등 다양한 진료과가 있습니다." if key == "hospital" else " 비중이 높습니다."
+            return head + f" {subtype_text}{tail}"
+        return head
+
     if key == "hospital":
         subtype_text = subtype_sentence(summary, unit="곳", limit=2)
         if subtype_text:
@@ -1401,6 +1414,14 @@ def _build_category_evidence_raw(summary):
         if subtype_text:
             return f"반경 {radius} 내 문화시설 {format_count_phrase(count)}이 있습니다. {subtype_text}을 이용할 수 있습니다."
         return f"반경 {radius} 내 문화시설 {format_count_phrase(count)}이 있습니다."
+
+    if key == "park" and summary.get("park_dong"):
+        big = summary["park_dong"]
+        distance = to_int(big.get("distance"), 0)
+        lead = f"1만㎡ 넘는 공원은 중간 동 기준 {big['name']}까지 {distance:,}m입니다." if big.get("name") else ""
+        if count <= 0:
+            return (lead + " 어느 동에서도 1km 안 공원은 없습니다.").strip()
+        return (lead + f" 어느 동이든 1km 안 공원은 {format_count_phrase(count)}입니다.").strip()
 
     if key == "park":
         nearest_name, nearest_distance = nearest_name_and_distance(summary)
@@ -3463,6 +3484,7 @@ def build_medical_info(apartment_name, gu=None, dong=None):
         "nearest_superior_hospital_distance": clean_text(row.get("nearest_superior_hospital_distance", "")),
         "nearest_pharmacy_name": clean_text(row.get("nearest_pharmacy_name", "")),
         "nearest_pharmacy_distance": clean_text(row.get("nearest_pharmacy_distance", "")),
+        "basis": clean_text(row.get("medical_basis", "")) or "center",
         "items": items,
         "hospital_items": hospital_items,
         "emergency_items": emergency_items,
@@ -3621,6 +3643,8 @@ def build_medical_category_summaries(medical_info):
         item for item in medical_info.get("pharmacy_items", [])
         if _within_pharmacy_radius(item)
     ]
+    # 동별(build_medical_baseline): 목록은 어느 동이든 반경 안(거리=가장 가까운 동), 개수 칸은 중간 동.
+    dong_basis = medical_info.get("basis") == "dong"
 
     return [
         {
@@ -3632,14 +3656,18 @@ def build_medical_category_summaries(medical_info):
             "score_class": "score-normal",
             "description": "도보권(반경 500m) 병원 접근성과 진료과 분포입니다.",
             "radius": 500,
-            "count": to_int(medical_info.get("hospital_count_500m"), 0),
+            # 동별이면 윗줄 개수는 목록(어느 동이든 500m 안)과 같게, 중간 동 개수는 문장에서.
+            "count": len(hospital_items) if dong_basis else to_int(medical_info.get("hospital_count_500m"), 0),
+            "median_count": to_int(medical_info.get("hospital_count_500m"), 0),
+            "dong_basis": dong_basis,
+            "meta_basis_label": "어느 동이든 500m 안" if dong_basis else "",
             "seoul_percentile": medical_info.get("seoul_percentile"),
             "gu_percentile": None,
             "source": "서울열린데이터광장",
             "nearest_poi": {
                 "label": f"🏥 {medical_info.get('nearest_hospital_name')}",
                 "distance": medical_info.get("nearest_hospital_distance"),
-            } if medical_info.get("nearest_hospital_name") else None,
+            } if medical_info.get("nearest_hospital_name") and not dong_basis else None,
             "subtype_chips": get_subtype_chips_from_items(hospital_items, "medical-chip", HOSPITAL_CHIP_ORDER),
             "pois": hospital_items,
             "empty": "주변 병원 공공데이터가 없습니다.",
@@ -3698,14 +3726,17 @@ def build_medical_category_summaries(medical_info):
             "score_class": "score-normal",
             "description": "도보권(반경 500m) 약국 접근성과 야간·주말 운영 분포입니다.",
             "radius": PHARMACY_DISPLAY_RADIUS_M,
-            "count": to_int(medical_info.get("pharmacy_count_500m"), 0),
+            "count": len(pharmacy_items) if dong_basis else to_int(medical_info.get("pharmacy_count_500m"), 0),
+            "median_count": to_int(medical_info.get("pharmacy_count_500m"), 0),
+            "dong_basis": dong_basis,
+            "meta_basis_label": "어느 동이든 500m 안" if dong_basis else "",
             "seoul_percentile": medical_info.get("pharmacy_percentile"),
             "gu_percentile": None,
             "source": "서울열린데이터광장",
             "nearest_poi": {
                 "label": f"💊 {medical_info.get('nearest_pharmacy_name')}",
                 "distance": medical_info.get("nearest_pharmacy_distance"),
-            } if medical_info.get("nearest_pharmacy_name") else None,
+            } if medical_info.get("nearest_pharmacy_name") and not dong_basis else None,
             "subtype_chips": get_subtype_chips_from_items(pharmacy_items, "medical-chip", PHARMACY_CHIP_ORDER),
             "pois": pharmacy_items,
             "empty": "주변 약국 공공데이터가 없습니다.",
@@ -4257,6 +4288,7 @@ def build_academy_info(apartment_name, gu=None, dong=None):
         "nearest_distance": clean_text(row.get("nearest_academy_distance", "")),
         "items": academy_items,
         "type_chips": type_chips,
+        "basis": clean_text(row.get("academy_basis", "")) or "center",
         "seoul_percentile": get_baseline_percentile(row, "academy_count_1000m_seoul_percentile"),
     }
 
@@ -4599,6 +4631,20 @@ def build_academy_category_summary(academy_info):
     count = to_int(academy_info.get("academy_count_1000m"), 0)
     nearest_name = academy_info.get("nearest_name", "")
     nearest_subtype = academy_info.get("nearest_subtype", "")
+    # 동별(build_academy_baseline): 개수 칸(등급·필터)은 중간 동, 목록은 어느 동이든 1km 안.
+    # 윗줄 개수·칩은 목록과 같게 맞추고 중간 동 개수는 문장에서 말한다.
+    dong_basis = academy_info.get("basis") == "dong"
+    items = academy_info.get("items", [])
+    chips = academy_info.get("type_chips", [])
+    if dong_basis:
+        chip_counts = {}
+        for item in items:
+            name = item.get("subtype") or "기타"
+            chip_counts[name] = chip_counts.get(name, 0) + 1
+        chips = [{**chip, "count": chip_counts.get(chip.get("name"), 0)} for chip in chips]
+        known = {chip.get("name") for chip in chips}
+        chips += [{"name": name, "count": n} for name, n in chip_counts.items() if name not in known]
+        chips = [chip for chip in chips if chip.get("count")]
 
     nearest_label = nearest_name
     if nearest_subtype:
@@ -4613,14 +4659,17 @@ def build_academy_category_summary(academy_info):
         "score_class": "score-normal",
         "description": "반경 1km 기준 서울시 학원·교습소 접근성과 교육 유형 분포입니다.",
         "radius": 1000,
-        "count": count,
+        "count": len(items) if dong_basis else count,
+        "median_count": count,
+        "dong_basis": dong_basis,
+        "meta_basis_label": "어느 동이든 1km 안" if dong_basis else "",
         "seoul_percentile": academy_info.get("seoul_percentile"),
         "gu_percentile": None,
         "source": "서울시 학원교습소 정보",
         "nearest_poi": {
             "label": f"✏️ {nearest_label}",
             "distance": academy_info.get("nearest_distance", ""),
-        } if nearest_name else None,
+        } if nearest_name and not dong_basis else None,
         "subtype_chips": [
             {
                 "name": chip.get("name"),
@@ -4628,9 +4677,9 @@ def build_academy_category_summary(academy_info):
                 "count": chip.get("count", 0),
                 "style": f"academy-chip academy-chip-{chip.get('name')}",
             }
-            for chip in academy_info.get("type_chips", [])
+            for chip in chips
         ],
-        "pois": academy_info.get("items", []),
+        "pois": items,
         "empty": "반경 내 확인된 학원·교습소 정보가 없습니다.",
         "is_academy_summary": True,
     }

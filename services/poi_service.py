@@ -909,6 +909,7 @@ def get_category_summaries(apartment, preference_keys):
         # 공원. 여기 분기가 없어 seoul_percentile 이 None 으로 남았고, 카드 점수가
         # 백분위가 아닌 값(예: 69)으로 표시돼 도메인 점수(park_distance_seoul_score
         # 39.69)와 어긋났다. 다른 카테고리와 같이 baseline 백분위를 쓴다.
+        park_dong = None
         if key == "park":
             park_row = get_indexed_baseline_row(
                 park_baseline_index,
@@ -926,6 +927,15 @@ def get_category_summaries(apartment, preference_keys):
                 )
                 if baked_score is not None:
                     score = round(baked_score)
+                # 동별(build_park_baseline): 등급 거리 = 중간 동에서 1만㎡ 이상 공원까지. 목록은 동 전체라
+                # '최근접' 은 가장 가까운 동 기준이어서 등급과 어긋나 보이므로 생략하고 문장에서 설명한다.
+                if str(park_row.get("park_basis") or "").strip() == "dong":
+                    park_dong = {
+                        "name": str(park_row.get("nearest_park") or "").strip(),
+                        "distance": _to_num(park_row.get("park_distance")),
+                        "dong_count": _to_num(park_row.get("park_dong_count")),
+                    }
+                    nearest_poi = None
 
         # 마트 3개 카테고리(대형/슈퍼/창고형)는 mart_baseline.csv의 그룹 컬럼을 사용.
         # 그룹별 반경/지표가 달라 {group}_count_{R}m / {group}_items_json /
@@ -1011,6 +1021,8 @@ def get_category_summaries(apartment, preference_keys):
             ),
             "seoul_percentile": seoul_percentile,
             "gu_percentile": gu_percentile,
+            **({"dong_basis": True, "park_dong": park_dong,
+                "meta_basis_label": "어느 동이든 1km 안 공원"} if park_dong else {}),
         })
 
 
