@@ -7472,7 +7472,11 @@ SUBTYPE_SEARCH_CONFIG = {
         "icon": "🎭",
         "derived": "culture",
         "radius_label": "반경 1.5km이내",
-        "subtypes": ["공연", "전시", "체육", "키즈", "체험"],
+        "helper_text": "도서관은 반경 1km, 박물관·미술관은 반경 2km 기준입니다.",
+        # 도서관·박물관/미술관(2026-10-12 신규 지표): 결과 카드와 같은 culture_baseline 칸.
+        # 공공도서관·박물관은 카드 등급이 최근접 거리라 가까운 순, 작은도서관은 개수 순.
+        "subtypes": ["공연", "전시", "체육", "키즈", "체험", "공공도서관", "작은도서관", "박물관·미술관"],
+        "distance_first": ("공공도서관", "박물관·미술관"),
     },
     "park": {
         "label": "공원",
@@ -7660,7 +7664,8 @@ def _derived_category_stats(kind, subtypes=None):
         )
         columns = ["name", "gu", "dong"]
         if emergency_label in requested_subtypes:
-            columns.extend(["emergency_count_1km", "nearest_emergency_distance"])
+            # 안내 문구·결과 카드와 같은 3km(2026-10-12: 1km 개수로 걸러 3km 안내와 어긋났다)
+            columns.extend(["emergency_count_3km", "nearest_emergency_distance"])
         if superior_label in requested_subtypes:
             columns.extend([superior_count_column, "nearest_superior_hospital_distance"])
         if clinic_requested:
@@ -7674,7 +7679,7 @@ def _derived_category_stats(kind, subtypes=None):
                 stats = {}
                 if emergency_label in requested_subtypes:
                     stats[emergency_label] = (
-                        to_int(row.get("emergency_count_1km"), 0),
+                        to_int(row.get("emergency_count_3km"), 0),
                         parse_optional_float(row.get("nearest_emergency_distance")),
                     )
                 if superior_label in requested_subtypes:
@@ -7692,17 +7697,24 @@ def _derived_category_stats(kind, subtypes=None):
             pass
 
     elif kind == "culture":
-        all_colmap = dict(zip(
-            SUBTYPE_SEARCH_CONFIG["culture"]["subtypes"],
-            ("performance_count", "exhibition_count", "sports_count", "kids_count", "experience_count"),
-        ))
-        colmap = {label: col for label, col in all_colmap.items() if label in requested_subtypes}
-        columns = ["name", "gu", "dong", "nearest_culture_distance"] + list(colmap.values())
+        # 서브타입 → (개수 칸, 최근접 칸). 공연~체험은 문화시설 전체 최근접을 함께 쓴다(예전 그대로).
+        all_colmap = {
+            "공연": ("performance_count", "nearest_culture_distance"),
+            "전시": ("exhibition_count", "nearest_culture_distance"),
+            "체육": ("sports_count", "nearest_culture_distance"),
+            "키즈": ("kids_count", "nearest_culture_distance"),
+            "체험": ("experience_count", "nearest_culture_distance"),
+            "공공도서관": ("public_library_count_1km", "nearest_public_library_distance"),
+            "작은도서관": ("small_library_count_1km", "nearest_public_library_distance"),
+            "박물관·미술관": ("museum_count_2km", "nearest_museum_distance"),
+        }
+        colmap = {label: cols for label, cols in all_colmap.items() if label in requested_subtypes}
+        columns = ["name", "gu", "dong"] + sorted({col for cols in colmap.values() for col in cols})
         try:
             for row in iter_baseline_columns(culture_baseline_data, columns):
-                near = parse_optional_float(row.get("nearest_culture_distance"))
                 result[_csv_key(row)] = {
-                    label: (to_int(row.get(col), 0), near) for label, col in colmap.items()
+                    label: (to_int(row.get(count_col), 0), parse_optional_float(row.get(near_col)))
+                    for label, (count_col, near_col) in colmap.items()
                 }
         except Exception:
             pass
@@ -7717,7 +7729,13 @@ def _derived_category_stats(kind, subtypes=None):
             _baseline_metric_lookup("hangang_nearest_distance", "hangang_baseline.csv", "nearest_hangang_distance")
             if hangang_park in requested_subtypes else {}
         )
-        big = _big_park_nearest_lookup() if big_park in requested_subtypes else {}
+        # 대형공원: park_baseline 의 large_park_distance(10만㎡+ 윤곽까지, 동별 중간 동 — 카드와 같은 원천).
+        # 칸이 없는 옛 baseline 이면 예전 라이브 계산(대표 좌표→주요공원 대표점)으로 대체.
+        big = {}
+        if big_park in requested_subtypes:
+            big = _baseline_metric_lookup("large_park_distance", "park_baseline.csv", "large_park_distance")
+            if not any(value is not None for value in big.values()):
+                big = _big_park_nearest_lookup()
         keys = set(park_dist) | set(hangang_dist) | set(big)
         for key in keys:
             pdist = park_dist.get(key)
@@ -8787,7 +8805,7 @@ def build_explore_results(filters, limit=10, share_q="", relax_proximity=False):
                 else:
                     sort_parts.append(-count)
                     sort_parts.append(nearest_key)
-                if cfg.get("derived") == "park":
+                if cfg.get("derived") == "park" or subtype in ("공공도서관", "박물관·미술관"):
                     dist_label = f"{int(round(nearest))}m" if nearest is not None else "-"
                     matched.append(f"{cfg['icon']} {subtype} {dist_label}")
                 else:
