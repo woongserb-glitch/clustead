@@ -20,8 +20,7 @@
 
 <div class="detail-meta">
     {% if summary.meta_basis_label %}
-    {# 동별 계산 카테고리: 반경 대신 목록 기준(예: '동마다 가장 가까운 역 · 3곳') #}
-    <span>{{ summary.meta_basis_label }}</span>
+    {# 동별 계산 카테고리: 기준은 문장이 설명하므로 칩은 개수만(사용자 결정 2026-10-12) #}
     <span>{{ summary.count|thousands }}{{ summary.count_unit or "곳" }}</span>
     {% else %}
     <span>반경 {{ summary.radius|distance_m }}</span>

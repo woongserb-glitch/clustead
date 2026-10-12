@@ -5361,6 +5361,10 @@ def normalize_source_label(source):
     if "공공데이터포털" in source:
         return "공공데이터포털"
 
+    # 브이월드 원천은 짧게(사용자 결정 2026-10-12): '국토교통부 도시계획시설(브이월드)' → '브이월드'
+    if "브이월드" in source:
+        return "서울열린데이터광장·브이월드" if "서울" in source else "브이월드"
+
     if "서울" in source:
         return "서울열린데이터광장"
 
