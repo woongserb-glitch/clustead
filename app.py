@@ -109,6 +109,7 @@ from services.preload_service import bike_baseline_data, bike_baseline_index, lo
 from services.preload_service import academy_baseline_data, academy_baseline_index, load_academy_baseline_data
 from services.preload_service import culture_baseline_data, culture_baseline_index, load_culture_baseline_data
 from services.preload_service import hangang_baseline_data, hangang_baseline_index, load_hangang_baseline_data
+from services import preload_service as _preload_service
 from services.preload_service import fire_station_baseline_data, fire_station_baseline_index, load_fire_station_baseline_data
 from services.preload_service import shopping_baseline_data, shopping_baseline_index, load_shopping_baseline_data
 from services.preload_service import ev_charger_baseline_data, ev_charger_baseline_index, load_ev_charger_baseline_data
@@ -7563,6 +7564,10 @@ _DERIVED_STATS_CACHE = {}
 
 
 _BASELINE_DATA_BY_FILENAME = {
+    # park·bus 가 빠져 있어 탐색 공원 필터가 서버의 옛 park_baseline.csv(배포 대상 아님)를 읽었다 —
+    # 동별 재빌드·크기별 칸이 탐색에 안 들어간 원인(2026-10-12 운영에서 발견).
+    "park_baseline.csv": _preload_service.park_baseline_data,
+    "bus_baseline.csv": _preload_service.bus_baseline_data,
     "medical_baseline.csv": medical_baseline_data,
     "culture_baseline.csv": culture_baseline_data,
     "hangang_baseline.csv": hangang_baseline_data,
