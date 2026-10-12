@@ -410,6 +410,9 @@ def _track_request_end(exc=None):
 def add_cdn_cache_headers(resp):
     # 200(GET/HEAD)에만 캐시 허용 — 404/500/워밍업 503은 캐시 금지.
     # max-age=브라우저(재배포 후 빠른 신선화), s-maxage=CF 엣지(부하 오프로드).
+    # stale-if-error: 원본이 5xx(재시작 중 nginx 503 안내 페이지 등)를 주면 CF 가 만료된 캐시를
+    # 최대 하루 대신 응답 — 장애 뒤 네이버 노출이 계단식으로 꺾인 사례(2026-09-01·10-03) 대응.
+    # stale-while-revalidate: 만료 직후 10분은 옛 캐시를 바로 주고 뒤에서 갱신.
     try:
         if (
             request.method in ("GET", "HEAD")
@@ -417,7 +420,8 @@ def add_cdn_cache_headers(resp):
             and _is_cdn_cacheable_path(request.path)
         ):
             resp.headers.setdefault(
-                "Cache-Control", "public, max-age=300, s-maxage=86400"
+                "Cache-Control",
+                "public, max-age=300, s-maxage=86400, stale-while-revalidate=600, stale-if-error=86400",
             )
         elif request.path.startswith("/admin"):
             resp.headers["Cache-Control"] = "private, no-store"
