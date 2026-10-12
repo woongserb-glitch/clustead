@@ -1295,7 +1295,7 @@ def _build_category_evidence_raw(summary):
         median_routes = to_int(summary.get("route_count"), 0)
         union_routes = to_int(summary.get("route_count_union"), 0)
         return (
-            f"중간 동 기준 500m 안 버스 노선은 {median_routes:,}개입니다. "
+            f"동별 중앙값 기준 500m 안 버스 노선은 {median_routes:,}개입니다. "
             f"단지 전체로는 정류장 {stops:,}곳에서 {union_routes:,}개 노선을 이용할 수 있습니다."
         )
 
@@ -1346,7 +1346,7 @@ def _build_category_evidence_raw(summary):
             "convenience": ("편의점", "500m"), "cafe": ("주요 카페 프랜차이즈 매장", "500m"), "super_mart": ("슈퍼마켓", "500m"),
         }[key]
         median = to_int(summary.get("median_count"), 0)
-        head = f"중간 동 기준 {area} 안 {noun}은 {median:,}곳입니다. 단지 전체로는 {count:,}곳을 이용할 수 있습니다."
+        head = f"동별 중앙값 기준 {area} 안 {noun}은 {median:,}곳입니다. 단지 전체로는 {count:,}곳을 이용할 수 있습니다."
         if key == "pharmacy":
             labels = pharmacy_operating_labels(summary)
             return head + (f" {'·'.join(labels)} 운영 약국이 확인됩니다." if labels else "")
@@ -1428,7 +1428,7 @@ def _build_category_evidence_raw(summary):
     if key in ("library", "museum"):
         nearest = summary.get("facility_nearest") or {}
         counts = summary.get("facility_counts") or {}
-        where = "중간 동 기준 " if summary.get("dong_basis") else ""
+        where = "동별 중앙값 기준 " if summary.get("dong_basis") else ""
         area = "어느 동이든 " if summary.get("dong_basis") else "반경 "
         if key == "library":
             lead = (f"가장 가까운 공공도서관은 {where}{nearest['name']}까지 {to_int(nearest.get('distance'), 0):,}m입니다."
@@ -1446,7 +1446,7 @@ def _build_category_evidence_raw(summary):
     if key == "park" and summary.get("park_dong"):
         big = summary["park_dong"]
         distance = to_int(big.get("distance"), 0)
-        lead = f"1만㎡ 넘는 공원은 중간 동 기준 {big['name']}까지 {distance:,}m입니다." if big.get("name") else ""
+        lead = f"1만㎡ 넘는 공원은 동별 중앙값 기준 {big['name']}까지 {distance:,}m입니다." if big.get("name") else ""
         if count <= 0:
             return (lead + " 어느 동에서도 1km 안 공원은 없습니다.").strip()
         return (lead + f" 어느 동이든 1km 안 공원은 {format_count_phrase(count)}입니다.").strip()
@@ -4541,7 +4541,7 @@ def build_school_environment_category_summary(school_environment_info):
     if assigned_school_name and assigned_distance is not None:
         nearest_poi = {
             "label": (
-                f"🏫 배정초 {assigned_school_name}(중간 동 기준)"
+                f"🏫 배정초 {assigned_school_name}(동별 중앙값)"
                 if school_environment_info.get("school_dongs") else f"🏫 대표 배정초 {assigned_school_name}"
             ),
             "distance": assigned_distance,
