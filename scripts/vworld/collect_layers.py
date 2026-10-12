@@ -14,6 +14,7 @@
   LT_C_UPISUQ153 → scripts/build_park_source_vworld.py → data/park/vworld_parks.geojson → 공원 baseline
   LT_P_TRADSIJANG → scripts/build_shopping_baseline.py (전통시장)
   LT_C_DMSCH / LT_C_DHSCH → scripts/vworld/build_dong_level.py (중·고 학교군)
+  LT_P_SMALLLIBRARY / LT_P_DGMUSEUMART → scripts/build_culture_baseline.py (도서관·박물관 카드)
   (초등 통학구역 LT_C_DESCH 는 scripts/fetch_school_zones_vworld.py 가 따로 받는다)
 """
 import hashlib
@@ -33,9 +34,11 @@ MONTHLY = {
     "LT_P_TRADSIJANG": "전통시장",
     "LT_C_DMSCH": "중학교학교군",
     "LT_C_DHSCH": "고등학교학교군",
+    "LT_P_SMALLLIBRARY": "작은도서관",      # → 문화생활 baseline 도서관 카드
+    "LT_P_DGMUSEUMART": "박물관미술관",     # → 문화생활 baseline 박물관·미술관 카드
 }
 EXTRA = {
-    "LT_P_SMALLLIBRARY": "작은도서관", "LT_C_DOGPARK": "반려견놀이터", "LT_P_DGMUSEUMART": "박물관미술관",
+    "LT_C_DOGPARK": "반려견놀이터",
     "LT_C_UQ111": "용도지역(도시지역)", "LT_C_WKMSTRM": "하천망", "LT_C_UPISUQ155": "도시계획(공공문화체육시설)",
 }
 LNG0, LNG1, LAT0, LAT1 = 126.76, 127.19, 37.41, 37.72

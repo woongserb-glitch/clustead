@@ -287,6 +287,8 @@ CATEGORY_TO_DOMAIN = {
     "hangang": "rest",
 
     "culture": "culture",
+    "library": "culture",
+    "museum": "culture",
 
     "academy": "education",
 

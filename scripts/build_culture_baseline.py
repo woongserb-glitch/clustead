@@ -2,9 +2,14 @@ import json
 import math
 from pathlib import Path
 
+import sys
+
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BASE_DIR))
+
+from scripts.culture_facilities import FacilityCalculator  # noqa: E402  도서관·박물관(2026-10-12)
 RAW_PATH = BASE_DIR / "data" / "culture" / "culture_raw.csv"
 FILTERED_PATH = BASE_DIR / "data" / "culture" / "culture_filtered.csv"
 BASELINE_PATH = BASE_DIR / "data" / "baseline" / "culture_baseline.csv"
@@ -199,6 +204,7 @@ def build_culture_points():
 def build_baseline():
     apartments = load_apartments()
     culture_points = build_culture_points()
+    facilities = FacilityCalculator()
     baseline_rows = []
 
     print(f"[CULTURE] apartments={len(apartments)}, filtered_points={len(culture_points)}")
@@ -253,6 +259,7 @@ def build_baseline():
             "class_count": subtype_counts.get("클래스", 0),
             "nature_count": subtype_counts.get("자연/공원", 0),
             "culture_items_json": json.dumps(nearby, ensure_ascii=False),
+            **facilities.row(apt),
         })
 
         if idx % 200 == 0:

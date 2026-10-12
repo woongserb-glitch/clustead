@@ -32,6 +32,8 @@ RANKING_SOURCES = {
     "hospital": ("medical", "medical_baseline_data"),
     "academy": ("academy", "academy_baseline_data"),
     "culture": ("culture", "culture_baseline_data"),
+    "library": ("library", "culture_baseline_data"),
+    "museum": ("museum", "culture_baseline_data"),
     "shopping": ("shopping", "shopping_baseline_data"),
     "commercial": ("commercial", "commercial_baseline_data"),
     "nightlife": ("nightlife", "nightlife_baseline_data"),

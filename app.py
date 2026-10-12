@@ -1258,7 +1258,12 @@ def _build_category_evidence_raw(summary):
         n = to_int(summary.get("dong_count"), 0)
         within = to_int(summary.get("dong_within_500"), 0)
         stations = [poi for poi in summary.get("pois") or [] if to_int(poi.get("nearest_dong_count"), 0) > 0]
-        first = f"{n:,}개 동 중 {within:,}개 동은 역까지 500m 이내입니다." if within else f"{n:,}개 동 모두 역까지 500m가 넘습니다."
+        if within >= n:
+            first = f"{n:,}개 동 모두 역까지 500m 이내입니다."
+        elif within:
+            first = f"{n:,}개 동 중 {within:,}개 동은 역까지 500m 이내입니다."
+        else:
+            first = f"{n:,}개 동 모두 역까지 500m가 넘습니다."
         if len(stations) > 1:
             return f"{first} 동마다 가장 가까운 역이 다르며 아래에 역별로 정리했습니다."
         if stations:
@@ -1417,6 +1422,24 @@ def _build_category_evidence_raw(summary):
         if subtype_text:
             return f"반경 {radius} 내 문화시설 {format_count_phrase(count)}이 있습니다. {subtype_text}을 이용할 수 있습니다."
         return f"반경 {radius} 내 문화시설 {format_count_phrase(count)}이 있습니다."
+
+    if key in ("library", "museum"):
+        nearest = summary.get("facility_nearest") or {}
+        counts = summary.get("facility_counts") or {}
+        where = "중간 동 기준 " if summary.get("dong_basis") else ""
+        area = "어느 동이든 " if summary.get("dong_basis") else "반경 "
+        if key == "library":
+            lead = (f"가장 가까운 공공도서관은 {where}{nearest['name']}까지 {to_int(nearest.get('distance'), 0):,}m입니다."
+                    if nearest.get("name") else "가까운 공공도서관 정보가 없습니다.")
+            public = counts.get("공공도서관", 0)
+            small = counts.get("작은도서관(공립)", 0) + counts.get("작은도서관(사립)", 0)
+            return f"{lead} {area}1km 안에 공공도서관 {public:,}곳, 작은도서관 {small:,}곳이 있습니다."
+        lead = (f"가장 가까운 박물관·미술관은 {where}{nearest['name']}까지 {to_int(nearest.get('distance'), 0):,}m입니다."
+                if nearest.get("name") else "가까운 박물관·미술관 정보가 없습니다.")
+        free = sum(1 for it in summary.get("pois") or []
+                   if it.get("fee") == "무료" and to_int(it.get("distance"), 0) <= 2000)
+        tail = f"(무료 {free:,}곳)" if free else ""
+        return f"{lead} {area}2km 안에 {count:,}곳{tail}이 있습니다."
 
     if key == "park" and summary.get("park_dong"):
         big = summary["park_dong"]
@@ -4775,6 +4798,22 @@ def build_culture_info(apartment_name, gu=None, dong=None):
         "items": culture_items,
         "type_chips": type_chips,
         "seoul_percentile": get_baseline_percentile(row, "culture_count_1500m_seoul_percentile"),
+        # 도서관·박물관(scripts/culture_facilities.py) — 같은 행에 들어 있다
+        "facilities": {
+            "basis": clean_text(row.get("library_basis", "")) or "center",
+            "library": {
+                "name": clean_text(row.get("nearest_public_library_name", "")),
+                "distance": to_int(row.get("nearest_public_library_distance"), 0) if row.get("nearest_public_library_distance") not in (None, "") else None,
+                "items": parse_baseline_items(row, "library_items_json"),
+                "seoul_percentile": get_baseline_percentile(row, "nearest_public_library_distance_seoul_percentile"),
+            },
+            "museum": {
+                "name": clean_text(row.get("nearest_museum_name", "")),
+                "distance": to_int(row.get("nearest_museum_distance"), 0) if row.get("nearest_museum_distance") not in (None, "") else None,
+                "items": parse_baseline_items(row, "museum_items_json"),
+                "seoul_percentile": get_baseline_percentile(row, "nearest_museum_distance_seoul_percentile"),
+            },
+        } if "library_items_json" in row else None,
     }
 
     return None
@@ -4832,7 +4871,84 @@ def build_culture_category_summary(culture_info):
     }
 
 
+FACILITY_CARDS = {
+    # key: (라벨, 아이콘, 목록 반경, 칩 순서, 출처)
+    "library": ("📚 도서관", "📚", 1000, ["공공도서관", "작은도서관(공립)", "작은도서관(사립)"],
+                "서울 열린데이터광장·브이월드"),
+    "museum": ("🏛️ 박물관·미술관", "🏛️", 2000, ["국립", "공립", "사립", "대학", "기타"], "문화체육관광부(브이월드)"),
+}
+
+
+def build_facility_category_summary(key, culture_info):
+    """도서관·박물관 카드. 등급 = 가장 가까운 공공도서관/박물관까지 거리(중간 동), 목록 = 동 전체 합침."""
+    facilities = (culture_info or {}).get("facilities")
+    if not facilities:
+        return None
+    label, icon, radius, chip_order, source = FACILITY_CARDS[key]
+    data = facilities[key]
+    items = data.get("items") or []
+    dong_basis = facilities.get("basis") == "dong"
+    within = [it for it in items if to_int(it.get("distance"), 0) <= radius]
+    counts = {}
+    for it in within:
+        counts[it.get("subtype") or "기타"] = counts.get(it.get("subtype") or "기타", 0) + 1
+    chips = [
+        {"name": name, "display": name, "count": counts[name], "style": f"culture-chip {key}-chip-{name}"}
+        for name in chip_order if counts.get(name)
+    ]
+    return {
+        "key": key,
+        "label": label,
+        "domain": "culture",
+        "domain_label": "🎭 문화생활",
+        "score": f"{len(within)}곳",
+        "score_class": "score-normal",
+        "description": "",
+        "radius": radius,
+        "count": len(within),
+        "seoul_percentile": data.get("seoul_percentile"),
+        "gu_percentile": None,
+        "source": source,
+        "nearest_poi": {"label": f"{icon} {data['name']}", "distance": data.get("distance")}
+        if data.get("name") and not dong_basis else None,
+        "subtype_chips": chips,
+        "pois": items,
+        "empty": "반경 안에서 확인된 시설이 없습니다.",
+        "dong_basis": dong_basis,
+        "meta_basis_label": f"어느 동이든 {radius // 1000}km 안" if dong_basis else "",
+        "facility_nearest": {"name": data.get("name"), "distance": data.get("distance")},
+        "facility_counts": counts,
+    }
+
+
 def apply_culture_baseline_to_ui(category_summaries, preference_tags, domain_summaries, culture_info, apartment):
+    category_summaries, preference_tags, domain_summaries = _apply_culture_card(
+        category_summaries, preference_tags, domain_summaries, culture_info, apartment,
+    )
+    anchor = "culture"
+    for key in ("library", "museum"):
+        summary = build_facility_category_summary(key, culture_info)
+        nearest = (summary or {}).get("facility_nearest") or {}
+        new_tag = {
+            "key": key, "label": FACILITY_CARDS[key][0], "value": 3, "level": "보통", "level_class": "level-normal",
+            "radius": FACILITY_CARDS[key][2], "count": (summary or {}).get("count", 0), "percentile": None,
+            "seoul_percentile": (summary or {}).get("seoul_percentile"), "gu_percentile": None,
+            "district": apartment.get("district", ""),
+            "nearest_name": f"{FACILITY_CARDS[key][1]} {nearest.get('name')}" if nearest.get("name") else "",
+            "nearest_distance": nearest.get("distance"),
+        }
+        category_summaries, preference_tags, domain_summaries = apply_baseline_category_to_ui(
+            category_summaries, preference_tags, domain_summaries,
+            key=key, summary=summary, info=culture_info,
+            new_tag=new_tag, domain_key="culture", domain_template=None,
+            anchor_key=anchor, poi_count=None,
+        )
+        if summary:
+            anchor = key
+    return category_summaries, preference_tags, domain_summaries
+
+
+def _apply_culture_card(category_summaries, preference_tags, domain_summaries, culture_info, apartment):
     old_culture_tag = next(
         (tag for tag in preference_tags if tag.get("key") == "culture"),
         None
@@ -5267,7 +5383,7 @@ CATEGORY_DISPLAY_ORDER = [
     "hospital", "general-hospital", "emergency-room", "pharmacy",    # 의료
     "cctv", "fire-station", "fire",                                  # 안전
     "cafe", "park", "hangang",                                       # 휴식
-    "culture",                                                      # 문화
+    "culture", "library", "museum",                                 # 문화
     "commercial", "shopping", "nightlife",                          # 상권
 ]
 _CATEGORY_ORDER_INDEX = {key: i for i, key in enumerate(CATEGORY_DISPLAY_ORDER)}

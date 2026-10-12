@@ -132,6 +132,15 @@
             </span>
             {{ poi.label | poi_list_display_label(summary.key) }}
 
+            {% elif summary.key in ["library", "museum"] and poi.subtype %}
+            <span class="bus-route-badge culture-chip-{{ poi.subtype }}">
+                {{ poi.subtype }}
+            </span>
+            <span class="poi-label-text" title="{{ poi.label }}{% if poi.op_time %} · {{ poi.op_time }}{% endif %}">
+                {{ poi.label }}
+            </span>
+            {% if poi.fee %}<span class="hangang-facility-tags">{{ poi.fee }}</span>{% endif %}
+
             {% elif summary.key == "culture" and poi.subtype %}
             <span class="bus-route-badge culture-chip-{{ poi.subtype }}">
                 {{ poi.subtype }}

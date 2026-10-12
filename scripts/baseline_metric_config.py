@@ -218,6 +218,26 @@ BASELINE_METRIC_CONFIG = {
         display_metric_label="1.5km 내 문화시설 수",
         json_columns=["culture_items_json"],
     ),
+    # 도서관·박물관(2026-10-12): 문화생활 baseline 파일에 함께 들어 있다(scripts/culture_facilities.py).
+    # 마트 3그룹처럼 파일 하나에 카테고리 여러 개 — 순위·영역 등급에서는 각자 카테고리.
+    "library": metric_config(
+        label="도서관",
+        file="culture_baseline.csv",
+        required_columns=["name", "gu", "dong", "nearest_public_library_distance"],
+        primary_metric="nearest_public_library_distance",
+        direction=LOWER_BETTER,
+        display_metric_label="가장 가까운 공공도서관까지 거리",
+        json_columns=["library_items_json"],
+    ),
+    "museum": metric_config(
+        label="박물관·미술관",
+        file="culture_baseline.csv",
+        required_columns=["name", "gu", "dong", "nearest_museum_distance"],
+        primary_metric="nearest_museum_distance",
+        direction=LOWER_BETTER,
+        display_metric_label="가장 가까운 박물관·미술관까지 거리",
+        json_columns=["museum_items_json"],
+    ),
     "shopping": metric_config(
         label="쇼핑",
         file="shopping_baseline.csv",

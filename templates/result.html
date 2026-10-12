@@ -184,13 +184,11 @@
                 {% endif %}
                 {% if dong_level and dong_level.station_max - dong_level.station_min >= 100 %}
                 <div class="dong-footnote">
-                    <div class="dong-footnote-head"><sup>{{ 2 if dong_level.split_school else 1 }}</sup> 동마다 가장 가까운 역({{ dong_level.n }}개 동 중 {{ dong_level.within_500 }}개 동은 500m 이내):</div>
+                    <div class="dong-footnote-head"><sup>{{ 2 if dong_level.split_school else 1 }}</sup> 동마다 가장 가까운 역{% if dong_level.within_500 == 0 %}(모든 동이 500m 넘음){% elif dong_level.within_500 < dong_level.n %}({{ dong_level.n }}개 동 중 {{ dong_level.within_500 }}개 동은 500m 이내){% endif %}:</div>
                     <div class="dong-footnote-item">{% for s in dong_level.stations[:3] %}{{ s.name }}역 {{ s.count }}개 동({% if s.min == s.max %}{{ s.min }}m{% else %}{{ s.min }}~{{ s.max }}m{% endif %}){% if not loop.last %}, {% endif %}{% endfor %}</div>
                 </div>
                 {% endif %}
-                {% if dong_level %}
-                <p>※ 등급은 단지 대표 좌표 기준이고, 배정초·역 거리는 동별 건물 위치로 따로 계산했습니다. 실제 배정은 교육청에서 주소로 확인하세요.</p>
-                {% else %}
+                {% if not dong_level %}
                 <p>※ 배정초는 대표 좌표 기준 통학구역이며, 대단지는 동별 배정학교가 달라질 수 있습니다.</p>
                 {% endif %}
             </div>

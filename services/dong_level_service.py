@@ -59,7 +59,8 @@ def card_notes(dl):
     # 카드마다 {"main": '최근접' 줄과 같은 한 줄 요약, "details": 그 아래 작은 주석 줄들}
     notes = {}
     notes["subway"] = {
-        "main": f"{dl['n']}개 동 중 {dl['within_500']}개 동은 역까지 500m 이내",
+        "main": (f"{dl['n']}개 동 모두 역까지 500m 이내" if dl["within_500"] >= dl["n"]
+                 else f"{dl['n']}개 동 중 {dl['within_500']}개 동은 역까지 500m 이내"),
         "details": ["동마다 가장 가까운 역: " + ", ".join(station_text(s) for s in dl["stations"][:3])],
     }
     if dl["schools"]:

@@ -104,7 +104,9 @@ set -a; . <.env>; set +a
 python scripts/fetch_school_zones_vworld.py        # 초등 통학구역 → data/school/zone/vworld_desch.geojson
 python scripts/vworld/collect_layers.py            # 공원(UPISUQ153)·전통시장·중/고 학교군 → data/derived/vworld/
 python scripts/build_park_source_vworld.py         # 조성 공원 → data/park/vworld_parks.geojson (이름: 괄호→주요공원→카카오)
+python scripts/fetch_public_libraries.py           # 서울시 공공도서관(열린데이터) → data/culture/public_libraries.csv
 ```
+- collect_layers 기본 목록에 작은도서관(LT_P_SMALLLIBRARY)·박물관미술관(LT_P_DGMUSEUMART)도 들어 있다 → 문화생활 baseline 의 도서관·박물관 카드(`scripts/culture_facilities.py`).
 - 통학구역은 예전 SHP(교육시설안전원, 3·9월 수동 교체)와 같은 데이터다. vworld 파일이 있으면 빌더가 이것을 쓴다.
 - 레이어 수가 지난달보다 크게 줄면(예: 공원 2,689 → 1,000) 9단계 전에 멈추고 원인을 본다. 수집기는 0개면 기존 파일을 지키지만, 일부만 받힌 경우는 막지 못한다.
 
