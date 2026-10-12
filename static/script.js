@@ -161,16 +161,13 @@ function setupExploreLoading() {
     });
 }
 
-function isMobileViewport() {
-    return window.matchMedia && window.matchMedia("(max-width: 760px)").matches;
-}
-
 const EXPLORE_SCROLL_FLAG = "clustead-explore-scroll";
 
 function setupExploreResultScroll() {
     // '탐색하기'로 막 진입했을 때만 결과 카드로 스크롤한다. (result 페이지에서
     // '다시 검색'으로 돌아오거나 새로고침/공유링크 진입은 최상단을 보여준다)
-    if (!isMobileViewport()) return;
+    // PC 도 같다(2026-10-12): 예전엔 모바일만 스크롤해, PC 에서 필터를 아래까지 내려 고른 뒤
+    // 탐색하면 브라우저가 그 스크롤 위치를 복원해 위쪽 추천 결과가 보이지 않았다.
     let flagged = false;
     try {
         flagged = sessionStorage.getItem(EXPLORE_SCROLL_FLAG) === "1";

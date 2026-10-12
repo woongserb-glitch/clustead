@@ -18,7 +18,7 @@ import bisect
 import functools
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote, urlencode
 from xml.sax.saxutils import escape as xml_escape
@@ -428,6 +428,18 @@ def add_cdn_cache_headers(resp):
             resp.headers["Cache-Control"] = "private, no-store"
     except Exception:  # 캐시 헤더 실패가 응답 자체를 깨뜨리지 않도록.
         pass
+    return resp
+
+
+@app.route("/cache-probe.txt")
+def cache_probe():
+    """stale-if-error 실측용(2026-10-12). CF 엣지 수명 30초 — 재시작 전 한 번 받아 두고 30초 뒤
+    원본이 503 일 때 다시 받으면 CF 가 만료된 사본(cf-cache-status: STALE)을 주는지 볼 수 있다.
+    본문 시각으로 언제 받아 둔 사본인지 구분한다. 검색 노출 대상 아님."""
+    resp = app.response_class(
+        f"cache-probe {datetime.now(timezone.utc).isoformat(timespec='seconds')}\n", mimetype="text/plain")
+    resp.headers["Cache-Control"] = "public, max-age=0, s-maxage=30, stale-if-error=86400"
+    resp.headers["X-Robots-Tag"] = "noindex"
     return resp
 
 
