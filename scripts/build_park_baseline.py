@@ -8,6 +8,8 @@
 칸: name,gu,dong,lat,lng,nearest_park,park_distance (기존과 같음)
   + park_kind, park_area_m2, park_count_1km, child_park_count_500m, park_items_json(1km 안 공원)
   + park_basis, park_dong_count
+  + small_park_distance, medium_park_distance: 1km 안 가장 가까운 소형(1만㎡ 미만)·중형(1만~10만㎡) 공원
+    (카드 칩과 같은 면적 구분 — 같은 이름 조각은 합친 면적), 동별이면 중간 동 값, 1km 안에 없으면 빈칸
   + large_park_name, large_park_distance: 10만㎡ 이상 공원(조건으로 탐색 '대형공원') 윤곽까지 거리, 동별이면
     중간 동 값(2026-10-12). 예전엔 탐색이 대표 좌표→서울시 주요공원 대표점으로 따로 계산해 카드와 어긋났다.
 
@@ -111,6 +113,28 @@ def build_from_vworld():
         points, basis = points_for(dong_points, apt["name"], apt["gu"], apt["dong"], apt["lat"], apt["lng"])
         per_point = [compute_at(lat, lng) for lat, lng in points]
         larges = [x for x in (nearest_large(lat, lng) for lat, lng in points) if x]
+
+        def size_nearest(near):
+            """한 점에서 1km 안 소형·중형 공원 최근접 거리 — 카드 목록처럼 같은 이름 조각은 면적을 합쳐 구분."""
+            groups = []
+            for d, i, _ in near:
+                g = next((g for g in groups if g["name"] == props[i]["name"] and d - g["d"] < 150), None)
+                if g:
+                    g["area"] += props[i]["area_m2"]
+                else:
+                    groups.append({"name": props[i]["name"], "d": d, "area": props[i]["area_m2"]})
+            small = min((g["d"] for g in groups if g["area"] < BIG_M2), default=None)
+            medium = min((g["d"] for g in groups if BIG_M2 <= g["area"] < LARGE_M2), default=None)
+            return small, medium
+
+        sizes = [size_nearest(near) for near, _ in per_point]
+
+        def mid_dist(values):
+            # 1km 안에 없는 동은 무한대로 두고 중간 동 값 — 절반 넘는 동에 없으면 빈칸.
+            m = median_low([v if v is not None else float("inf") for v in values])
+            return "" if m is None or m == float("inf") else m
+
+        small_d, medium_d = mid_dist([s for s, _ in sizes]), mid_dist([m for _, m in sizes])
         if larges:
             votes = {}
             for d, i in larges:
@@ -175,6 +199,7 @@ def build_from_vworld():
             basis,
             len(points) if basis == "dong" else 1,
             props[large[1]]["name"] if large else "", large[0] if large else "",
+            small_d, medium_d,
         ])
     return rows
 
@@ -187,7 +212,7 @@ def build_from_major_parks():
         if nearest is None:
             continue
         rows.append([apt["name"], apt["gu"], apt["dong"], apt["lat"], apt["lng"],
-                     nearest["name"], distance, "", "", "", "", "[]", "center", 1, "", ""])
+                     nearest["name"], distance, "", "", "", "", "[]", "center", 1, "", "", "", ""])
     return rows
 
 
@@ -199,7 +224,8 @@ def main():
         writer = csv.writer(handle)
         writer.writerow(["name", "gu", "dong", "lat", "lng", "nearest_park", "park_distance",
                          "park_kind", "park_area_m2", "park_count_1km", "child_park_count_500m", "park_items_json",
-                         "park_basis", "park_dong_count", "large_park_name", "large_park_distance"])
+                         "park_basis", "park_dong_count", "large_park_name", "large_park_distance",
+                         "small_park_distance", "medium_park_distance"])
         writer.writerows(rows)
     print(f"[DONE] {OUTPUT} 생성 완료 ({len(rows)}행)")
 

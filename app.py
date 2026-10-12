@@ -7482,10 +7482,13 @@ SUBTYPE_SEARCH_CONFIG = {
         "label": "공원",
         "icon": "🌳",
         "derived": "park",
-        "radius_label": "반경 내 가까운 순",
-        "subtypes": ["일반공원", "한강공원", "대형공원"],
-        # radius_label 이 "가까운 순"이라고 안내하는데 정렬은 개수 우선이었다.
-        "distance_first": ("일반공원", "한강공원", "대형공원"),
+        "radius_label": "반경 1km이내 가까운 순",
+        "helper_text": "공원은 반경 1km, 한강공원은 반경 3km 기준입니다. 공원 크기는 결과 카드와 같은 면적 구분(소형 1만㎡ 미만·중형 1만~10만㎡·대형 10만㎡ 이상)입니다.",
+        # 2026-10-12: 카드 칩과 같은 면적 구분으로 바꾸고 대형공원 반경을 3km→1km(경계까지 거리로 바꾸니
+        # 3km 면 서울 전 단지가 해당돼 거르지 못했다). 옛 '일반공원'(1만㎡ 이상) 링크는 중형공원으로 받는다.
+        "subtypes": ["소형공원", "중형공원", "대형공원", "한강공원"],
+        "distance_first": ("소형공원", "중형공원", "대형공원", "한강공원"),
+        "aliases": {"일반공원": "중형공원"},
     },
     "convenience": {
         "label": "편의점",
@@ -7720,34 +7723,26 @@ def _derived_category_stats(kind, subtypes=None):
             pass
 
     elif kind == "park":
-        regular_park, hangang_park, big_park = SUBTYPE_SEARCH_CONFIG["park"]["subtypes"]
-        park_dist = (
-            _baseline_metric_lookup("park_distance", "park_baseline.csv", "park_distance")
-            if regular_park in requested_subtypes else {}
-        )
-        hangang_dist = (
-            _baseline_metric_lookup("hangang_nearest_distance", "hangang_baseline.csv", "nearest_hangang_distance")
-            if hangang_park in requested_subtypes else {}
-        )
-        # 대형공원: park_baseline 의 large_park_distance(10만㎡+ 윤곽까지, 동별 중간 동 — 카드와 같은 원천).
-        # 칸이 없는 옛 baseline 이면 예전 라이브 계산(대표 좌표→주요공원 대표점)으로 대체.
-        big = {}
-        if big_park in requested_subtypes:
-            big = _baseline_metric_lookup("large_park_distance", "park_baseline.csv", "large_park_distance")
-            if not any(value is not None for value in big.values()):
-                big = _big_park_nearest_lookup()
-        keys = set(park_dist) | set(hangang_dist) | set(big)
+        # 공원 크기별 최근접(park_baseline, 동별 중간 동 값, 공원 윤곽까지) — 결과 카드와 같은 원천·면적 구분.
+        # 대형공원 칸이 없는 옛 baseline 이면 예전 라이브 계산(대표 좌표→주요공원 대표점)으로 대체.
+        park_columns = {"소형공원": "small_park_distance", "중형공원": "medium_park_distance",
+                        "대형공원": "large_park_distance"}
+        lookups = {}
+        for label, column in park_columns.items():
+            if label in requested_subtypes:
+                lookups[label] = _baseline_metric_lookup(column, "park_baseline.csv", column)
+        if "대형공원" in lookups and not any(v is not None for v in lookups["대형공원"].values()):
+            lookups["대형공원"] = _big_park_nearest_lookup()
+        if "한강공원" in requested_subtypes:
+            lookups["한강공원"] = _baseline_metric_lookup(
+                "hangang_nearest_distance", "hangang_baseline.csv", "nearest_hangang_distance")
+        keys = set().union(*lookups.values()) if lookups else set()
         for key in keys:
-            pdist = park_dist.get(key)
-            hdist = hangang_dist.get(key)
-            bdist = big.get(key)
             stats = {}
-            if regular_park in requested_subtypes:
-                stats[regular_park] = (1 if (pdist is not None and pdist <= 1000) else 0, pdist)
-            if hangang_park in requested_subtypes:
-                stats[hangang_park] = (1 if (hdist is not None and hdist <= 3000) else 0, hdist)
-            if big_park in requested_subtypes:
-                stats[big_park] = (1 if (bdist is not None and bdist <= 3000) else 0, bdist)
+            for label, lookup in lookups.items():
+                dist = lookup.get(key)
+                radius = 3000 if label == "한강공원" else 1000
+                stats[label] = (1 if (dist is not None and dist <= radius) else 0, dist)
             result[key] = stats
 
     _DERIVED_STATS_CACHE[cache_key] = result
@@ -7768,6 +7763,8 @@ def parse_priorities(raw_list):
         category = category.strip()
         subtype = subtype.strip()
         cfg = SUBTYPE_SEARCH_CONFIG.get(category)
+        if cfg:
+            subtype = (cfg.get("aliases") or {}).get(subtype, subtype)
         if not cfg or subtype not in cfg["subtypes"]:
             continue
         if subtype in seen:        # same subtype must not repeat
