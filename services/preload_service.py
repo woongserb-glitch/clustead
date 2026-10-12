@@ -1622,8 +1622,13 @@ def record_data_load(name, error=None, columns=()):
     try:
         rows = globals().get(name)
         if isinstance(rows, _SqliteBaseline):
+            # 뷰(rows.table)로 세면 SQLite 가 행마다 json 표를 조인해 띄엄띄엄 읽는다 — 서버 콜드 캐시에서
+            # 18개 표 278초(2026-10-12 배포 기동 4분의 원인). 본 표가 있으면 본 표로 센다(0.9초).
+            count_table = f"{rows.table}__main" if _baseline_conn().execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (f"{rows.table}__main",)
+            ).fetchone() else rows.table
             count = _baseline_conn().execute(
-                f'SELECT COUNT(*) FROM "{rows.table}"'
+                f'SELECT COUNT(*) FROM "{count_table}"'
             ).fetchone()[0]
             if columns:
                 # Qualified names avoid SQLite treating a missing quoted
