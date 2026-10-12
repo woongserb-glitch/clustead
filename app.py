@@ -7354,7 +7354,7 @@ def api_search_subway_stations():
 @app.route("/api/search/assigned-elementary")
 def api_search_assigned_elementary():
     query = normalize_search_text(request.args.get("q", ""))
-    names = sorted({name for name in _assigned_elementary_lookup().values() if name})
+    names = sorted({name for names in _assigned_elementary_sets().values() for name in names})
     if query:
         starts = [n for n in names if normalize_search_text(n).startswith(query)]
         contains = [n for n in names if query in normalize_search_text(n) and n not in starts]
@@ -8076,6 +8076,25 @@ def _assigned_elementary_lookup():
     return _EXPLORE_LOOKUP_CACHE["assigned_elem"]
 
 
+def _assigned_elementary_sets():
+    """{(name,gu,dong): {배정초…}} — 대표 좌표 배정초 + 동별 배정초(dong_level.json).
+    대단지는 동마다 배정초가 갈린다(헬리오시티 59개 동 가락초·25개 동 해누리초). 배정초 필터는
+    어느 동이든 그 학교에 배정되면 맞는 단지로 본다(2026-10-12)."""
+    if "assigned_elem_sets" not in _EXPLORE_LOOKUP_CACHE:
+        from services import dong_level_service
+        sets = {key: {school} for key, school in _assigned_elementary_lookup().items() if school}
+        for raw_key, entry in dong_level_service._data().items():
+            parts = raw_key.split("|")
+            if len(parts) != 3:
+                continue
+            key = tuple(clean_text(part) for part in parts)
+            schools = {clean_text(name) for name in (entry.get("summary") or {}).get("schools", {}) if clean_text(name)}
+            if schools:
+                sets.setdefault(key, set()).update(schools)
+        _EXPLORE_LOOKUP_CACHE["assigned_elem_sets"] = sets
+    return _EXPLORE_LOOKUP_CACHE["assigned_elem_sets"]
+
+
 def _midhigh_school_coords(school_name):
     """(lat, lng) of a middle/high school by exact name, else None."""
     target = clean_text(school_name)
@@ -8613,9 +8632,9 @@ def build_explore_results(filters, limit=10, share_q="", relax_proximity=False):
             matched.append("🍺 반경 500m이내 유흥시설 없음")
             score += 1
 
-        # 대표배정초: 해당 학교가 이 단지의 대표배정초인 경우만
+        # 배정초: 대표 좌표 또는 어느 동이든 그 학교에 배정되는 단지(동별은 '일부 동' 표시)
         if assigned_elem:
-            if _assigned_elementary_lookup().get((name, gu, dong), "") != assigned_elem:
+            if assigned_elem not in _assigned_elementary_sets().get((name, gu, dong), ()):
                 if not relax_proximity:
                     continue
                 point = _school_coords_by_name().get(assigned_elem)
@@ -8627,7 +8646,8 @@ def build_explore_results(filters, limit=10, share_q="", relax_proximity=False):
                 proximity_distance = distance if proximity_distance is None else min(proximity_distance, distance)
                 matched.append(f"🏫 {assigned_elem} {int(round(distance)):,}m")
             else:
-                matched.append(f"🏫 {assigned_elem} 배정")
+                partial = _assigned_elementary_lookup().get((name, gu, dong), "") != assigned_elem
+                matched.append(f"🏫 {assigned_elem} 배정{'(일부 동)' if partial else ''}")
                 score += 2
 
         # 중/고: 선택한 학교가 반경 1,500m 내인 단지만

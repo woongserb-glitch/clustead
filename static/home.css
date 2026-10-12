@@ -67,7 +67,8 @@
 .hg-topbar {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    /* 가운데 안내 문구가 남는 폭만 쓴다 — 오른쪽 메뉴(홈·탐색·지역)와 겹치지 않게 */
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 18px;
     padding: 14px 26px;
@@ -141,6 +142,8 @@
     color: var(--hg-text-dim);
     font-size: 13.5px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .hg-tagline b { color: var(--hg-center); font-weight: 700; }
@@ -166,6 +169,8 @@
 }
 
 .hg-ghost-btn:hover { color: var(--hg-text); border-color: var(--hg-accent); }
+
+.hg-topbar-nav { display: flex; gap: 6px; }
 
 /* 단지 비교 — 탐색하기 버튼과 동일 톤(브랜드 네이비) */
 .hg-compare-btn {
@@ -897,8 +902,15 @@
 }
 
 /* ---------- 반응형 ---------- */
+@media (max-width: 1280px) {
+    .hg-topbar-center { display: none; }
+}
+@media (max-width: 1060px) {
+    .hg-topbar-nav .hg-ghost-btn[href="/"] { display: none; } /* 로고가 홈 링크 */
+}
 @media (max-width: 1180px) {
     .hg-name-search input[type="text"] { width: 190px; }
+    .hg-ghost-btn { padding: 9px 10px; }
     .hg-compare-btn { padding: 10px 13px; }
 }
 @media (max-width: 1060px) {

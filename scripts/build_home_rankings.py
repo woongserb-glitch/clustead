@@ -129,6 +129,9 @@ def definitions(out, sources, data_month):
     # 산정 기준은 기준점·반경·방식·출처만 보인다(2026-10-01 사용자 결정). 대상 조건은
     # 방식에 합친다. 동률 처리는 코드(정렬 키)에 남고 화면에는 쓰지 않는다.
     point = ["기준점", "단지 대표 좌표"]
+    # 동별 중앙값(2026-10-11~12 학원·편의점·카페·의료 1km 재빌드): 동이 2개 이상 확인된 단지는
+    # 동 건물마다 센 개수의 가운데 값. 지하철 노선·유흥시설은 대표 좌표 그대로다.
+    dong_point = ["기준점", "동 건물마다 센 개수의 중앙값(동별 중앙값). 동 위치를 확인하지 못한 단지는 단지 대표 좌표"]
     meta, dotted = out["price_meta"], home_price_trend.dotted
     trend = f"{dotted(meta['recent_start'])}~{dotted(meta['recent_end'])}"
     before = f"{dotted(meta['prev_start'])}~{dotted(meta['prev_end'])}"
@@ -136,23 +139,23 @@ def definitions(out, sources, data_month):
             ["방식", f"개수 기준: 동 안의 입시/보습·수학·영어 학원·교습소 수의 합 (주소 정보가 불분명한 학원은 제외)"],
             ["출처", source("academy")]]
     return {
-        "academy": [point, ["반경", "1,000m 이내 (직선거리)"],
+        "academy": [dong_point, ["반경", "1,000m 이내 (직선거리)"],
                     ["방식", "개수 기준: 입시/보습·수학·영어 학원·교습소 수의 합"], ["출처", source("academy")]],
         "dong_academy": dong,
-        "value_combo": [point, ["반경", "학원 1,000m · 지하철역 500m 이내 (직선거리)"],
+        "value_combo": [["기준점", "학원 수는 동별 중앙값, 역 거리는 단지 대표 좌표"], ["반경", "학원 1,000m · 지하철역 500m 이내 (직선거리)"],
                         ["방식", f"개수 기준: 학원 수가 많은 순. 대상은 최근 6개월({trend}) 전용 80~90㎡ 매매 평균 10억 원 미만"
                                  f"(직거래 제외, {MIN_84_TRADES}건 이상) · 300세대 이상 · 역 500m 이내 단지"],
                         ["출처", source("transactions", "master", "subway", "academy")]],
         "subway": [point, ["반경", "500m 이내 (직선거리)"],
                    ["방식", "개수 기준: 반경 안 역들이 지나는 서로 다른 노선 수 (노선 이름은 원천 표기 그대로)"], ["출처", source("subway")]],
-        "starbucks": [point, ["반경", "500m 이내 (직선거리)"],
+        "starbucks": [dong_point, ["반경", "500m 이내 (직선거리)"],
                       ["방식", "개수 기준: 스타벅스 매장 수"], ["출처", source("cafe")]],
-        "convenience": [point, ["반경", "500m 이내 (직선거리)"],
+        "convenience": [dong_point, ["반경", "500m 이내 (직선거리)"],
                         ["방식", "개수 기준: GS25·CU·세븐일레븐·이마트24 매장 수의 합"], ["출처", source("convenience")]],
         "quiet": [point, ["반경", "500m 이내 유흥주점 0곳 (직선거리)"],
                   ["방식", "최근접 기준: 가장 가까운 유흥주점이 먼 순. 대상은 1,000세대 이상 단지"],
                   ["출처", source("nightlife", "master")]],
-        "emergency": [point, ["반경", "1,000m 이내 (직선거리)"],
+        "emergency": [dong_point, ["반경", "1,000m 이내 (직선거리)"],
                       ["방식", "개수 기준: 응급실을 운영하는 의료기관 수"], ["출처", source("medical")]],
         "gu_best_dong": [dong[0], ["방식", dong[1][1] + ". 각 구에서 가장 많은 동 1곳"], dong[2]],
         **{key: [["기준점", "같은 단지 · 같은 전용면적(㎡, 소수점 버림)"],
@@ -161,7 +164,7 @@ def definitions(out, sources, data_month):
                           f"직거래 제외, 한 단지는 변화가 가장 큰 면적 하나. 신고가 덜 끝난 {dotted(data_month)} 계약은 뺌"],
                  ["출처", source("transactions", "master")]]
            for key, word in (("price_up", "오른"), ("price_down", "내린"))},
-        "changes": [["기준점", "신규 단지는 단지 코드, 응급실은 단지 대표 좌표"],
+        "changes": [["기준점", "신규 단지는 단지 코드, 응급실은 어느 동 건물에서든 1,000m 안"],
                     ["반경", "응급실 1,000m 이내 (직선거리)"],
                     ["방식", "직전 달과 비교해 새로 등록된 단지와, 반경 안에 응급실이 새로 들어온 단지"],
                     ["출처", source("master", "medical")]],

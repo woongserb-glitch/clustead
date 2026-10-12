@@ -243,7 +243,7 @@ def _answer(key, rows, month):
     n = lambda field: _number(row[field])
     place = f"{row['gu']} {row['dong']}" + (f" {row['name']}" if key != "dong_academy" else "")
     if key == "academy":
-        fact = f"단지 대표 좌표 반경 1,000m 안의 입시/보습·수학·영어 학원·교습소 합계가 {n('total')}곳으로 집계 대상 중 1위입니다."
+        fact = f"단지 반경 1,000m 안의 입시/보습·수학·영어 학원·교습소 합계가 {n('total')}곳(동이 여러 개인 단지는 동별 중앙값)으로 집계 대상 중 1위입니다."
     elif key == "dong_academy":
         fact = f"학원 주소의 법정동 기준으로 개원 중인 입시/보습·수학·영어 학원·교습소가 {n('total')}곳으로 집계 대상 중 1위입니다."
     elif key == "value_combo":
@@ -251,9 +251,9 @@ def _answer(key, rows, month):
     elif key == "subway":
         fact = f"단지 대표 좌표 반경 500m 안의 역 {n('stations')}곳에 서로 다른 노선 {n('lines')}개({', '.join(row['line_names'])})가 지나 집계 대상 중 1위입니다."
     elif key == "starbucks":
-        fact = f"단지 대표 좌표 반경 500m 안의 kakao map에 등록된 스타벅스가 {n('count')}곳으로 집계 대상 중 1위입니다."
+        fact = f"단지 반경 500m 안의 kakao map에 등록된 스타벅스가 {n('count')}곳(동이 여러 개인 단지는 동별 중앙값)으로 집계 대상 중 1위입니다."
     elif key == "convenience":
-        fact = f"단지 대표 좌표 반경 500m 안의 GS25·CU·세븐일레븐·이마트24 합계가 {n('total')}곳으로 집계 대상 중 1위입니다."
+        fact = f"단지 반경 500m 안의 GS25·CU·세븐일레븐·이마트24 합계가 {n('total')}곳(동이 여러 개인 단지는 동별 중앙값)으로 집계 대상 중 1위입니다."
     elif key in ("price_up", "price_down"):
         word = "올라" if key == "price_up" else "내려"
         fact = (f"전용 {row['area']}㎡ 매매 실거래 중앙값이 직전 6개월 {_eok(row['prev_median'])}원({n('prev_n')}건)에서 "
@@ -261,7 +261,7 @@ def _answer(key, rows, month):
     elif key == "quiet":
         fact = f"1,000세대 이상·반경 500m 유흥주점 0곳 조건을 충족한 단지 중 가장 가까운 유흥주점까지 {n('nearest_nightlife_m')}m로 가장 멉니다."
     else:
-        fact = f"단지 대표 좌표 반경 1,000m 안의 응급실 운영 의료기관이 {n('er_1km')}곳으로 집계 대상 중 1위입니다. 동률은 가장 가까운 종합병원급까지의 거리로 정합니다."
+        fact = f"단지 반경 1,000m 안의 응급실 운영 의료기관이 {n('er_1km')}곳(동이 여러 개인 단지는 동별 중앙값)으로 집계 대상 중 1위입니다. 동률은 가장 가까운 종합병원급까지의 거리로 정합니다."
     return f"{month} 데이터 기준, {place}의 경우 {fact}"
 
 
