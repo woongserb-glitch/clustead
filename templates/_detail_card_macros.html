@@ -19,13 +19,12 @@
 </p>
 
 <div class="detail-meta">
-    {% if summary.meta_basis_label %}
-    {# 동별 계산 카테고리: 기준은 문장이 설명하므로 칩은 개수만(사용자 결정 2026-10-12) #}
-    <span>{{ summary.count|thousands }}{{ summary.count_unit or "곳" }}</span>
-    {% else %}
+    {# 모든 카드 '반경 R · N곳' 한 형식(사용자 결정 2026-10-12). 동별 지하철·한강은 반경이 아니라
+       '동마다 가장 가까운 곳' 목록이라 개수만. 기준 설명은 카드 문장이 맡는다. #}
+    {% if not (summary.meta_basis_label and summary.key in ["subway", "hangang"]) and summary.radius %}
     <span>반경 {{ summary.radius|distance_m }}</span>
-    <span>근처 {{ summary.count|thousands }}{{ summary.count_unit or "곳" }}</span>
     {% endif %}
+    <span>{{ summary.count|thousands }}{{ summary.count_unit or "곳" }}</span>
     {# 한강은 반경 밖이면 "접근성 나쁨"이 아니라 해당 없음이라 등급을 숨긴다(2026-10-02). #}
     {% if summary.grade and summary.key != "school-environment" and not (summary.key == "hangang" and not summary.count) %}
     <span class="grade-badge grade-{{ summary.grade|lower }}">{{ summary.grade }}등급</span>
