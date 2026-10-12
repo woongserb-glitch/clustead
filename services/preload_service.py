@@ -233,6 +233,22 @@ def _baseline_conn():
     return _baseline_conn_obj
 
 
+_BASELINE_COLUMN_ORDER = {}
+
+
+def _baseline_column_order(table):
+    """원래 CSV 칸 순서(_column_order 표). 옛 db(표 없음)면 None → 저장 순서 그대로."""
+    if table not in _BASELINE_COLUMN_ORDER:
+        try:
+            row = _baseline_conn().execute(
+                'SELECT "cols" FROM "_column_order" WHERE "tbl"=?', (table,)
+            ).fetchone()
+            _BASELINE_COLUMN_ORDER[table] = row[0].split(_BASELINE_KEY_SEP) if row else None
+        except sqlite3.Error:
+            _BASELINE_COLUMN_ORDER[table] = None
+    return _BASELINE_COLUMN_ORDER[table]
+
+
 class _SqliteBaseline:
     """기존 list(순회) + index(.get) API를 SQLite 테이블 1개로 대체.
 
@@ -246,12 +262,11 @@ class _SqliteBaseline:
     def __init__(self, table):
         self.table = table
 
-    @staticmethod
-    def _row_to_dict(row):
-        d = {k: row[k] for k in row.keys()}
-        d.pop("_ck", None)
-        d.pop("_nk", None)
-        return parse_csv_row(d)
+    def _row_to_dict(self, row):
+        # 저장 순서는 *_json 이 맨 뒤(build_baseline_sqlite) — dict 는 원래 CSV 칸 순서로 돌려준다.
+        order = _baseline_column_order(self.table)
+        keys = order if order is not None else [k for k in row.keys() if k not in ("_ck", "_nk", "rowid")]
+        return parse_csv_row({k: row[k] for k in keys})
 
     def __iter__(self):
         cur = _baseline_conn().execute(f'SELECT * FROM "{self.table}" ORDER BY rowid')

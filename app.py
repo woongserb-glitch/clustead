@@ -1823,7 +1823,7 @@ def _admin_debug_baseline(path):
                 _baseline_conn,
             )
             if _USE_SQLITE_BASELINE and _baseline_conn().execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+                "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name=?", (table,)
             ).fetchone():
                 baseline = _SqliteBaseline(table)
         except Exception:

@@ -91,6 +91,14 @@ def build_apartment_index():
 
         rows = getattr(preload_service, data_attr, None) or []
         col = score_column(config["primary_metric"])
+        percentile_col = f"{config['primary_metric']}_seoul_percentile"
+
+        # 필요한 칸만 읽는다(2026-10-12): SELECT * 는 항목 json(테이블당 수십~백MB)까지 읽고
+        # 행마다 수십 칸을 파싱해 기동이 느렸다. 칸이 없는 옛 db 면 전체 행으로 대체.
+        try:
+            rows = list(preload_service.iter_baseline_columns(rows, ["name", "gu", "dong", col, percentile_col]))
+        except Exception:
+            rows = getattr(preload_service, data_attr, None) or []
 
         for row in rows:
             key = get_row_key(row)
@@ -111,9 +119,7 @@ def build_apartment_index():
                 continue
 
             entry["category_scores"][pref_key] = score
-            entry["category_percentiles"][pref_key] = to_number(
-                row.get(f"{config['primary_metric']}_seoul_percentile")
-            )
+            entry["category_percentiles"][pref_key] = to_number(row.get(percentile_col))
 
     _APARTMENT_INDEX_CACHE = apartment_index
 

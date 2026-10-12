@@ -112,7 +112,7 @@ def _create_ranking_index(conn, category, cols):
     index_cols = [c for c in dict.fromkeys(index_cols) if c in cols]
     col_sql = ", ".join(f'"{c}"' for c in index_cols)
     conn.execute(f'DROP INDEX IF EXISTS "ix_{category}_rank"')
-    conn.execute(f'CREATE INDEX "ix_{category}_rank" ON "{category}" ({col_sql})')
+    conn.execute(f'CREATE INDEX "ix_{category}_rank" ON "{category}__main" ({col_sql})')
 
 
 def build_table(conn, category):
@@ -127,26 +127,49 @@ def build_table(conn, category):
         return 0
 
     cols = [c for c in fieldnames if c is not None]
-    # 보조 키 컬럼은 별도로 추가(원본 컬럼과 충돌 방지를 위해 언더스코어 접두).
-    col_defs = ", ".join(f'"{c}" TEXT' for c in cols) + ', "_ck" TEXT, "_nk" TEXT'
+    # 큰 목록 칸(*_json)은 별도 표 "{category}__json" 으로 뺀다(2026-10-12). SQLite 는 뒤쪽 칸을 읽으려면
+    # 앞 칸의 오버플로 페이지를 따라가야 해서, 점수·백분위 칸이 json 뒤에 있으면 점수 하나 읽는 스캔이
+    # 테이블 전체(합계 ~390MB)를 읽었다 — 1GB 서버 기동 2분의 대부분. 칸 순서만 바꾸면 읽는 양은
+    # 줄어도 띄엄띄엄 읽기가 돼 오히려 느렸다(서버 실측 52s→82s). 표를 나누면 본 표가 작고 연속이다.
+    # 원래 이름 "{category}" 는 두 표를 잇는 VIEW(원래 칸 순서 + rowid) — 앱 쿼리는 그대로이고,
+    # json 칸을 안 고르는 쿼리는 SQLite 가 조인을 생략한다(SCAN 본 표만).
+    heavy = [c for c in cols if c.endswith("_json")]
+    light = [c for c in cols if c not in heavy]
+    main_table, json_table = f"{category}__main", f"{category}__json"
+    quote = lambda c: f'"{c}"'  # noqa: E731
 
-    conn.execute(f'DROP TABLE IF EXISTS "{category}"')
-    conn.execute(f'CREATE TABLE "{category}" ({col_defs})')
+    for name in (category,):
+        conn.execute(f'DROP VIEW IF EXISTS "{name}"')
+        conn.execute(f'DROP TABLE IF EXISTS "{name}"')
+    conn.execute(f'DROP TABLE IF EXISTS "{main_table}"')
+    conn.execute(f'DROP TABLE IF EXISTS "{json_table}"')
+    conn.execute(f'CREATE TABLE "{main_table}" ({", ".join(quote(c) + " TEXT" for c in light + ["_ck", "_nk"])})')
+    conn.execute(f'CREATE TABLE "{json_table}" ("rid" INTEGER PRIMARY KEY{"".join(", " + quote(c) + " TEXT" for c in heavy)})')
+    view_cols = ["m.rowid AS rowid"] + [f'{"j" if c in heavy else "m"}.{quote(c)}' for c in cols] + ['m."_ck"', 'm."_nk"']
+    conn.execute(f'CREATE VIEW "{category}" AS SELECT {", ".join(view_cols)} '
+                 f'FROM "{main_table}" AS m LEFT JOIN "{json_table}" AS j ON j."rid" = m.rowid')
+    conn.execute('CREATE TABLE IF NOT EXISTS "_column_order" ("tbl" TEXT PRIMARY KEY, "cols" TEXT)')
+    conn.execute('INSERT OR REPLACE INTO "_column_order" VALUES (?, ?)', (category, KEY_SEP.join(cols)))
 
-    placeholders = ", ".join(["?"] * (len(cols) + 2))
-    insert_cols = ", ".join(f'"{c}"' for c in cols) + ', "_ck", "_nk"'
-    insert_sql = f'INSERT INTO "{category}" ({insert_cols}) VALUES ({placeholders})'
+    main_cols = light + ["_ck", "_nk"]
+    main_sql = (f'INSERT INTO "{main_table}" (rowid, {", ".join(quote(c) for c in main_cols)}) '
+                f'VALUES ({", ".join(["?"] * (len(main_cols) + 1))})')
+    json_sql = (f'INSERT INTO "{json_table}" ("rid"{"".join(", " + quote(c) for c in heavy)}) '
+                f'VALUES ({", ".join(["?"] * (len(heavy) + 1))})')
 
-    payload = []
-    for row in rows:
+    payload, json_payload = [], []
+    for rid, row in enumerate(rows, start=1):
         ck, nk = row_keys(row)
-        values = [row.get(c, "") for c in cols] + [ck, nk]
-        payload.append(values)
+        payload.append([rid] + [row.get(c, "") for c in light] + [ck, nk])
+        if heavy:
+            json_payload.append([rid] + [row.get(c, "") for c in heavy])
 
-    conn.executemany(insert_sql, payload)
-    conn.execute(f'CREATE INDEX "ix_{category}_ck" ON "{category}" ("_ck")')
-    conn.execute(f'CREATE INDEX "ix_{category}_nk" ON "{category}" ("_nk")')
-    _create_ranking_index(conn, category, cols)
+    conn.executemany(main_sql, payload)
+    if json_payload:
+        conn.executemany(json_sql, json_payload)
+    conn.execute(f'CREATE INDEX "ix_{category}_ck" ON "{main_table}" ("_ck")')
+    conn.execute(f'CREATE INDEX "ix_{category}_nk" ON "{main_table}" ("_nk")')
+    _create_ranking_index(conn, category, light)
     conn.commit()
 
     print(f"[OK] {category}: {len(payload)}행, {len(cols)}컬럼")
