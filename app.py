@@ -4827,6 +4827,22 @@ def build_culture_map_pois(culture_info):
     )
 
 
+def build_facility_map_pois(culture_info):
+    """도서관(1km)·박물관(2km) 지도 마커 — 카드 목록과 같은 반경."""
+    facilities = (culture_info or {}).get("facilities")
+    if not facilities:
+        return []
+    pois = []
+    for key, (label, icon, radius, _order, source) in FACILITY_CARDS.items():
+        items = [it for it in facilities[key].get("items") or [] if to_int(it.get("distance"), 0) <= radius]
+        pois += build_simple_map_pois(
+            {"items": items}, category=key, icon=icon, source=source,
+            label_fn=lambda item: item.get("label", ""),
+            subtype_fn=lambda item: item.get("subtype", "기타"),
+        )
+    return pois
+
+
 def build_culture_category_summary(culture_info):
     if not culture_info:
         return None
@@ -4871,6 +4887,12 @@ def build_culture_category_summary(culture_info):
     }
 
 
+FACILITY_CHIP_CLASS = {
+    "공공도서관": "library-public", "작은도서관(공립)": "library-small-public", "작은도서관(사립)": "library-small-private",
+    "국립": "museum-national", "공립": "museum-public", "사립": "museum-private", "대학": "museum-university",
+    "기타": "museum-etc",
+}
+
 FACILITY_CARDS = {
     # key: (라벨, 아이콘, 목록 반경, 칩 순서, 출처)
     "library": ("📚 도서관", "📚", 1000, ["공공도서관", "작은도서관(공립)", "작은도서관(사립)"],
@@ -4887,13 +4909,16 @@ def build_facility_category_summary(key, culture_info):
     label, icon, radius, chip_order, source = FACILITY_CARDS[key]
     data = facilities[key]
     items = data.get("items") or []
+    for it in items:
+        it["chip_class"] = FACILITY_CHIP_CLASS.get(it.get("subtype"), "museum-etc")
     dong_basis = facilities.get("basis") == "dong"
     within = [it for it in items if to_int(it.get("distance"), 0) <= radius]
     counts = {}
     for it in within:
         counts[it.get("subtype") or "기타"] = counts.get(it.get("subtype") or "기타", 0) + 1
     chips = [
-        {"name": name, "display": name, "count": counts[name], "style": f"culture-chip {key}-chip-{name}"}
+        {"name": name, "display": name, "count": counts[name],
+         "style": f"facility-chip facility-chip-{FACILITY_CHIP_CLASS.get(name, 'museum-etc')}"}
         for name in chip_order if counts.get(name)
     ]
     return {
@@ -9218,6 +9243,7 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
 
     if culture_info:
         pois = pois + build_culture_map_pois(culture_info)
+        pois = pois + build_facility_map_pois(culture_info)
 
     if fire_station_info:
         pois = pois + build_fire_station_map_pois(fire_station_info)

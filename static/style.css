@@ -5748,3 +5748,52 @@ body:not(.home-page) #resultLoadingOverlay {
 }
 
 .explore-arealinks-arrow[hidden] { display: none; }
+
+/* 도서관·박물관 유형 칩(2026-10-12). 유형명에 괄호가 있어 영문 슬러그 클래스(app.FACILITY_CHIP_CLASS) */
+.poi-library,
+.poi-museum {
+    border-color: rgba(79, 70, 229, 0.32);
+}
+
+.facility-chip-library-public {
+    background: light-dark(#eef2ff, #1b2546);
+    color: light-dark(#4338ca, #9c96e3);
+    border-color: light-dark(#c7d2fe, #2a3b7e);
+}
+
+.facility-chip-library-small-public {
+    background: light-dark(#ecfdf5, #1b4632);
+    color: light-dark(#047857, #8beed2);
+    border-color: light-dark(#a7f3d0, #2a7e57);
+}
+
+.facility-chip-library-small-private,
+.facility-chip-museum-etc {
+    background: var(--c-surface-2);
+    color: var(--c-muted);
+    border-color: var(--c-line-soft);
+}
+
+.facility-chip-museum-national {
+    background: light-dark(#fdf2f8, #461b32);
+    color: light-dark(#be185d, #ee8bb4);
+    border-color: light-dark(#fbcfe8, #7e2a5a);
+}
+
+.facility-chip-museum-public {
+    background: light-dark(#eff6ff, #1b2e46);
+    color: light-dark(#1d4ed8, #8ba5ee);
+    border-color: light-dark(#bfdbfe, #2a4f7e);
+}
+
+.facility-chip-museum-private {
+    background: light-dark(#fff7ed, #46331b);
+    color: light-dark(#c2410c, #eea88b);
+    border-color: light-dark(#fed7aa, #7e572a);
+}
+
+.facility-chip-museum-university {
+    background: light-dark(#f0fdfa, #1b463c);
+    color: light-dark(#0f766e, #8beee7);
+    border-color: light-dark(#99f6e4, #2a7e6e);
+}
