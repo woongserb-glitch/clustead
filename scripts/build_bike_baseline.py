@@ -84,11 +84,18 @@ def prepare_bike_stations():
         except Exception:
             continue
 
-        station_id = str(row.get("대여소_ID", "")).strip()
-        address1 = str(row.get("주소1", "")).strip()
-        address2 = str(row.get("주소2", "")).strip()
+        def text(column):
+            # 빈 칸은 pandas 가 NaN 으로 읽어 str() 하면 "nan" 이 된다 — 2,702개 단지 카드에
+            # "nan · ST-830" 이 최근접 대여소 이름으로 나갔다(2026-10-12).
+            value = row.get(column, "")
+            return "" if value is None or (isinstance(value, float) and math.isnan(value)) else str(value).strip()
 
-        label = address2 or address1 or station_id or "따릉이 대여소"
+        station_id = text("대여소_ID")
+        address1 = text("주소1")
+        address2 = text("주소2")
+
+        # 원본에 대여소 이름 칸이 없다: 상세주소(건물명 등) → 도로명 주소(시 이름 생략) 순.
+        label = address2 or address1.replace("서울특별시 ", "") or station_id or "따릉이 대여소"
 
         stations.append({
             "station_id": station_id,
