@@ -173,7 +173,7 @@
             <div class="complex-info-note">
                 {% if dong_level and dong_level.split_school %}
                 <div class="dong-footnote">
-                    <div class="dong-footnote-head"><sup>1</sup> 배정초(각 동 건물 위치 기준):</div>
+                    <div class="dong-footnote-head"><sup>1</sup> 배정초(각 동 건물 위치 기준) · 실제 배정은 <a href="https://schoolzone.emac.kr/" target="_blank" rel="noopener nofollow">학구도안내서비스</a>에서 주소로 확인하세요:</div>
                     {% for s in dong_level.schools %}
                     <div class="dong-footnote-item"><b>{{ s.name }}</b> {{ s.dongs }}</div>
                     {% endfor %}
