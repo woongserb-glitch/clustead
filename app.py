@@ -4936,8 +4936,9 @@ def build_facility_category_summary(key, culture_info):
         "seoul_percentile": data.get("seoul_percentile"),
         "gu_percentile": None,
         "source": source,
-        "nearest_poi": {"label": f"{icon} {data['name']}", "distance": data.get("distance")}
-        if data.get("name") and not dong_basis else None,
+        # 최근접 = 목록 첫 줄(다른 카드와 같은 규칙). 등급 기준(공공도서관 거리)은 카드 문장이 말한다.
+        "nearest_poi": {"label": f"{icon} {within[0]['label']}", "distance": within[0].get("distance")}
+        if within and not dong_basis else None,
         "subtype_chips": chips,
         "pois": items,
         "empty": "반경 안에서 확인된 시설이 없습니다.",
@@ -5385,9 +5386,6 @@ def fill_dong_nearest(category_summaries, domain_summaries):
             continue
         seen.add(id(summary))
         pois = [p for p in summary.get("pois") or [] if parse_optional_float(p.get("distance")) is not None]
-        if summary.get("key") == "library":
-            # 도서관 등급은 공공도서관 기준 — 목록의 공공도서관 중 가장 가까운 곳
-            pois = [p for p in pois if p.get("subtype") == "공공도서관"] or pois
         if not pois:
             continue
         first = min(pois, key=lambda p: parse_optional_float(p.get("distance")))
