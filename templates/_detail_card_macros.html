@@ -32,6 +32,8 @@
     <span class="source-badge">{{ summary.source }}</span>
 </div>
 
+{# 최근접은 모든 카드에 둔다(사용자 결정 2026-10-12). 동별 카드는 목록 첫 줄(가장 가까운 동 기준)과 같다
+   — app.fill_dong_nearest. 0m 는 목록처럼 '단지 안'. #}
 {% if summary.nearest_poi %}
 <div class="nearest-poi">
     최근접:
@@ -39,7 +41,7 @@
     <span class="nearest-poi-icon">{{ summary.nearest_icon }}</span>
     {% endif %}
     <strong>{{ summary.nearest_poi.label | nearest_display_label(summary.key) }}</strong>
-    · {{ summary.nearest_poi.distance|distance_m }}
+    · {% if summary.nearest_poi.distance is not none and summary.nearest_poi.distance|string in ("0", "0.0") %}단지 안{% else %}{{ summary.nearest_poi.distance|distance_m }}{% endif %}
 </div>
 {% endif %}
 

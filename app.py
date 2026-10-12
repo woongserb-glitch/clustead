@@ -816,6 +816,8 @@ NEAREST_ICON_BY_CATEGORY = {
     "shopping": "🛍️",
     "commercial": "🌃",
     "nightlife": "🍺",
+    "library": "📚",
+    "museum": "🏛️",
 }
 
 CCTV_ICON_BY_SUBTYPE = {
@@ -5371,6 +5373,34 @@ def normalize_source_label(source):
     return source
 
 
+def fill_dong_nearest(category_summaries, domain_summaries):
+    """동별 카드는 '최근접' 을 비워 두고 만든다(등급은 중간 동이라). 사용자 결정(2026-10-12)으로 모든 카드에
+    최근접을 두므로, 비어 있으면 목록에서 가장 가까운 곳(가장 가까운 동 기준 거리)으로 채운다."""
+    seen = set()
+    summaries = list(category_summaries)
+    for domain in domain_summaries:
+        summaries.extend(domain.get("categories", []))
+    for summary in summaries:
+        if id(summary) in seen or summary.get("nearest_poi") or not summary.get("dong_basis"):
+            continue
+        seen.add(id(summary))
+        pois = [p for p in summary.get("pois") or [] if parse_optional_float(p.get("distance")) is not None]
+        if summary.get("key") == "library":
+            # 도서관 등급은 공공도서관 기준 — 목록의 공공도서관 중 가장 가까운 곳
+            pois = [p for p in pois if p.get("subtype") == "공공도서관"] or pois
+        if not pois:
+            continue
+        first = min(pois, key=lambda p: parse_optional_float(p.get("distance")))
+        label = first.get("label") or first.get("name") or ""
+        if summary.get("key") == "subway":
+            label = str(label)
+        icon = NEAREST_ICON_BY_CATEGORY.get(summary.get("key"), "")
+        summary["nearest_poi"] = {
+            "label": f"{icon} {label}".strip(),
+            "distance": first.get("distance"),
+        }
+
+
 def normalize_summary_sources(category_summaries, domain_summaries):
     seen = set()
     summaries = list(category_summaries)
@@ -9355,6 +9385,7 @@ def build_result_context(apartment_name, apartment_gu, apartment_dong, src=None)
         apartment,
     )
 
+    fill_dong_nearest(category_summaries, domain_summaries)
     normalize_summary_sources(category_summaries, domain_summaries)
 
     apply_result_percentile_labels(
