@@ -15,6 +15,7 @@
 import csv
 import json
 import re
+import time
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -63,28 +64,62 @@ def norm(name):
     return re.sub(r"아파트|\s|주택|재건축|통합|\(.*?\)|[0-9]+차$", "", name or "")
 
 
-def geocode(gu, jibun, cache):
-    first = re.split(r",|일대", jibun or "")[0].strip()
-    first = re.sub(r"^[가-힣]+구(?=[가-힣]+동)", "", first)  # '양천구신정동1200' → '신정동1200'
-    key = f"{gu} {first}"
-    if key in cache:
-        return cache[key]
-    m = re.match(r"([가-힣0-9.]+?(?:동|가|로))\s*(산?\d+)(?:-(\d+))?", first)
-    query = f"서울 {gu} {m.group(1)} {m.group(2)}{'-' + m.group(3) if m and m.group(3) else ''}" if m else f"서울 {gu} {first}"
-    out = None
-    try:
-        r = requests.get("https://dapi.kakao.com/v2/local/search/address.json", headers=KAKAO,
-                         params={"query": query}, timeout=10)
+SEOUL_GU = ("종로구|중구|용산구|성동구|광진구|동대문구|중랑구|성북구|강북구|도봉구|노원구|은평구|서대문구|마포구|"
+            "양천구|강서구|구로구|금천구|영등포구|동작구|관악구|서초구|강남구|송파구|강동구")
+# 앞에 붙은 구 이름만 뗀다 — '[가-힣]+구' 로 떼면 '압구정동'의 '압구'까지 잘려 '정동 490'을 찾았다(2026-10-13)
+GU_PREFIX = re.compile(rf"^(?:{SEOUL_GU})(?=[가-힣])")
+
+
+def kakao_lot(query, key, cache):
+    """카카오 주소검색 → 법정동코드·본번·부번·좌표. 요청 제한(429)·네트워크 오류는 재시도하고,
+    그런 실패는 캐시하지 않는다(2026-10-13: 캐시를 지우고 다시 돌렸더니 429 실패가 '없음'으로 저장됐다)."""
+    for attempt in range(4):
+        try:
+            r = requests.get("https://dapi.kakao.com/v2/local/search/address.json", headers=KAKAO,
+                             params={"query": query}, timeout=10)
+        except requests.RequestException:
+            time.sleep(2); continue
+        if r.status_code == 429:
+            time.sleep(3); continue
+        if r.status_code != 200:
+            return None
+        time.sleep(0.05)
+        out = None
         for d in r.json().get("documents", []):
             a = d.get("address")
             if a and a.get("b_code", "").startswith("11"):
                 out = {"b_code": a["b_code"], "bun": a["main_address_no"], "ji": a.get("sub_address_no") or "0",
                        "lat": d.get("y"), "lng": d.get("x")}
                 break
-    except requests.RequestException:
-        pass
-    cache[key] = out
-    return out
+        cache[key] = out
+        return out
+    return None
+
+
+def geocode(gu, jibun, cache):
+    first = re.split(r",|일대|번지", jibun or "")[0].strip()
+    first = GU_PREFIX.sub("", first)  # '양천구신정동1200' → '신정동1200'
+    key = f"{gu} {first}"
+    if key in cache:
+        return cache[key]
+    # '당산동4가91'·'을지로3가227'·'중곡4동18-24' 처럼 동 이름 안에 숫자가 있다 — 가장 긴 동 이름부터
+    m = re.match(r"([가-힣]+동\d+가|[가-힣]+\d+가|[가-힣]+\d+동|[가-힣]+동|[가-힣]+가)\s*(산?\d+)(?:-(\d+))?", first)
+    query = f"서울 {gu} {m.group(1)} {m.group(2)}{'-' + m.group(3) if m.group(3) else ''}" if m else f"서울 {gu} {first}"
+    return kakao_lot(query, key, cache)
+
+
+def geocode_road(gu, road, cache):
+    """지번으로 못 찾으면(압구정 특별계획구역 등 대표 지번이 실제 필지가 아님) 도로명주소로."""
+    first = re.split(r",|일대|\(", road or "")[0].strip()
+    first = GU_PREFIX.sub("", first)
+    # 끝 번호 앞만 띄운다: '압구정로321'→'압구정로 321', '압구정로29길71'→'압구정로29길 71'
+    first = re.sub(r"(로|길)(\d+(?:-\d+)?)$", r"\1 \2", first)
+    if not first:
+        return None
+    key = f"road {gu} {first}"
+    if key in cache:
+        return cache[key]
+    return kakao_lot(f"서울 {gu} {first}", key, cache)
 
 
 def main():
@@ -96,7 +131,7 @@ def main():
     zones = []
     for r in rows:
         z = {k: fmt(r[i]) if i < len(r) else "" for k, i in COL.items()}
-        g = geocode(z["gu"], z["jibun"], cache)
+        g = geocode(z["gu"], z["jibun"], cache) or geocode_road(z["gu"], z["road"], cache)
         z.update({"b_code": g["b_code"] if g else "", "bun": g["bun"] if g else "", "ji": g["ji"] if g else "",
                   "lat": g["lat"] if g else "", "lng": g["lng"] if g else "",
                   "stage_order": STAGES.index(z["stage"]) + 1 if z["stage"] in STAGES else ""})
@@ -155,7 +190,8 @@ def main():
                             for n in names)]
             method = "name" if len(hits) == 1 else ""
             hits = hits if len(hits) == 1 else []
-        since = z["designated"] or z["committee"] or z["union"]
+        # 새 단지 판별은 착공(없으면 관리처분·사업시행) 뒤 준공 — 구역지정일은 아파트지구(1976)처럼 옛 단지보다 앞설 수 있다
+        since = z["construction_start"] or z["management_disposal"] or z["project_approval"]
         for c in hits:
             key = (c["name"], c["gu"], c["dong"])
             # 구역 지정 뒤에 준공한 단지는 그 사업의 결과물(새 단지) — 옛 단지 단계를 붙이지 않는다
@@ -166,6 +202,16 @@ def main():
             if prev and (prev["stage_order"] or 0) >= (z["stage_order"] or 0):
                 continue
             linked[key] = {**z, "name": c["name"], "complex_gu": c["gu"], "complex_dong": c["dong"], "match": method}
+
+    # 여러 단지를 묶은 구역(압구정 특별계획구역 등)은 대표 지번 단지만 자동으로 잡힌다 → 사람이 확인한 구성으로 보완
+    by_code = {z["code"]: z for z in zones}
+    overrides = ROOT / "scripts" / "manual_overrides" / "redevelopment_zone_complexes.csv"
+    if overrides.exists():
+        for o in csv.DictReader(open(overrides, encoding="utf-8-sig")):
+            z = by_code.get(o["zone_code"])
+            if z:
+                linked[(o["name"], o["gu"], o["dong"])] = {**z, "name": o["name"], "complex_gu": o["gu"],
+                                                           "complex_dong": o["dong"], "match": "manual"}
 
     zone_fields = list(COL) + ["stage_order", "b_code", "bun", "ji", "lat", "lng"]
     with open(OUT_DIR / "redevelopment_zones.csv", "w", encoding="utf-8-sig", newline="") as fh:
@@ -185,7 +231,8 @@ def main():
     recon = [z for z in zones if "재건축" in z["type"]]
     print(f"원본 {src.name} · 구역 {len(zones)}(재건축 {len(recon)}) · 좌표화 실패 {sum(1 for z in zones if not z['b_code'])} · "
           f"단지 연결 {len(linked)} (지번 {sum(1 for v in linked.values() if v['match'].startswith('lot'))} · "
-          f"도로명 {sum(1 for v in linked.values() if v['match'] == 'road')} · 이름 {sum(1 for v in linked.values() if v['match'] == 'name')})")
+          f"도로명 {sum(1 for v in linked.values() if v['match'] == 'road')} · 이름 {sum(1 for v in linked.values() if v['match'] == 'name')} · "
+          f"수동 {sum(1 for v in linked.values() if v['match'] == 'manual')})")
 
 
 if __name__ == "__main__":
