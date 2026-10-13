@@ -1734,6 +1734,21 @@ body:not(.home-page) #resultLoadingOverlay {
     font-weight: 700;
 }
 .transaction-panel-truncated[hidden] { display: none; }
+.transaction-panel-more {
+    display: block;
+    width: 100%;
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    border: 1px solid var(--c-border, #d9dee7);
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.transaction-panel-more[hidden] { display: none; }
+.transaction-panel-more:disabled { opacity: 0.6; cursor: default; }
 .transaction-panel-empty {
     display: none;
     margin: 0;

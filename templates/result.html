@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=4">
     <script src="{{ url_for('static', filename='theme.js') }}?v=2" defer></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261012a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261013a">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -534,8 +534,14 @@
                 {% endfor %}
             </div>
 
-            <div class="transaction-panel-wrap">
+            {# 첫 면적 탭만 최근 거래를 유형당 20건 그려 보낸다(2026-10-12: 큰 단지는 실거래 목록만 ~240KB).
+               나머지 탭·건수는 면적·기간을 바꾸거나 '전체 거래 보기'를 누를 때 /api/transactions 로 채운다.
+               건수 표시는 서버가 자르기 전에 센 data-period-counts 를 그대로 쓴다. #}
+            {% set tx_initial_rows = 20 %}
+            <div class="transaction-panel-wrap" data-transaction-source
+                data-apartment="{{ apartment.name }}" data-gu="{{ apartment.district }}" data-dong="{{ apartment.dong }}">
                 {% for tab in transaction_summary.area_tabs %}
+                {% set tab_first = loop.first %}
                 <div
                     class="transaction-panel-set {% if loop.first %}active{% endif %}"
                     data-transaction-panel-set="{{ tab.area_label }}"
@@ -557,15 +563,18 @@
                             <span><em data-panel-period-label>전체</em> <b data-panel-count>0</b>건</span>
                         </header>
                         <ul class="transaction-panel-list">
-                            {% for item in transaction_summary.transactions_by_area.get(tab.area_label, []) if item.filter_type == panel_type %}
+                            {% if tab_first %}
+                            {% for item in (transaction_summary.transactions_by_area.get(tab.area_label, []) | selectattr('filter_type', 'equalto', panel_type) | list)[:tx_initial_rows] %}
                             <li data-transaction-type="{{ item.filter_type }}" data-transaction-date="{{ item.date }}">
                                 <strong>{{ item.price }}</strong>
                                 <span>{{ item.date }}{% if item.floor %} · {{ item.floor }}{% endif %}</span>
                             </li>
                             {% endfor %}
+                            {% endif %}
                         </ul>
                         <p class="transaction-panel-empty">ⓘ {{ empty_label }}</p>
                         <p class="transaction-panel-truncated" data-panel-truncated hidden></p>
+                        <button type="button" class="transaction-panel-more" data-transaction-load-all hidden>전체 거래 보기</button>
                     </section>
                     {% endfor %}
                 </div>
@@ -676,6 +685,57 @@
             }
         }
 
+        // 첫 화면은 첫 면적 탭의 최근 거래만 들어 있다. 면적·기간을 바꾸거나 '전체 거래 보기'를
+        // 누르면 한 번만 전체 목록을 받아 모든 탭을 채운다(실패하면 그려진 목록 그대로).
+        let transactionsFullyLoaded = false;
+        let transactionsLoading = null;
+
+        function escapeTransactionText(value) {
+            const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+            return String(value == null ? "" : value).replace(/[&<>"']/g, (ch) => map[ch]);
+        }
+
+        function loadAllTransactions() {
+            if (transactionsFullyLoaded) return Promise.resolve();
+            if (transactionsLoading) return transactionsLoading;
+            const source = document.querySelector("[data-transaction-source]");
+            if (!source) return Promise.resolve();
+            const params = new URLSearchParams({
+                apartment: source.dataset.apartment || "",
+                gu: source.dataset.gu || "",
+                dong: source.dataset.dong || "",
+            });
+            transactionsLoading = fetch("/api/transactions?" + params.toString())
+                .then((response) => (response.ok ? response.json() : null))
+                .then((payload) => {
+                    if (!payload || !payload.by_area) return;
+                    document.querySelectorAll("[data-transaction-panel-set]").forEach((set) => {
+                        const rows = payload.by_area[set.dataset.transactionPanelSet] || [];
+                        set.querySelectorAll(".transaction-type-panel").forEach((panel) => {
+                            const list = panel.querySelector(".transaction-panel-list");
+                            if (!list) return;
+                            list.innerHTML = rows
+                                .filter((row) => row.type === panel.dataset.panelType)
+                                .map((row) => (
+                                    '<li data-transaction-type="' + escapeTransactionText(row.type)
+                                    + '" data-transaction-date="' + escapeTransactionText(row.date) + '">'
+                                    + "<strong>" + escapeTransactionText(row.price) + "</strong>"
+                                    + "<span>" + escapeTransactionText(row.date)
+                                    + (row.floor ? " · " + escapeTransactionText(row.floor) : "") + "</span></li>"
+                                ))
+                                .join("");
+                        });
+                    });
+                    transactionsFullyLoaded = true;
+                })
+                .catch(() => { /* 그려진 목록 그대로 둔다 */ })
+                .finally(() => {
+                    transactionsLoading = null;
+                    applyTransactionFilter();
+                });
+            return transactionsLoading;
+        }
+
         function applyTransactionFilter() {
             document.querySelectorAll(".transaction-type-panel").forEach((panel) => {
                 let visibleCount = 0;
@@ -692,10 +752,13 @@
                 if (countNode) countNode.textContent = shownLabel;
 
                 const truncatedNode = panel.querySelector("[data-panel-truncated]");
+                const loadAllButton = panel.querySelector("[data-transaction-load-all]");
+                const shownNumber = Number(String(shownLabel).replace(/[^0-9]/g, "")) || 0;
+                const truncated = shownNumber > visibleCount || String(shownLabel).includes("+");
+                if (loadAllButton) loadAllButton.hidden = !(truncated && !transactionsFullyLoaded);
                 if (truncatedNode) {
-                    const shownNumber = Number(String(shownLabel).replace(/[^0-9]/g, "")) || 0;
-                    const truncated = shownNumber > visibleCount || String(shownLabel).includes("+");
-                    truncatedNode.hidden = !truncated;
+                    // 전체를 받기 전에는 '전체 거래 보기' 버튼이 안내를 대신한다.
+                    truncatedNode.hidden = !(truncated && transactionsFullyLoaded);
                     if (truncated) {
                         truncatedNode.textContent =
                             "최근 " + visibleCount.toLocaleString("ko-KR") + "건만 표시합니다.";
@@ -732,6 +795,7 @@
                 });
 
                 applyTransactionFilter();
+                loadAllTransactions();
             });
         });
 
@@ -747,6 +811,17 @@
             });
         });
 
+        document.querySelectorAll("[data-transaction-load-all]").forEach((button) => {
+            button.addEventListener("click", () => {
+                button.disabled = true;
+                button.textContent = "불러오는 중…";
+                loadAllTransactions().finally(() => {
+                    button.disabled = false;
+                    button.textContent = "전체 거래 보기";
+                });
+            });
+        });
+
         document.querySelectorAll(".transaction-period-filter").forEach((button) => {
             button.addEventListener("click", () => {
                 transactionActivePeriod = button.dataset.transactionPeriod || "all";
@@ -756,6 +831,7 @@
                 });
 
                 applyTransactionFilter();
+                loadAllTransactions();
             });
         });
 

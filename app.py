@@ -7252,6 +7252,30 @@ def get_subway_line_options():
     return list(get_subway_line_station_index().keys())
 
 
+@app.route("/api/transactions")
+def api_transactions():
+    """단지 화면 거래 목록 전체(면적별·유형별, 서비스 상한 그대로). 2026-10-12: 단지 화면은 첫 면적 탭의
+    최근 거래만 그려 보내고(페이지 900KB 중 실거래 목록 ~240KB), 면적·기간을 바꾸거나 '전체 보기'를
+    누를 때 이 응답으로 채운다. 건수·요약 숫자는 페이지가 서버 집계값을 그대로 쓴다."""
+    apartment = get_apartment(request.args.get("apartment", ""), request.args.get("gu") or None,
+                              request.args.get("dong") or None)
+    if not apartment:
+        return jsonify({"by_area": {}}), 404
+    try:
+        summary = get_transaction_summary({**apartment, "district": apartment.get("gu") or apartment.get("district")})
+    except Exception as exc:
+        print(f"[TRANSACTION] api failed: {exc}")
+        return jsonify({"by_area": {}}), 500
+    by_area = {
+        area: [{"type": item.get("filter_type"), "price": item.get("price"), "date": item.get("date"),
+                "floor": item.get("floor") or ""} for item in rows]
+        for area, rows in (summary.get("transactions_by_area") or {}).items()
+    }
+    resp = jsonify({"by_area": by_area})
+    resp.headers["Cache-Control"] = "public, max-age=300"
+    return resp
+
+
 @app.route("/api/search/apartments")
 def api_search_apartments():
     query = normalize_search_text(request.args.get("q", ""))
