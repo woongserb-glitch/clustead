@@ -31,6 +31,7 @@
 | 9 | baseline 18종 | `build_all_baselines`(카카오 3종 제외) | `data/baseline/*.csv` |
 | 10 | 카카오 3종 | 편의점·슈퍼(1일차) / 카페(2일차) | cafe·convenience·mart baseline |
 | 11 | 동별 정보 | `scripts/vworld/build_dong_level.py` | `data/derived/vworld/dong_level.json` |
+| 11-1 | 건축물대장·정비사업(분기) | `fetch_building_registry.py` → 엑셀 받기 → `build_redevelopment.py` | `data/apartment/building_registry.csv`, `data/redevelopment/*.csv` |
 | 12 | 백분위·DB·검사 | `rebuild_data_full.py --skip-build` | `data/baseline.db` |
 | 13 | 홈 순위 | `build_home_rankings.py` | `data/derived/home_rankings.json` |
 | 14 | 격자 지도 | `build_grid_index` → `precompute_grid` → `snapshot_grid` | `data/grid.db` |
@@ -116,6 +117,7 @@ python scripts/fetch_public_libraries.py           # 서울시 공공도서관(�
 - **신규 단지는 v5에 없으면 자동으로 대표좌표 기준**이 된다. 그러니 매달 다시 만들 필요는 없다.
 - 신규·재건축 단지가 많이 쌓였거나(대략 20곳 이상) 대단지가 새로 들어오면 파이프라인을 다시 돌린다:
   `scripts/vworld/pipeline/README.md` 순서(SPBD → 카카오 동번호 → 통용명 → BLDGINFO → match_v5 → 유령·지점 보완 → 동번호 판정 → 원장).
+- v5 를 다시 만든 뒤에는 **`python scripts/vworld/pipeline/kakao_fill3.py`** 로 번호 빈 동을 한 번 더 채운다(2026-10-13: 카카오 표기를 1·101·201동으로만 찾던 kakao_fill 이 은마 등 191개 단지 537개 동을 번호 없이 남겼다 → 133개 동 보완). 그다음 11단계.
 
 | 주기 | 작업 |
 |---|---|
@@ -177,6 +179,30 @@ CLUSTEAD_BASELINE_ONLY=cafe python -m scripts.build_all_baselines              #
 python scripts/vworld/build_dong_level.py     # 배정초·역·한강 나들목·학교군 → data/derived/vworld/dong_level.json
 ```
 마스터·통학구역·학교군·한강 출입구가 바뀐 뒤에 돈다. 결과 페이지의 동별 주석(배정초 갈림 등)이 이걸 읽는다.
+
+## 11-1. 건축물대장·정비사업 — 분기 1회(3·6·9·12월 기준 엑셀이 올라온 뒤)
+
+**① 건축물대장 요약(용적률·건폐율·대지면적·최고층)**
+```bash
+python scripts/fetch_building_registry.py            # 이어받기(캐시 data/apartment/registry_cache.json)
+python scripts/fetch_building_registry.py --refresh  # 분기마다 전부 다시(신축·대장 정정 반영)
+```
+- 원천: 공공데이터포털 "국토교통부_건축HUB_건축물대장정보 서비스"(2026-10-13 활용신청 승인, `PUBLIC_DATA_SERVICE_KEY`).
+- 오래된 단지는 대장 대지면적·용적률이 0 → `용적률산정연면적 ÷ 지적도 필지면적(브이월드 LP_PA_CBND_BUBUN)` 으로 계산하고 `ratio_source=parcel`(은마 204.2% = 네이버 204%).
+- **일일 호출 한도**에 걸리면 받은 데까지 저장하고 멈춘다 → 다음 날 같은 명령으로 이어서.
+- 결과 확인: 표본 단지 용적률을 네이버 부동산 단지정보와 몇 곳 대조.
+
+**② 서울시 정비사업 추진현황(재건축·재개발 단계)**
+- 서울 열린데이터광장 **OA-22856 "서울특별시 도시정비사업 통계"** 첨부 엑셀이 분기마다 새 기준월로 올라온다(예: `★(26년 6월기준) 서울시 정비사업 추진현황.xlsx`). 이용 제한 없음.
+- 받는 법(파일 목록의 두 번째가 최신이 아닐 수 있으니 페이지에서 기준월 확인 후 seq 를 맞춘다):
+  ```bash
+  curl -s "https://data.seoul.go.kr/dataList/OA-22856/F/1/datasetView.do" | grep -o "downloadFile('[0-9]*');\">[^<]*"
+  curl -s -X POST "https://datafile.seoul.go.kr/bigfile/iot/inf/nio_download.do?&useCache=false"        -d "infId=OA-22856&seqNo=&seq=<번호>&infSeq=2" -o data/redevelopment/raw/seoul_redevelopment_<YYMM>.xlsx
+  ```
+- `python scripts/build_redevelopment.py` → `redevelopment_zones.csv`(구역 전체) · `complex_redevelopment.csv`(단지 연결).
+  ①의 `building_registry.csv`(단지 지번)를 쓰므로 ① 다음에 돈다. 가장 최근 기준월 파일을 자동으로 고른다.
+- 연결은 지번(법정동·본번·부번) 우선, 이름은 보조. 여러 단지를 묶은 구역(압구정 특별계획구역 등)은 대표 지번 단지만 잡힌다.
+- 정비구역 **경계**(국토부 SHP)는 공공누리 4유형(상업 이용·변경 금지)이라 쓰지 않는다.
 
 ## 12. 백분위·DB·검사
 

@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/jost/jost.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='brand.css') }}?v=4">
     <script src="{{ url_for('static', filename='theme.js') }}?v=2" defer></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261013a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20261013b">
     <script type="application/ld+json">{{ seo.json_ld | tojson | safe }}</script>
     {% include "_pwa_head.html" %}
     {% include "_analytics_head.html" %}
@@ -145,6 +145,13 @@
                 </div>
                 {% endif %}
 
+                {% if complex_info.floor_area_ratio %}
+                <div class="complex-info-item">
+                    <span>🏙 용적률</span>
+                    <strong title="{{ complex_info.floor_area_ratio_note }}">{{ complex_info.floor_area_ratio }}</strong>
+                </div>
+                {% endif %}
+
                 {% if dong_level and dong_level.station_max - dong_level.station_min >= 100 %}
                 <div class="complex-info-item complex-info-subway">
                     <strong class="subway-text">
@@ -166,6 +173,30 @@
             <div class="complex-area-summary">
                 <span>📐 전용면적 구성</span>
                 <strong>{{ complex_info.area_mix }}</strong>
+            </div>
+            {% endif %}
+
+            {# 재건축 진행 단계 — 서울시 정비사업 추진현황(분기 기준월). 사실만 보여 주고 전망은 쓰지 않는다. #}
+            {% set redev = complex_info.redevelopment %}
+            {% if redev %}
+            <div class="redev-card">
+                <div class="redev-head">
+                    <span>🏗 재건축 진행</span>
+                    <strong>{{ redev.stage }} 단계</strong>
+                    <small>{{ redev.zone }} · {{ redev.type }}</small>
+                </div>
+                <ol class="redev-steps">
+                    {% for step in redev.steps %}
+                    <li class="redev-step is-{{ step.state }}">
+                        <b>{{ step.label }}</b>
+                        <small>{{ step.date or ('·' if step.state == 'todo' else '-') }}</small>
+                    </li>
+                    {% endfor %}
+                </ol>
+                <p class="redev-note">
+                    {% if redev.relocation %}{{ redev.relocation }} · {% endif %}{% if redev.households_before %}기존 {{ redev.households_before | int | thousands }}가구{% endif %}{% if redev.units_total %} → 계획 {{ redev.units_total | int | thousands }}세대{% endif %}
+                    <span>출처: 서울시 정비사업 추진현황{% if redev.basis %}({{ redev.basis }} 기준){% endif %} · 날짜는 최초 인가일</span>
+                </p>
             </div>
             {% endif %}
 

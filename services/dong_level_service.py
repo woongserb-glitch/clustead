@@ -94,12 +94,22 @@ def get(name, gu, dong):
     schools = []
     for school, count in summary["schools"].items():
         labels = [d["dong"] for d in dongs if d["school"] == school]
-        schools.append({"name": school, "count": count, "dongs": _dong_ranges(labels)})
+        text = _dong_ranges(labels)
+        # 개수는 번호 없는 동까지 센 값이라 목록보다 많을 수 있다 → '외 N개 동'
+        extra = count - len(labels)
+        if extra > 0:
+            text = f"{text} 외 {extra}개 동" if text else f"{extra}개 동"
+        schools.append({"name": school, "count": count, "dongs": text})
     # 역마다 그 역이 가장 가까운 동들의 거리 범위(어느 역 기준 거리인지 분명하게)
+    ranges = summary.get("station_ranges") or {}
     stations = []
     for s, c in summary["nearest_stations"].items():
-        ds = [d["station_m"] for d in dongs if d["station"] == s]
-        stations.append({"name": s, "count": c, "min": min(ds), "max": max(ds)})
+        if s in ranges:
+            lo, hi = ranges[s]
+        else:
+            ds = [d["station_m"] for d in dongs if d["station"] == s] or [summary["station_min"]]
+            lo, hi = min(ds), max(ds)
+        stations.append({"name": s, "count": c, "min": lo, "max": hi})
     straddle = [d for d in dongs if d.get("straddle")]
     return {
         "n": summary["n"],

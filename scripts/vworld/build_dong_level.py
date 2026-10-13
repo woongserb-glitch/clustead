@@ -112,34 +112,45 @@ for line in open(f"{V}/complex_buildings_v5.jsonl", encoding="utf-8"):
     k = tuple(r["key"])
     if k not in master or k in rejected:
         continue
-    dongs = [b for b in r["buildings"] if b.get("label")]
-    if len(dongs) < 2:
+    # 집계(배정초 동 수·역 거리 범위)는 동 번호가 없는 건물까지 모두 센다(2026-10-13: 은마는 28개 동 중
+    # 번호 붙은 17개 동만 세어 '대현초 4동'으로 나왔고, 같은 화면 교육환경 카드는 28개 동으로 '15동'이었다).
+    # 동 번호 목록(dongs)에는 번호가 있는 동만 싣는다.
+    buildings = r["buildings"]
+    if len(buildings) < 2:
         continue
     rows_ = []
-    for b in dongs:
+    for b in buildings:
         g = shape(b["geom"]).buffer(0)
+        if g.is_empty:  # 윤곽이 깨진 기록(번호 없는 건물에서 나온다) — 위치를 알 수 없어 뺀다
+            continue
         c = g.centroid
         zs = zones_of(g)
         school = zs[0][2] if zs else ""
         straddle = [z[2] for z in zs[1:] if z[1] >= 0.05 and z[2] != school]
         d, sname = nearest_station(c.y, c.x)
         hd, hname = nearest_gate(c.y, c.x, k[1])
-        rows_.append({"dong": b["label"], "school": school, "straddle": straddle,
+        rows_.append({"dong": b.get("label") or "", "school": school, "straddle": straddle,
                       "station": sname, "station_m": round(d),
                       "hangang_gate": hname, "hangang_m": round(hd) if hd is not None else None,
                       "middle": group_of(MID, c), "high": group_of(HIGH, c)})
+    if len(rows_) < 2:
+        continue
     schools = collections.Counter(x["school"] for x in rows_ if x["school"])
     dists = [x["station_m"] for x in rows_]
     near = collections.Counter(x["station"] for x in rows_)
     out["|".join(k)] = {
-        "dongs": sorted(rows_, key=lambda x: (len(x["dong"]), x["dong"])),
+        "dongs": sorted((x for x in rows_ if x["dong"]), key=lambda x: (len(x["dong"]), x["dong"])),
         "summary": {
             "n": len(rows_),
             "schools": dict(schools.most_common()),
-            "straddle_dongs": [x["dong"] for x in rows_ if x["straddle"]],
+            "straddle_dongs": [x["dong"] for x in rows_ if x["straddle"] and x["dong"]],
+            "unlabeled": sum(1 for x in rows_ if not x["dong"]),
             "station_min": min(dists), "station_max": max(dists),
             "within_500": sum(1 for x in dists if x <= 500),
             "nearest_stations": dict(near.most_common()),
+            # 역마다 그 역이 가장 가까운 동들의 거리 범위 — 번호 없는 동까지 포함(dongs 목록엔 없다)
+            "station_ranges": {s: [min(x["station_m"] for x in rows_ if x["station"] == s),
+                                   max(x["station_m"] for x in rows_ if x["station"] == s)] for s in near},
             "hangang_min": min((x["hangang_m"] for x in rows_ if x["hangang_m"] is not None), default=None),
             "hangang_max": max((x["hangang_m"] for x in rows_ if x["hangang_m"] is not None), default=None),
             "hangang_gates": dict(collections.Counter(x["hangang_gate"] for x in rows_ if x["hangang_gate"]).most_common()),

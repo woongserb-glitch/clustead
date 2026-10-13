@@ -64,6 +64,8 @@ REQUIRED_FILES = [
     ("data/transactions/apartment_transaction_mapping.csv", "단지↔실거래 매핑(load_batch_mapping)"),
     ("data/grid.db", "격자 지도"),
     ("data/derived/vworld/dong_level.json", "단지 페이지의 동별 정보(배정초·역 거리·학교군). 없으면 옛 안내 문구로 대체"),
+    ("data/apartment/building_registry.csv", "단지 기본정보의 용적률·건폐율(redevelopment_service, 분기 갱신)"),
+    ("data/redevelopment/complex_redevelopment.csv", "단지 페이지 재건축 진행 단계(redevelopment_service, 분기 갱신)"),
 ]
 
 REQUIRED_DIRS = [

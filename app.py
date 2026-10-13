@@ -2254,6 +2254,19 @@ def build_complex_info(apartment, school_zone, category_summaries):
 
     info["area_mix"] = build_area_mix_text(apartment)
 
+    # 건축물대장 용적률·건폐율, 재건축 진행 단계(2026-10-13, services/redevelopment_service — 분기 갱신)
+    from services import redevelopment_service
+    name, gu, dong = apartment.get("name"), apartment.get("district") or apartment.get("gu"), apartment.get("dong")
+    far = redevelopment_service.floor_area(name, gu, dong)
+    if far:
+        text = f"{far['vl_rat']:.0f}%"
+        if far.get("bc_rat"):
+            text += f" · 건폐율 {far['bc_rat']:.0f}%"
+        info["floor_area_ratio"] = text
+        info["floor_area_ratio_note"] = (
+            "건축물대장 용적률산정연면적 ÷ 지적도 필지면적으로 계산" if far["source"] == "parcel" else "건축물대장 기준")
+    info["redevelopment"] = redevelopment_service.redevelopment(name, gu, dong)
+
     return info
 
 
@@ -9722,6 +9735,8 @@ def build_result_workbook(context):
         ("사용승인", complex_info.get("approval_year", "")),
         ("시공사", complex_info.get("builder", "")),
         ("주차", complex_info.get("parking", "")),
+        ("용적률", complex_info.get("floor_area_ratio", "")),
+        ("재건축 단계", (complex_info.get("redevelopment") or {}).get("stage", "")),
         ("최근접 지하철", complex_info.get("nearest_subway", "")),
         ("대표 배정초", complex_info.get("school", "")),
         ("면적 구성", complex_info.get("area_mix", "")),
