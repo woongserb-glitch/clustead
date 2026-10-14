@@ -18,7 +18,9 @@ OUTPUT_PATH = BASE_DIR / "data" / "baseline" / "subway_baseline.csv"
 
 MAX_ITEMS = 20
 ITEM_RADIUS_M = 3000
-STATION_CLUSTER_RADIUS_M = 350
+# 같은 이름 역을 한 역으로 묶는 거리. 350m 였을 때 잠실역 2호선·8호선 승강장(약 400m)이 두 역으로 갈려
+# 카드에 '2호선'만 나왔다(2026-10-14). 신촌(2호선)·신촌(경의중앙선)처럼 이름만 같은 다른 역은 1km 넘게 떨어져 있다.
+STATION_CLUSTER_RADIUS_M = 600
 
 
 def clean(value):
@@ -184,6 +186,9 @@ def prepare_station_entities():
         label = f"{cluster['name']}역 · {line_label}"
 
         entities.append({
+            # 노선별 승강장 좌표 — 거리는 이 중 가장 가까운 점까지 잰다(평균 지점이 아니라).
+            # 환승역을 평균 한 점으로 재면 실제보다 멀게 나왔다(대표 좌표 기준 약 500개 단지, 최대 213m).
+            "points": [(r["lat"], r["lng"]) for r in cluster["rows"]],
             "station_ids": station_ids,
             "name": cluster["name"],
             "label": label,
@@ -207,12 +212,11 @@ def nearby_items(apartment, stations, radius):
         return items
 
     for station in stations:
-        distance = round(get_distance_m(
-            apt_lat,
-            apt_lng,
-            station["lat"],
-            station["lng"],
-        ))
+        points = station.get("points") or [(station["lat"], station["lng"])]
+        distance, (p_lat, p_lng) = min(
+            (get_distance_m(apt_lat, apt_lng, lat, lng), (lat, lng)) for lat, lng in points
+        )
+        distance = round(distance)
 
         if distance > radius:
             continue
@@ -221,8 +225,8 @@ def nearby_items(apartment, stations, radius):
             "label": station["label"],
             "name": station["name"],
             "distance": distance,
-            "lat": round(station["lat"], 7),
-            "lng": round(station["lng"], 7),
+            "lat": round(p_lat, 7),
+            "lng": round(p_lng, 7),
             "lines": station["lines"],
             "line_label": station["line_label"],
             "subtype": station["lines"][0] if station["lines"] else "지하철",

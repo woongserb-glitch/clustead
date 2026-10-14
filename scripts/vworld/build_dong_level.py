@@ -33,26 +33,15 @@ def layer(name):
 
 MID, HIGH = layer("LT_C_DMSCH"), layer("LT_C_DHSCH")
 
-# 역: 같은 이름은 하나로(환승역) — 노선 목록을 모은다
-st = collections.defaultdict(lambda: {"lat": [], "lng": [], "lines": set()})
-for enc in ("cp949", "utf-8-sig"):
-    try:
-        rows = list(csv.DictReader(open(f"{R}/data/subway/subway_station_master.csv", encoding=enc)))
-        break
-    except UnicodeDecodeError:
-        continue
-for r in rows:
-    vals = list(r.values())
-    name, line, lat, lng = vals[1], vals[2], vals[3], vals[4]
-    try:
-        lat, lng = float(lat), float(lng)
-    except ValueError:
-        continue
-    if not (37.4 < lat < 37.72 and 126.7 < lng < 127.25):
-        continue
-    key = re.sub(r"\(.*?\)|역$", "", name).strip()
-    st[key]["lat"].append(lat); st[key]["lng"].append(lng); st[key]["lines"].add(line)
-STATIONS = [(k, sum(v["lat"]) / len(v["lat"]), sum(v["lng"]) / len(v["lng"])) for k, v in st.items()]
+# 역: 지하철 카드(scripts/build_subway_baseline)와 같은 역 묶음·같은 거리 계산을 쓴다(2026-10-14).
+# 예전엔 이름이 같으면 모든 노선 좌표를 평균 내 잠실은 2·8호선 사이 한 점(잠실주공5단지 343m vs 카드 155m),
+# 신촌은 2호선·경의중앙선의 다른 두 역 사이 한 점이 됐다. 거리는 가장 가까운 노선 승강장까지.
+sys.path.insert(0, R)
+from scripts.build_subway_baseline import prepare_station_entities, station_key  # noqa: E402
+_ents, _ = prepare_station_entities()
+_dup = collections.Counter(station_key(e["name"]) for e in _ents)
+STATIONS = [((station_key(e["name"]) if _dup[station_key(e["name"])] == 1 else f"{station_key(e['name'])}({e['line_label']})"),
+             e["points"]) for e in _ents]
 
 
 def hav(a, b, c, d):
@@ -62,7 +51,7 @@ def hav(a, b, c, d):
 
 
 def nearest_station(lat, lng):
-    return min(((hav(lat, lng, s[1], s[2]), s[0]) for s in STATIONS))
+    return min((min(hav(lat, lng, p[0], p[1]) for p in pts), name) for name, pts in STATIONS)
 
 
 to_m = Transformer.from_crs("EPSG:4326", "EPSG:5186", always_xy=True).transform
